@@ -1,0 +1,21 @@
+{
+  "user_id": "u_female_demo",
+  "date": "2025-09-10",
+  "previous_state_probs": {"Peak":0.1, "Well-adapted":0.5, "FOR":0.3, "Acute Fatigue":0.1, "NFOR":0.0, "OTS":0.0},
+  "training_load": "中",
+  "journal": {
+    "alcohol_consumed": false,
+    "late_caffeine": false,
+    "screen_before_bed": false,
+    "late_meal": false,
+    "is_sick": false,
+    "is_injured": false
+  },
+  "objective": {
+    "sleep_performance_state": "medium",
+    "restorative_sleep": "medium",
+    "hrv_trend": "stable"
+  },
+  "hooper": {"fatigue": 3, "soreness": 3, "stress": 2, "sleep": 3},
+  "cycle": {"day": 14, "length": 28}
+}
