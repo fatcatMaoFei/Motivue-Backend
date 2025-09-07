@@ -59,9 +59,37 @@ def choose_training_sequence(keys: List[str], days: int, rng: random.Random) -> 
     """
     # Rank keys by heaviness from CPT
     ranked = sorted(keys, key=lambda k: heaviness_score(TRAINING_LOAD_CPT[k]), reverse=True)
-    heavy = ranked[0]
-    mid = ranked[min(1, len(ranked) - 1)] if len(ranked) > 1 else ranked[0]
-    light = ranked[-1]
+    def nearest(label: str) -> str:
+        # Prefer exact label; else heuristic by substring; else by heaviness rank
+        if label in keys:
+            return label
+        if label == '极高':
+            for k in keys:
+                if '极高' in k:
+                    return k
+            return ranked[0]
+        if label == '高':
+            cand = [k for k in keys if ('高' in k and '极' not in k)]
+            if cand:
+                # pick the heaviest non-极 variant
+                cand = sorted(cand, key=lambda k: heaviness_score(TRAINING_LOAD_CPT[k]), reverse=True)
+                return cand[0]
+            return ranked[min(1, len(ranked) - 1)] if len(ranked) > 1 else ranked[0]
+        if label == '中':
+            for k in keys:
+                if '中' in k:
+                    return k
+            return ranked[len(ranked)//2]
+        if label == '低':
+            for k in keys:
+                if '低' in k:
+                    return k
+            return ranked[-1]
+        return ranked[-1]
+
+    heavy = nearest('极高')
+    mid = nearest('中')
+    light = nearest('低')
 
     seq: List[str] = []
     # Simple mesocycle: 3-on-1-off style with occasional tweaks
@@ -105,50 +133,95 @@ class DayContext:
     diagnosis: Optional[str] = None
 
 
-def generate_day_contexts(
-    start_date: str,
-    days: int,
-    rng: random.Random,
-) -> List[DayContext]:
+def generate_training_plan(start_date: str, days: int, rng: random.Random) -> Tuple[List[str], List[str], List[str]]:
     keys = list(TRAINING_LOAD_CPT.keys())
     if not keys:
         raise RuntimeError("TRAINING_LOAD_CPT is empty; cannot simulate.")
-
-    training_seq = choose_training_sequence(keys, days, rng)
-
-    contexts: List[DayContext] = []
-    start = dt(start_date)
-
-    # Pre-compute heaviness rank for conditional Hooper generation
+    seq = choose_training_sequence(keys, days, rng)
+    # Heaviness partition for later rules
     ranked = sorted(keys, key=lambda k: heaviness_score(TRAINING_LOAD_CPT[k]), reverse=True)
-    heavy_keys = set(ranked[: max(1, len(ranked) // 3)])  # top ~1/3 as heavy
+    heavy_keys = ranked[: max(1, len(ranked) // 3)]
+    return seq, heavy_keys, ranked
 
+
+def run_simulation(
+    user_id: str,
+    start_date: str,
+    days: int,
+    out_prefix: Path,
+    rng_seed: int = 42,
+) -> Tuple[List[DayContext], List[Dict[str, Any]]]:
+    rng = random.Random(rng_seed)
+    plan, heavy_keys, ranked = generate_training_plan(start_date=start_date, days=days, rng=rng)
+
+    results: List[Dict[str, Any]] = []
+    ctxs: List[DayContext] = []
+    prev_probs: Optional[Dict[str, float]] = None
+    recent_loads: List[str] = []
+
+    # Recovery inertia (prevents unrealistic overnight jumps)
+    fatigue_debt: float = 0.0
+
+    start = dt(start_date)
     for i in range(days):
-        d = ds(start + timedelta(days=i))
-        tl_today = training_seq[i]
+        date_i = ds(start + timedelta(days=i))
 
-        # Yesterday context to affect today's Hooper
-        tl_yday = training_seq[i - 1] if i > 0 else None
-        yday_heavy = tl_yday in heavy_keys if tl_yday is not None else False
+        # Planned load with safety rules
+        planned_load = plan[i]
 
-        # Baseline Hooper near low values; increase if yesterday heavy or alcohol
-        base_fatigue = rng.randint(1, 3)
-        base_soreness = rng.randint(1, 3)
-        base_stress = rng.randint(1, 3)
-        base_sleep = rng.randint(1, 3)
+        def nearest(label: str) -> str:
+            if label in TRAINING_LOAD_CPT:
+                return label
+            if label == '极高':
+                for k in TRAINING_LOAD_CPT:
+                    if '极高' in k:
+                        return k
+                return ranked[0]
+            if label == '高':
+                cand = [k for k in TRAINING_LOAD_CPT if ('高' in k and '极' not in k)]
+                if cand:
+                    cand = sorted(cand, key=lambda k: heaviness_score(TRAINING_LOAD_CPT[k]), reverse=True)
+                    return cand[0]
+                return ranked[min(1, len(ranked) - 1)] if len(ranked) > 1 else ranked[0]
+            if label == '中':
+                for k in TRAINING_LOAD_CPT:
+                    if '中' in k:
+                        return k
+                return ranked[len(ranked)//2]
+            if label == '低':
+                for k in TRAINING_LOAD_CPT:
+                    if '低' in k:
+                        return k
+                return ranked[-1]
+            return ranked[-1]
+        prev_dx = results[-1]['final_diagnosis'] if results else None
+        prev_score = results[-1]['final_readiness_score'] if results else None
+        # Rule 1: No heavy if yesterday NFOR/OTS; low score enforces easier day
+        if prev_dx in ('NFOR', 'OTS') or (isinstance(prev_score, (int, float)) and prev_score < 60):
+            today_load = nearest('低')
+        # Rule 2: After 极高 yesterday, cap to <= 中
+        elif recent_loads and recent_loads[-1] in ('极高', nearest('极高')):
+            today_load = nearest('中')
+        else:
+            today_load = planned_load
 
-        # Journals for yesterday that influence today prior (short-term)
-        # Frequency heuristics: alcohol ~1-2 / week; late caffeine ~1 / week; screens ~2 / week; late meal ~1 / week
+        # Short-term journals (yesterday behaviors → today prior)
         alcohol = rng.random() < 0.18
         late_caffeine = rng.random() < 0.12
         screen_before_bed = rng.random() < 0.28
         late_meal = rng.random() < 0.14
 
-        # Persistent items rare
+        # Persistent (rare)
         is_sick = rng.random() < 0.03
         is_injured = rng.random() < 0.02
 
-        # Effects carry into today's Hooper
+        # Hooper generation with inertia and yesterday effect
+        base_fatigue = rng.randint(1, 3)
+        base_soreness = rng.randint(1, 3)
+        base_stress = rng.randint(1, 3)
+        base_sleep = rng.randint(1, 3)
+
+        yday_heavy = recent_loads and recent_loads[-1] in heavy_keys
         if yday_heavy:
             base_fatigue += 2
             base_soreness += 2
@@ -163,75 +236,87 @@ def generate_day_contexts(
             base_fatigue += 1
             base_stress += 1
 
-        ctx = DayContext(
-            date=d,
-            training_load=tl_today,
-            hooper_fatigue=clamp(base_fatigue),
-            hooper_soreness=clamp(base_soreness),
-            hooper_stress=clamp(base_stress),
-            hooper_sleep=clamp(base_sleep),
+        # Inertia: carry-over fatigue debt; stronger floor after NFOR/OTS
+        debt_boost = int(round(fatigue_debt))
+        min_floor = 0
+        if prev_dx in ('NFOR', 'OTS'):
+            min_floor = 4
+        elif prev_dx in ('Acute Fatigue', 'FOR'):
+            min_floor = 3
+
+        def bump(x: int) -> int:
+            return max(x + debt_boost, min_floor)
+
+        hf = clamp(bump(base_fatigue))
+        hs = clamp(bump(base_soreness))
+        ht = clamp(bump(base_stress))
+        hl = clamp(bump(base_sleep))
+
+        payload: Dict[str, Any] = {
+            'user_id': user_id,
+            'date': date_i,
+            'gender': '男',
+            'previous_state_probs': prev_probs,
+            'training_load': today_load,
+            'recent_training_loads': list(recent_loads[-8:]),
+            'journal': {
+                'alcohol_consumed': alcohol,
+                'late_caffeine': late_caffeine,
+                'screen_before_bed': screen_before_bed,
+                'late_meal': late_meal,
+                'is_sick': is_sick,
+                'is_injured': is_injured,
+            },
+            'hooper': {
+                'fatigue': hf,
+                'soreness': hs,
+                'stress': ht,
+                'sleep': hl,
+            },
+        }
+
+        res = compute_readiness_from_payload(payload)
+        score = float(res.get('final_readiness_score'))
+        dx = str(res.get('final_diagnosis'))
+        results.append(res)
+
+        ctxs.append(DayContext(
+            date=date_i,
+            training_load=today_load,
+            hooper_fatigue=hf,
+            hooper_soreness=hs,
+            hooper_stress=ht,
+            hooper_sleep=hl,
             alcohol=alcohol,
             late_caffeine=late_caffeine,
             screen_before_bed=screen_before_bed,
             late_meal=late_meal,
             is_sick=is_sick,
             is_injured=is_injured,
-        )
-        contexts.append(ctx)
+            readiness_score=score,
+            diagnosis=dx,
+        ))
 
-    return contexts
-
-
-def run_simulation(
-    user_id: str,
-    start_date: str,
-    days: int,
-    out_prefix: Path,
-    rng_seed: int = 42,
-) -> Tuple[List[DayContext], List[Dict[str, Any]]]:
-    rng = random.Random(rng_seed)
-    ctxs = generate_day_contexts(start_date=start_date, days=days, rng=rng)
-
-    results: List[Dict[str, Any]] = []
-    prev_probs: Optional[Dict[str, float]] = None
-
-    # Track recent training loads for streak effect
-    recent_loads: List[str] = []
-
-    for i, ctx in enumerate(ctxs):
-        payload: Dict[str, Any] = {
-            'user_id': user_id,
-            'date': ctx.date,
-            'gender': '男',
-            'previous_state_probs': prev_probs,
-            'training_load': ctx.training_load,
-            'recent_training_loads': list(recent_loads[-8:]),
-            'journal': {
-                # Short-term (apply to yesterday prior inside service)
-                'alcohol_consumed': ctx.alcohol,
-                'late_caffeine': ctx.late_caffeine,
-                'screen_before_bed': ctx.screen_before_bed,
-                'late_meal': ctx.late_meal,
-                # Persistent (apply to today posterior)
-                'is_sick': ctx.is_sick,
-                'is_injured': ctx.is_injured,
-            },
-            'hooper': {
-                'fatigue': ctx.hooper_fatigue,
-                'soreness': ctx.hooper_soreness,
-                'stress': ctx.hooper_stress,
-                'sleep': ctx.hooper_sleep,
-            },
-        }
-
-        res = compute_readiness_from_payload(payload)
-        ctx.readiness_score = float(res.get('final_readiness_score'))
-        ctx.diagnosis = str(res.get('final_diagnosis'))
-        results.append(res)
-
-        # Prepare chaining for next day
+        # Chaining for next day
         prev_probs = res.get('next_previous_state_probs')
-        recent_loads.append(ctx.training_load)
+        recent_loads.append(today_load)
+
+        # Update fatigue debt
+        if today_load in heavy_keys:
+            fatigue_debt += 1.2
+        if dx == 'FOR':
+            fatigue_debt += 0.5
+        elif dx == 'Acute Fatigue':
+            fatigue_debt += 1.0
+        elif dx == 'NFOR':
+            fatigue_debt += 1.8
+        elif dx == 'OTS':
+            fatigue_debt += 2.5
+        # Recovery when easy day
+        if today_load in ('低',):
+            fatigue_debt = max(0.0, fatigue_debt - 0.6)
+        elif today_load in ('中',):
+            fatigue_debt = max(0.0, fatigue_debt - 0.3)
 
     # Write outputs
     out_prefix.parent.mkdir(parents=True, exist_ok=True)
@@ -310,4 +395,3 @@ def main(argv: Optional[List[str]] = None) -> int:
 
 if __name__ == '__main__':
     raise SystemExit(main())
-
