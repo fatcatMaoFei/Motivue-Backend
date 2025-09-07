@@ -10,15 +10,35 @@ from readiness.constants import EMISSION_CPT
 STATES = ['Peak', 'Well-adapted', 'FOR', 'Acute Fatigue', 'NFOR', 'OTS']
 
 
-def _bernstein_w(t: float) -> Dict[str, float]:
-    """Quadratic Bernstein (Bezier) weights for low/medium/high anchors.
-    - t in [0,1], 0=best(closer to low anchor), 1=worst(closer to high anchor).
+def _piecewise_weights(score: int) -> Dict[str, float]:
+    """Piecewise-linear weights over 1..7 with within-band separation.
+
+    Design (monotone, more distinct bins, but 1/2, 3/4/5, 6/7 still differ):
+    - 1..2: near-low, but 2 slightly worse than 1
+    - 3..5: medium band with fixed medium mass and linear low→high trade
+    - 6..7: high band with medium mass shrinking, 7 worse than 6
     """
-    t = max(0.0, min(1.0, float(t)))
-    w_low = (1.0 - t) ** 2
-    w_med = 2.0 * t * (1.0 - t)
-    w_high = t ** 2
-    return {'low': w_low, 'medium': w_med, 'high': w_high}
+    s = max(1, min(7, int(score)))
+    if s == 1:
+        w = {'low': 1.0, 'medium': 0.0, 'high': 0.0}
+    elif s == 2:
+        w = {'low': 0.80, 'medium': 0.20, 'high': 0.0}
+    elif s == 3:
+        w = {'low': 0.20, 'medium': 0.80, 'high': 0.0}
+    elif s == 4:
+        w = {'low': 0.10, 'medium': 0.80, 'high': 0.10}
+    elif s == 5:
+        w = {'low': 0.0, 'medium': 0.80, 'high': 0.20}
+    elif s == 6:
+        w = {'low': 0.0, 'medium': 0.30, 'high': 0.70}
+    else:  # s == 7
+        w = {'low': 0.0, 'medium': 0.10, 'high': 0.90}
+
+    # Normalize defensively
+    total = sum(w.values())
+    if total <= 0:
+        return {'low': 1.0, 'medium': 0.0, 'high': 0.0}
+    return {k: v / total for k, v in w.items()}
 
 
 def _anchors_for_var(var: str) -> Dict[str, Dict[str, float]]:
@@ -41,14 +61,12 @@ def _anchors_for_var(var: str) -> Dict[str, Dict[str, float]]:
 
 
 def hooper_to_state_likelihood(var: str, score: int) -> Dict[str, float]:
-    """Map Hooper score 1..7 to a continuous state-likelihood vector via Bezier blending.
+    """Map Hooper 1..7 to state-likelihood via piecewise-linear anchor blending.
 
     Assumptions: higher score = worse (for all Hooper components).
-    var is one of: 'subjective_fatigue', 'muscle_soreness', 'subjective_stress', 'subjective_sleep'.
+    var ∈ {'subjective_fatigue','muscle_soreness','subjective_stress','subjective_sleep'}.
     """
-    s = max(1, min(7, int(score)))
-    t = (s - 1) / 6.0  # 1->0, 7->1 (higher=worse)
-    w = _bernstein_w(t)
+    w = _piecewise_weights(int(score))
     anchors = _anchors_for_var(var)
 
     # Weighted blend across anchors for each state
@@ -66,4 +84,3 @@ def hooper_to_state_likelihood(var: str, score: int) -> Dict[str, float]:
     if total > 0:
         like = {st: v / total for st, v in like.items()}
     return like
-
