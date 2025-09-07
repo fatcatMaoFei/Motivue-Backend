@@ -49,18 +49,28 @@ def compute_readiness_from_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
     # - Short-term items (alcohol/late_caffeine/screen_before_bed/late_meal) → act on TODAY prior; write into YESTERDAY store
     # - Persistent items (is_sick/is_injured/high_stress_event_today/meditation_done_today) → act on TODAY posterior; write into TODAY store
     journal = payload.get('journal') or {}
-    short_term_keys = ['alcohol_consumed', 'late_caffeine', 'screen_before_bed', 'late_meal']
-    persistent_keys = ['is_sick', 'is_injured', 'high_stress_event_today', 'meditation_done_today']
+    # Journal classification (computation defaults):
+    # - Persistent (carry into today's posterior until explicitly turned off): only is_sick, is_injured
+    # - Short-term (affect today's prior, then auto-clear tomorrow): alcohol/late_caffeine/screen/late_meal
+    #   plus other app-defined keys (e.g., high_stress_event_today, meditation_done_today) if present; they are
+    #   stored but, unless whitelisted by engine CPTs, do not affect computation and will be auto-cleared.
+    short_term_keys = [
+        'alcohol_consumed', 'late_caffeine', 'screen_before_bed', 'late_meal',
+        'high_stress_event_today', 'meditation_done_today'
+    ]
+    persistent_keys = ['is_sick', 'is_injured']
 
     short_term_from_unified = {k: v for k, v in journal.items() if k in short_term_keys and v is not None}
     persistent_from_unified = {k: v for k, v in journal.items() if k in persistent_keys and v is not None}
+    # Any other custom keys default to short-term: saved for record + auto-cleared next day; no computation impact unless later whitelisted
+    custom_other = {k: v for k, v in journal.items() if v is not None and k not in short_term_keys and k not in persistent_keys}
 
     # Backward compatibility: also accept journal_yesterday / journal_today if provided
     journal_yesterday = payload.get('journal_yesterday') or {}
     journal_today = payload.get('journal_today') or {}
 
     # Merge unified into specific
-    short_term_all = {**short_term_from_unified, **journal_yesterday}
+    short_term_all = {**short_term_from_unified, **custom_other, **journal_yesterday}
     persistent_all = {**persistent_from_unified, **journal_today}
 
     if short_term_all:
