@@ -10,35 +10,25 @@ from readiness.constants import EMISSION_CPT
 STATES = ['Peak', 'Well-adapted', 'FOR', 'Acute Fatigue', 'NFOR', 'OTS']
 
 
-def _piecewise_weights(score: int) -> Dict[str, float]:
-    """Piecewise-linear weights over 1..7 with within-band separation.
+def _band_and_alpha(score: int) -> (str, float):
+    """Map score to a single anchor band and an exponent alpha to adjust strength.
 
-    Design (monotone, more distinct bins, but 1/2, 3/4/5, 6/7 still differ):
-    - 1..2: near-low, but 2 slightly worse than 1
-    - 3..5: medium band with fixed medium mass and linear low→high trade
-    - 6..7: high band with medium mass shrinking, 7 worse than 6
+    Policy per request:
+    - 1..2 → 'low' anchor only; 1 slightly better than baseline-low, 2 slightly worse
+    - 3..5 → 'medium' anchor only; 3 < 4 < 5 (强度逐步增加)
+    - 6..7 → 'high' anchor only; 6 < 7（7 最差）
     """
     s = max(1, min(7, int(score)))
-    if s == 1:
-        w = {'low': 1.0, 'medium': 0.0, 'high': 0.0}
-    elif s == 2:
-        w = {'low': 0.80, 'medium': 0.20, 'high': 0.0}
-    elif s == 3:
-        w = {'low': 0.20, 'medium': 0.80, 'high': 0.0}
-    elif s == 4:
-        w = {'low': 0.10, 'medium': 0.80, 'high': 0.10}
-    elif s == 5:
-        w = {'low': 0.0, 'medium': 0.80, 'high': 0.20}
-    elif s == 6:
-        w = {'low': 0.0, 'medium': 0.30, 'high': 0.70}
-    else:  # s == 7
-        w = {'low': 0.0, 'medium': 0.10, 'high': 0.90}
-
-    # Normalize defensively
-    total = sum(w.values())
-    if total <= 0:
-        return {'low': 1.0, 'medium': 0.0, 'high': 0.0}
-    return {k: v / total for k, v in w.items()}
+    if s <= 2:
+        band = 'low'
+        alpha = 1.20 if s == 1 else 0.95
+    elif s <= 5:
+        band = 'medium'
+        alpha = {3: 0.95, 4: 1.00, 5: 1.08}[s]
+    else:
+        band = 'high'
+        alpha = 1.06 if s == 6 else 1.20
+    return band, alpha
 
 
 def _anchors_for_var(var: str) -> Dict[str, Dict[str, float]]:
@@ -61,23 +51,24 @@ def _anchors_for_var(var: str) -> Dict[str, Dict[str, float]]:
 
 
 def hooper_to_state_likelihood(var: str, score: int) -> Dict[str, float]:
-    """Map Hooper 1..7 to state-likelihood via piecewise-linear anchor blending.
+    """Map Hooper 1..7 to state-likelihood via single-band + exponent shaping.
 
-    Assumptions: higher score = worse (for all Hooper components).
-    var ∈ {'subjective_fatigue','muscle_soreness','subjective_stress','subjective_sleep'}.
+    不跨档混合：
+    - 1..2 仅用 low 锚点；1 比 baseline-low 稍“更好”，2 稍“更弱”
+    - 3..5 仅用 medium 锚点；3/4/5 依次增强
+    - 6..7 仅用 high 锚点；7 最强（最差）
+    通过对锚点分布按 alpha 做幂次缩放体现“证据力度”。
     """
-    w = _piecewise_weights(int(score))
+    band, alpha = _band_and_alpha(int(score))
     anchors = _anchors_for_var(var)
+    base = anchors['low'] if band == 'low' else anchors['medium'] if band == 'medium' else anchors['high']
 
-    # Weighted blend across anchors for each state
+    # Power-shape the anchor to modulate evidence strength within the band
     like: Dict[str, float] = {}
     for st in STATES:
-        v = (
-            w['low'] * float(anchors['low'].get(st, 0.0)) +
-            w['medium'] * float(anchors['medium'].get(st, 0.0)) +
-            w['high'] * float(anchors['high'].get(st, 0.0))
-        )
-        like[st] = max(v, 1e-6)
+        v = float(base.get(st, 1e-6))
+        v = max(v, 1e-9) ** float(alpha)
+        like[st] = v
 
     # Normalize
     total = sum(like.values())
