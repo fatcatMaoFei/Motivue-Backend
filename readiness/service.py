@@ -64,6 +64,15 @@ def compute_readiness_from_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
     persistent_from_unified = {k: v for k, v in journal.items() if k in persistent_keys and v is not None}
     # Any other custom keys default to short-term: saved for record + auto-cleared next day; no computation impact unless later whitelisted
     custom_other = {k: v for k, v in journal.items() if v is not None and k not in short_term_keys and k not in persistent_keys}
+    # Allow client to mark additional keys as persistent (storage-only, no computation by default)
+    persistent_overrides = set(payload.get('journal_persistent_overrides') or [])
+    override_candidates = {k: v for k, v in journal.items() if k in persistent_overrides and v is not None}
+    for k in list(short_term_from_unified.keys()):
+        if k in override_candidates:
+            short_term_from_unified.pop(k, None)
+    for k in list(custom_other.keys()):
+        if k in override_candidates:
+            custom_other.pop(k, None)
 
     # Backward compatibility: also accept journal_yesterday / journal_today if provided
     journal_yesterday = payload.get('journal_yesterday') or {}
@@ -71,7 +80,7 @@ def compute_readiness_from_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
 
     # Merge unified into specific
     short_term_all = {**short_term_from_unified, **custom_other, **journal_yesterday}
-    persistent_all = {**persistent_from_unified, **journal_today}
+    persistent_all = {**persistent_from_unified, **override_candidates, **journal_today}
 
     if short_term_all:
         from datetime import datetime, timedelta
