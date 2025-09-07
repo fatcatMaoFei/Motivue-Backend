@@ -21,13 +21,16 @@ def _band_and_alpha(score: int) -> (str, float):
     s = max(1, min(7, int(score)))
     if s <= 2:
         band = 'low'
-        alpha = 1.20 if s == 1 else 0.95
+        # 1 更“好”，2 略“弱”，但都保持在 low 档
+        alpha = 1.40 if s == 1 else 0.80
     elif s <= 5:
         band = 'medium'
-        alpha = {3: 0.95, 4: 1.00, 5: 1.08}[s]
+        # 3/4/5 在整数层面拉开：3 最轻、5 最重（进一步加大 3↔4↔5 的步幅）
+        alpha = {3: 0.40, 4: 1.00, 5: 2.20}[s]
     else:
         band = 'high'
-        alpha = 1.06 if s == 6 else 1.20
+        # 6/7 同为 high 档，但 7 更强
+        alpha = 1.20 if s == 6 else 1.50
     return band, alpha
 
 
@@ -59,7 +62,14 @@ def hooper_to_state_likelihood(var: str, score: int) -> Dict[str, float]:
     - 6..7 仅用 high 锚点；7 最强（最差）
     通过对锚点分布按 alpha 做幂次缩放体现“证据力度”。
     """
-    band, alpha = _band_and_alpha(int(score))
+    s = int(score)
+    band, alpha = _band_and_alpha(s)
+    # 细调：对 subjective_fatigue 的 3/5 再拉开一点（不影响其它变量）
+    if band == 'medium' and var == 'subjective_fatigue':
+        if s == 3:
+            alpha *= 0.95
+        elif s == 5:
+            alpha *= 1.70
     anchors = _anchors_for_var(var)
     base = anchors['low'] if band == 'low' else anchors['medium'] if band == 'medium' else anchors['high']
 
