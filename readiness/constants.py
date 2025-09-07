@@ -152,6 +152,17 @@ TRAINING_LOAD_CPT = {
     '无':   {'Peak': 0.30, 'Well-adapted': 0.60, 'FOR': 0.05, 'Acute Fatigue': 0.03, 'NFOR': 0.02, 'OTS': 0.0},
 }
 
+# Discrete training-load label to AU (Arbitrary Units) mapping for ACWR.
+# Used only to derive recent AU from labels when explicit AU is not provided.
+# Values are cold-start defaults and can be personalized per user later.
+TRAINING_LOAD_AU = {
+    '无': 0,
+    '低': 200,
+    '中': 350,
+    '高': 500,
+    '极高': 700,
+}
+
 LATE_MEAL_CPT = {
     'positive': {'Peak': 0.50, 'Well-adapted': 0.50, 'FOR': 0.45, 'Acute Fatigue': 0.30, 'NFOR': 0.25, 'OTS': 1e-6},
     'negative': {'Peak': 0.20, 'Well-adapted': 0.20, 'FOR': 0.30, 'Acute Fatigue': 0.30, 'NFOR': 0.10, 'OTS': 1e-6},
@@ -173,6 +184,7 @@ __all__ = [
     'INTERACTION_CPT_SORENESS_STRESS',
     'BASELINE_TRANSITION_CPT',
     'TRAINING_LOAD_CPT',
+    'TRAINING_LOAD_AU',
     'ALCOHOL_CONSUMPTION_CPT',
     'LATE_CAFFEINE_CPT',
     'SCREEN_BEFORE_BED_CPT',

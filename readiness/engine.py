@@ -16,6 +16,7 @@ from readiness.constants import (
     INTERACTION_CPT_SORENESS_STRESS,
     BASELINE_TRANSITION_CPT,
     TRAINING_LOAD_CPT,
+    TRAINING_LOAD_AU,
     ALCOHOL_CONSUMPTION_CPT,
     LATE_CAFFEINE_CPT,
     SCREEN_BEFORE_BED_CPT,
@@ -162,6 +163,8 @@ class ReadinessEngine:
         rtl = causal_inputs.get('recent_training_loads')
         if isinstance(rtl, list) and rtl:
             adjusted = self._apply_training_streak_penalty(adjusted, rtl)
+        # ACWR + 3-day fatigue small prior modulation (optional inputs)
+        adjusted = self._apply_acwr_and_fatigue3(adjusted, causal_inputs)
         return adjusted
 
     def _apply_training_streak_penalty(self, probs: Dict[str, float], recent_training_loads: List[str]) -> Dict[str, float]:
@@ -198,6 +201,116 @@ class ReadinessEngine:
 
         # Persistent: 按新规则，生病/受伤不进入先验；月经周期不进入先验（改为后验证据）
         # persistent = journal_data.get('persistent_status', {})
+        return self._normalize(adjusted)
+
+    # --- ACWR & Fatigue_3day helpers ---
+    def _labels_to_au(self, labels: List[str]) -> List[float]:
+        res: List[float] = []
+        for lab in labels or []:
+            if lab in TRAINING_LOAD_AU:
+                res.append(float(TRAINING_LOAD_AU[lab]))
+                continue
+            if isinstance(lab, str):
+                if '极高' in lab:
+                    res.append(float(TRAINING_LOAD_AU.get('极高', 700)))
+                elif '高' in lab:
+                    res.append(float(TRAINING_LOAD_AU.get('高', 500)))
+                elif '中' in lab:
+                    res.append(float(TRAINING_LOAD_AU.get('中', 350)))
+                elif '低' in lab:
+                    res.append(float(TRAINING_LOAD_AU.get('低', 200)))
+                elif '无' in lab:
+                    res.append(float(TRAINING_LOAD_AU.get('无', 0)))
+                else:
+                    res.append(0.0)
+            else:
+                res.append(0.0)
+        return res
+
+    def _apply_acwr_and_fatigue3(self, probs: Dict[str, float], causal_inputs: Dict[str, Any]) -> Dict[str, float]:
+        adjusted = dict(probs)
+        # Prefer explicit AU; else map labels
+        recent_au: List[float] = []
+        if isinstance(causal_inputs.get('recent_training_au'), list):
+            try:
+                recent_au = [float(x) for x in causal_inputs['recent_training_au']]
+            except Exception:
+                recent_au = []
+        elif isinstance(causal_inputs.get('recent_training_loads'), list):
+            recent_au = self._labels_to_au(causal_inputs.get('recent_training_loads') or [])
+
+        if recent_au:
+            # Safety gate: require at least 7 days to enable ACWR adjustments
+            if len(recent_au) < 7:
+                return self._normalize(adjusted)
+            last28 = recent_au[-28:] if len(recent_au) >= 28 else list(recent_au)
+            last7 = recent_au[-7:] if len(recent_au) >= 7 else list(recent_au)
+            last3 = recent_au[-3:] if len(recent_au) >= 3 else list(recent_au)
+            def _mean(xs: List[float]) -> float:
+                return sum(xs) / len(xs) if xs else 0.0
+            C28 = _mean(last28)
+            A7 = _mean(last7)
+            A3 = _mean(last3)
+            eps = 1e-6
+            R7_28 = A7 / (C28 + eps) if C28 > 0 else 0.0
+            R3_28 = A3 / (C28 + eps) if C28 > 0 else 0.0
+            # Adaptation band
+            if C28 < 1200:
+                band = 'low'
+            elif C28 <= 2500:
+                band = 'mid'
+            else:
+                band = 'high'
+
+            # Reward (recovery escort)
+            if R7_28 <= 0.9:
+                base = 0.02 if R7_28 <= 0.8 else 0.01
+                m = 1.2 if band == 'high' else 1.0
+                ratio = base * m
+                adjusted = self._shift_probability(adjusted, ['NFOR', 'Acute Fatigue'], ['Well-adapted', 'Peak'], ratio)
+
+            # Penalty (acute high end; J-shaped right arm)
+            if R7_28 >= 1.15:
+                if R7_28 < 1.30:
+                    base = 0.02
+                elif R7_28 < 1.50:
+                    base = 0.04
+                else:
+                    base = 0.06
+                m = 1.5 if band == 'low' else (1.0 if band == 'mid' else 0.5)
+                ratio = base * m
+                if R3_28 >= 1.30:
+                    ratio += 0.01
+                adjusted = self._shift_probability(adjusted, ['Peak', 'Well-adapted', 'FOR'], ['Acute Fatigue', 'NFOR'], ratio)
+
+            # Very low side slight deconditioning
+            if R7_28 <= 0.6 and band == 'low':
+                adjusted = self._shift_probability(adjusted, ['Peak'], ['Well-adapted'], 0.01)
+
+            # 3-day fatigue proxy (DOMS / Energy)
+            doms = causal_inputs.get('doms_nrs')
+            energy = causal_inputs.get('energy_nrs')
+            au_norm = causal_inputs.get('au_norm_ref')
+            try:
+                au_norm = float(au_norm) if au_norm is not None else 2000.0
+            except Exception:
+                au_norm = 2000.0
+            try:
+                doms_f = float(doms) if doms is not None else None
+                energy_f = float(energy) if energy is not None else None
+            except Exception:
+                doms_f = energy_f = None
+            if doms_f is not None or energy_f is not None:
+                norm3 = max(0.0, min(10.0, (A3 / max(au_norm, 1e-6)) * 10.0))
+                doms_v = max(0.0, min(10.0, doms_f if doms_f is not None else 0.0))
+                energy_v = energy_f if energy_f is not None else 7.0
+                energy_term = max(0.0, min(10.0, 10.0 - energy_v))
+                fatigue_score = 0.4 * norm3 + 0.4 * doms_v + 0.2 * energy_term
+                if fatigue_score >= 7.0:
+                    adjusted = self._shift_probability(adjusted, ['Peak', 'Well-adapted', 'FOR'], ['Acute Fatigue'], 0.04)
+                elif fatigue_score >= 4.0:
+                    adjusted = self._shift_probability(adjusted, ['Peak', 'Well-adapted', 'FOR'], ['Acute Fatigue'], 0.015)
+
         return self._normalize(adjusted)
 
     # ---------- Posterior ----------

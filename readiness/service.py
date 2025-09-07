@@ -30,6 +30,16 @@ def compute_readiness_from_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
         causal_inputs['training_load'] = payload['training_load']
     if isinstance(payload.get('recent_training_loads'), list):
         causal_inputs['recent_training_loads'] = payload['recent_training_loads']
+    # Optional recent AU series (preferred for ACWR/Fatigue_3day when provided)
+    if isinstance(payload.get('recent_training_au'), list):
+        causal_inputs['recent_training_au'] = payload['recent_training_au']
+    # Optional auxiliaries for Fatigue_3day normalization and symptoms
+    if payload.get('au_norm_ref') is not None:
+        causal_inputs['au_norm_ref'] = payload.get('au_norm_ref')
+    if payload.get('doms_nrs') is not None:
+        causal_inputs['doms_nrs'] = payload.get('doms_nrs')
+    if payload.get('energy_nrs') is not None:
+        causal_inputs['energy_nrs'] = payload.get('energy_nrs')
 
     # Optional: persist WHOOP Journal items (raw, not used in daily computation)
     if isinstance(payload.get('whoop_journal'), dict):
