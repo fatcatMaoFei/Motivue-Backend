@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 from readiness.service import compute_readiness_from_payload
+from readiness.constants import READINESS_WEIGHTS
 
 
 HOOPER_VARS = ['fatigue', 'soreness', 'stress', 'sleep']
@@ -81,7 +82,7 @@ def main(argv: List[str] | None = None) -> int:
     out_prefix.parent.mkdir(parents=True, exist_ok=True)
 
     rows: List[str] = []
-    header = 'group,var,score,readiness,diagnosis'
+    header = 'group,var,score,readiness,readiness_float,diagnosis'
     rows.append(header)
 
     # Per-variable sweeps
@@ -90,9 +91,14 @@ def main(argv: List[str] | None = None) -> int:
         scores: List[float] = []
         for s in range(1, 8):
             res = run_case(var, s)
+            # Compute non-rounded readiness for sensitivity visibility
+            rfloat = 0.0
+            post = res.get('final_posterior_probs') or {}
+            for st, w in READINESS_WEIGHTS.items():
+                rfloat += float(post.get(st, 0.0)) * float(w)
             rows.append(','.join([
                 'single', var, str(s),
-                str(res['final_readiness_score']),
+                str(res['final_readiness_score']), f"{rfloat:.3f}",
                 str(res['final_diagnosis']),
             ]))
             scores.append(float(res['final_readiness_score']))
@@ -102,9 +108,13 @@ def main(argv: List[str] | None = None) -> int:
     combo_scores: List[float] = []
     for s in range(1, 8):
         res = run_combined(s)
+        rfloat = 0.0
+        post = res.get('final_posterior_probs') or {}
+        for st, w in READINESS_WEIGHTS.items():
+            rfloat += float(post.get(st, 0.0)) * float(w)
         rows.append(','.join([
             'combined', 'all', str(s),
-            str(res['final_readiness_score']),
+            str(res['final_readiness_score']), f"{rfloat:.3f}",
             str(res['final_diagnosis']),
         ]))
         combo_scores.append(float(res['final_readiness_score']))
@@ -123,4 +133,3 @@ def main(argv: List[str] | None = None) -> int:
 
 if __name__ == '__main__':
     raise SystemExit(main())
-
