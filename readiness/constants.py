@@ -179,6 +179,24 @@ CAUSAL_FACTOR_WEIGHTS = {
     'screen_before_bed': 0.3,
 }
 
+# --- Overrides to fix training-load label encoding and AU mapping ---
+# Use canonical Chinese labels: 极高/高/中/低/无
+TRAINING_LOAD_CPT = {
+    '极高': {'Peak': 0.01, 'Well-adapted': 0.05, 'FOR': 0.40, 'Acute Fatigue': 0.50, 'NFOR': 0.04, 'OTS': 0.0},
+    '高':   {'Peak': 0.05, 'Well-adapted': 0.15, 'FOR': 0.50, 'Acute Fatigue': 0.25, 'NFOR': 0.05, 'OTS': 0.0},
+    '中':   {'Peak': 0.10, 'Well-adapted': 0.60, 'FOR': 0.20, 'Acute Fatigue': 0.08, 'NFOR': 0.02, 'OTS': 0.0},
+    '低':   {'Peak': 0.20, 'Well-adapted': 0.70, 'FOR': 0.05, 'Acute Fatigue': 0.04, 'NFOR': 0.01, 'OTS': 0.0},
+    '无':   {'Peak': 0.30, 'Well-adapted': 0.60, 'FOR': 0.05, 'Acute Fatigue': 0.03, 'NFOR': 0.02, 'OTS': 0.0},
+}
+
+TRAINING_LOAD_AU = {
+    '无': 0,
+    '低': 200,
+    '中': 350,
+    '高': 500,
+    '极高': 700,
+}
+
 __all__ = [
     'EMISSION_CPT',
     'INTERACTION_CPT_SORENESS_STRESS',

@@ -7,7 +7,7 @@ the standalone readiness_service.py script.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from readiness.engine import ReadinessEngine
 
@@ -15,7 +15,7 @@ from readiness.engine import ReadinessEngine
 def compute_readiness_from_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
     user_id = payload.get('user_id') or 'default_user'
     date = payload.get('date') or '1970-01-01'
-    gender = payload.get('gender') or '男性'
+    gender = payload.get('gender') or '男'
     prev_probs = payload.get('previous_state_probs')
 
     manager = ReadinessEngine(
@@ -46,8 +46,8 @@ def compute_readiness_from_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
         manager.journal_manager.add_journal_entry(user_id, date, 'whoop_journal', payload['whoop_journal'])
 
     # Unified journal support (simple and robust):
-    # - Short-term items (alcohol/late_caffeine/screen_before_bed/late_meal) → act on TODAY prior; write into YESTERDAY store
-    # - Persistent items (is_sick/is_injured/high_stress_event_today/meditation_done_today) → act on TODAY posterior; write into TODAY store
+    # - Short-term items (alcohol/late_caffeine/screen_before_bed/late_meal) act on TODAY prior; write into YESTERDAY store
+    # - Persistent items (is_sick/is_injured/high_stress_event_today/meditation_done_today) act on TODAY posterior; write into TODAY store
     journal = payload.get('journal') or {}
     # Journal classification (computation defaults):
     # - Persistent (carry into today's posterior until explicitly turned off): only is_sick, is_injured
@@ -135,3 +135,4 @@ def compute_readiness_from_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 __all__ = ['compute_readiness_from_payload']
+

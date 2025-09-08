@@ -1,9 +1,9 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """Simulate N days of readiness with simple, logical patterns.
 
 Generates daily payloads with:
-- Training load pattern (heavier days → next day higher Hooper fatigue/soreness)
+- Training load pattern (heavier days 鈫?next day higher Hooper fatigue/soreness)
 - Occasional alcohol and late caffeine (short-term journal)
 - Stepwise posterior updates via readiness.service
 
@@ -43,7 +43,7 @@ def ds(d: datetime) -> str:
 
 
 def heaviness_score(cpt_row: Dict[str, float]) -> float:
-    """Heaviness proxy from training CPT row (higher → heavier training).
+    """Heaviness proxy from training CPT row (higher 鈫?heavier training).
     Use states that represent fatigue/overreaching.
     """
     return (
@@ -63,33 +63,33 @@ def choose_training_sequence(keys: List[str], days: int, rng: random.Random) -> 
         # Prefer exact label; else heuristic by substring; else by heaviness rank
         if label in keys:
             return label
-        if label == '极高':
+        if label == '鏋侀珮':
             for k in keys:
-                if '极高' in k:
+                if '鏋侀珮' in k:
                     return k
             return ranked[0]
-        if label == '高':
-            cand = [k for k in keys if ('高' in k and '极' not in k)]
+        if label == '楂?:
+            cand = [k for k in keys if ('楂? in k and '鏋? not in k)]
             if cand:
-                # pick the heaviest non-极 variant
+                # pick the heaviest non-鏋?variant
                 cand = sorted(cand, key=lambda k: heaviness_score(TRAINING_LOAD_CPT[k]), reverse=True)
                 return cand[0]
             return ranked[min(1, len(ranked) - 1)] if len(ranked) > 1 else ranked[0]
-        if label == '中':
+        if label == '涓?:
             for k in keys:
-                if '中' in k:
+                if '涓? in k:
                     return k
             return ranked[len(ranked)//2]
-        if label == '低':
+        if label == '浣?:
             for k in keys:
-                if '低' in k:
+                if '浣? in k:
                     return k
             return ranked[-1]
         return ranked[-1]
 
-    heavy = nearest('极高')
-    mid = nearest('中')
-    light = nearest('低')
+    heavy = nearest('鏋侀珮')
+    mid = nearest('涓?)
+    light = nearest('浣?)
 
     seq: List[str] = []
     # Simple mesocycle: 3-on-1-off style with occasional tweaks
@@ -172,25 +172,25 @@ def run_simulation(
         def nearest(label: str) -> str:
             if label in TRAINING_LOAD_CPT:
                 return label
-            if label == '极高':
+            if label == '鏋侀珮':
                 for k in TRAINING_LOAD_CPT:
-                    if '极高' in k:
+                    if '鏋侀珮' in k:
                         return k
                 return ranked[0]
-            if label == '高':
-                cand = [k for k in TRAINING_LOAD_CPT if ('高' in k and '极' not in k)]
+            if label == '楂?:
+                cand = [k for k in TRAINING_LOAD_CPT if ('楂? in k and '鏋? not in k)]
                 if cand:
                     cand = sorted(cand, key=lambda k: heaviness_score(TRAINING_LOAD_CPT[k]), reverse=True)
                     return cand[0]
                 return ranked[min(1, len(ranked) - 1)] if len(ranked) > 1 else ranked[0]
-            if label == '中':
+            if label == '涓?:
                 for k in TRAINING_LOAD_CPT:
-                    if '中' in k:
+                    if '涓? in k:
                         return k
                 return ranked[len(ranked)//2]
-            if label == '低':
+            if label == '浣?:
                 for k in TRAINING_LOAD_CPT:
-                    if '低' in k:
+                    if '浣? in k:
                         return k
                 return ranked[-1]
             return ranked[-1]
@@ -198,14 +198,13 @@ def run_simulation(
         prev_score = results[-1]['final_readiness_score'] if results else None
         # Rule 1: No heavy if yesterday NFOR/OTS; low score enforces easier day
         if prev_dx in ('NFOR', 'OTS') or (isinstance(prev_score, (int, float)) and prev_score < 60):
-            today_load = nearest('低')
-        # Rule 2: After 极高 yesterday, cap to <= 中
-        elif recent_loads and recent_loads[-1] in ('极高', nearest('极高')):
-            today_load = nearest('中')
+            today_load = nearest('浣?)
+        # Rule 2: After 鏋侀珮 yesterday, cap to <= 涓?        elif recent_loads and recent_loads[-1] in ('鏋侀珮', nearest('鏋侀珮')):
+            today_load = nearest('涓?)
         else:
             today_load = planned_load
 
-        # Short-term journals (yesterday behaviors → today prior)
+        # Short-term journals (yesterday behaviors 鈫?today prior)
         alcohol = rng.random() < 0.18
         late_caffeine = rng.random() < 0.12
         screen_before_bed = rng.random() < 0.28
@@ -255,7 +254,7 @@ def run_simulation(
         payload: Dict[str, Any] = {
             'user_id': user_id,
             'date': date_i,
-            'gender': '男',
+            'gender': '鐢?,
             'previous_state_probs': prev_probs,
             'training_load': today_load,
             'recent_training_loads': list(recent_loads[-8:]),
@@ -313,9 +312,9 @@ def run_simulation(
         elif dx == 'OTS':
             fatigue_debt += 2.5
         # Recovery when easy day
-        if today_load in ('低',):
+        if today_load in ('浣?,):
             fatigue_debt = max(0.0, fatigue_debt - 0.6)
-        elif today_load in ('中',):
+        elif today_load in ('涓?,):
             fatigue_debt = max(0.0, fatigue_debt - 0.3)
 
     # Write outputs
@@ -395,3 +394,4 @@ def main(argv: Optional[List[str]] = None) -> int:
 
 if __name__ == '__main__':
     raise SystemExit(main())
+

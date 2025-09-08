@@ -57,15 +57,11 @@ class JournalManager:
         today = self.journal_database.get(key, {})
         ev: Dict[str, Any] = {}
         persistent = today.get('persistent_status', {})
-        short_term = today.get('short_term_behaviors', {})
+        # Only persistent items (sick/injured) affect today's posterior until explicitly turned off.
         if persistent.get('is_sick'):
             ev['is_sick'] = True
         if persistent.get('is_injured'):
             ev['is_injured'] = True
-        if persistent.get('high_stress_event_today'):
-            ev['high_stress_event_today'] = True
-        if short_term.get('meditation_done_today'):
-            ev['meditation_done_today'] = True
         return ev
 
     def add_journal_entry(self, user_id: str, date: str, entry_type: str, entry_data: Dict[str, Any]) -> None:
@@ -91,10 +87,11 @@ class ReadinessEngine:
 
     def __init__(self, user_id: str, date: str,
                  previous_state_probs: Optional[Dict[str, float]] = None,
-                 gender: str = '男性') -> None:
+                 gender: str = '男') -> None:
         self.user_id = user_id
         self.date = date
-        self.gender = gender
+        # Normalize gender to simple Chinese labels
+        self.gender = '女' if gender in ('女', '女性') else '男'
         self.states = ['Peak', 'Well-adapted', 'FOR', 'Acute Fatigue', 'NFOR', 'OTS']
 
         self.previous_probs = previous_state_probs or {
@@ -395,7 +392,7 @@ class ReadinessEngine:
                     posterior[s] = posterior.get(s, 0.0) * max(like2.get(s, 1e-6), 1e-6)
 
         # Menstrual cycle as posterior (continuous) evidence
-        if self.gender == '女性':
+        if self.gender in ('女', '女性'):
             day = None
             length = None
             # Accept either direct cycle_day/cycle_length or nested cycle dict in evidence
