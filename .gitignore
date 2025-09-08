@@ -1,0 +1,13 @@
+﻿# Virtualenv / IDE
+ven/
+venv/
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+
+# Generated artifacts
+*.csv
+*.png
+readiness/_data/
