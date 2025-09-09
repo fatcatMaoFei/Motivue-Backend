@@ -57,9 +57,10 @@ def map_inputs_to_states(raw_inputs: Dict[str, Any]) -> Dict[str, Any]:
             mu_dur = mu_eff = None
 
         if duration_hours is not None and eff is not None:
-            good_dur_threshold = 7.0 if mu_dur is None else max(7.0, mu_dur - 0.5)
+            # 科学化的睡眠评判标准：基线+1小时算good（7-9h），基线-0.5小时算medium（6-8h）
+            good_dur_threshold = 7.0 if mu_dur is None else min(9.0, max(7.0, mu_dur + 1.0))
             good_eff_threshold = 0.85 if mu_eff is None else max(0.85, mu_eff - 0.05)
-            med_dur_threshold = 6.0 if mu_dur is None else max(6.0, mu_dur - 1.0)
+            med_dur_threshold = 6.0 if mu_dur is None else min(8.0, max(6.0, mu_dur - 0.5))
             med_eff_threshold = 0.75 if mu_eff is None else max(0.75, mu_eff - 0.10)
 
             if duration_hours >= good_dur_threshold and eff >= good_eff_threshold:
@@ -94,10 +95,13 @@ def map_inputs_to_states(raw_inputs: Dict[str, Any]) -> Dict[str, Any]:
             mu_rest = None
 
         if rest_ratio is not None:
-            high_thr = 0.45 if mu_rest is None else max(0.45, mu_rest + 0.05)
+            # 科学化的恢复性睡眠评判标准：基线+10%算high，35-55%安全范围
+            high_thr = 0.35 if mu_rest is None else min(0.55, max(0.35, mu_rest + 0.10))
+            med_thr = 0.25 if mu_rest is None else max(0.25, mu_rest - 0.05)
+            
             if rest_ratio >= high_thr:
                 mapped['restorative_sleep'] = 'high'
-            elif (mu_rest is not None and abs(rest_ratio - mu_rest) <= 0.05) or rest_ratio >= 0.30:
+            elif rest_ratio >= med_thr:
                 mapped['restorative_sleep'] = 'medium'
             else:
                 mapped['restorative_sleep'] = 'low'
@@ -210,9 +214,10 @@ def map_inputs_to_states(raw_inputs: Dict[str, Any]) -> Dict[str, Any]:
             except Exception:
                 rest_ratio = None
         if rest_ratio is not None:
-            if rest_ratio >= 0.45:
+            # 科学化的恢复性睡眠评判标准（无基线时使用固定阈值）
+            if rest_ratio >= 0.35:  # 提高high标准从45%到35%
                 mapped['restorative_sleep'] = 'high'
-            elif rest_ratio >= 0.30:
+            elif rest_ratio >= 0.25:  # 提高medium标准从30%到25%
                 mapped['restorative_sleep'] = 'medium'
             else:
                 mapped['restorative_sleep'] = 'low'
