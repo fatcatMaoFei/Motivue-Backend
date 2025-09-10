@@ -1,0 +1,334 @@
+{
+  "subjective_fatigue": {
+    "low": {
+      "Peak": 0.8,
+      "Well-adapted": 0.7,
+      "FOR": 0.25,
+      "Acute Fatigue": 0.05,
+      "NFOR": 0.05,
+      "OTS": 1e-06
+    },
+    "medium": {
+      "Peak": 0.15,
+      "Well-adapted": 0.3,
+      "FOR": 0.2,
+      "Acute Fatigue": 0.15,
+      "NFOR": 0.1,
+      "OTS": 0.05
+    },
+    "high": {
+      "Peak": 1e-06,
+      "Well-adapted": 1e-06,
+      "FOR": 0.7,
+      "Acute Fatigue": 0.8,
+      "NFOR": 0.8,
+      "OTS": 0.9
+    }
+  },
+  "muscle_soreness": {
+    "low": {
+      "Peak": 0.8,
+      "Well-adapted": 0.75,
+      "FOR": 0.35,
+      "Acute Fatigue": 0.1,
+      "NFOR": 0.1,
+      "OTS": 0.2
+    },
+    "medium": {
+      "Peak": 0.1,
+      "Well-adapted": 0.25,
+      "FOR": 0.5,
+      "Acute Fatigue": 0.3,
+      "NFOR": 0.4,
+      "OTS": 0.5
+    },
+    "high": {
+      "Peak": 1e-06,
+      "Well-adapted": 1e-06,
+      "FOR": 0.35,
+      "Acute Fatigue": 0.6,
+      "NFOR": 0.5,
+      "OTS": 0.3
+    }
+  },
+  "subjective_stress": {
+    "low": {
+      "Peak": 0.8,
+      "Well-adapted": 0.7,
+      "FOR": 0.4,
+      "Acute Fatigue": 0.2,
+      "NFOR": 0.1,
+      "OTS": 1e-06
+    },
+    "medium": {
+      "Peak": 0.1,
+      "Well-adapted": 0.3,
+      "FOR": 0.5,
+      "Acute Fatigue": 0.5,
+      "NFOR": 0.3,
+      "OTS": 0.2
+    },
+    "high": {
+      "Peak": 1e-06,
+      "Well-adapted": 1e-06,
+      "FOR": 0.1,
+      "Acute Fatigue": 0.3,
+      "NFOR": 0.6,
+      "OTS": 0.8
+    }
+  },
+  "subjective_sleep": {
+    "good": {
+      "Peak": 0.8,
+      "Well-adapted": 0.75,
+      "FOR": 0.3,
+      "Acute Fatigue": 0.4,
+      "NFOR": 0.15,
+      "OTS": 0.1
+    },
+    "medium": {
+      "Peak": 0.15,
+      "Well-adapted": 0.25,
+      "FOR": 0.4,
+      "Acute Fatigue": 0.4,
+      "NFOR": 0.35,
+      "OTS": 0.2
+    },
+    "poor": {
+      "Peak": 1e-06,
+      "Well-adapted": 1e-06,
+      "FOR": 0.15,
+      "Acute Fatigue": 0.2,
+      "NFOR": 0.65,
+      "OTS": 0.7
+    }
+  },
+  "sleep_performance": {
+    "good": {
+      "Peak": 0.8,
+      "Well-adapted": 0.7,
+      "FOR": 0.25,
+      "Acute Fatigue": 0.35,
+      "NFOR": 0.2,
+      "OTS": 0.15
+    },
+    "medium": {
+      "Peak": 0.2,
+      "Well-adapted": 0.3,
+      "FOR": 0.5,
+      "Acute Fatigue": 0.5,
+      "NFOR": 0.4,
+      "OTS": 0.35
+    },
+    "poor": {
+      "Peak": 1e-06,
+      "Well-adapted": 1e-06,
+      "FOR": 0.25,
+      "Acute Fatigue": 0.15,
+      "NFOR": 0.4,
+      "OTS": 0.5
+    }
+  },
+  "apple_sleep_score": {
+    "excellent": {
+      "Peak": 0.8292724543729976,
+      "Well-adapted": 0.6816774124524901,
+      "FOR": 0.21605860897316306,
+      "Acute Fatigue": 0.30130232624597886,
+      "NFOR": 0.15001542871665308,
+      "OTS": 0.10000000000000234
+    },
+    "good": {
+      "Peak": 0.7545281526924698,
+      "Well-adapted": 0.5533076945653036,
+      "FOR": 0.243232508147597,
+      "Acute Fatigue": 0.34939168905341705,
+      "NFOR": 0.1999963666774371,
+      "OTS": 0.1499999999999996
+    },
+    "fair": {
+      "Peak": 0.1980884902807332,
+      "Well-adapted": 0.2831138191137905,
+      "FOR": 0.4844644599832818,
+      "Acute Fatigue": 0.4986872136160871,
+      "NFOR": 0.39999176015968674,
+      "OTS": 0.3499999999999991
+    },
+    "poor": {
+      "Peak": 1e-06,
+      "Well-adapted": 1.738611551549697e-05,
+      "FOR": 0.2444657924567367,
+      "Acute Fatigue": 0.14980010879663616,
+      "NFOR": 0.39999329187251265,
+      "OTS": 0.4999999999999987
+    },
+    "very_poor": {
+      "Peak": 1e-06,
+      "Well-adapted": 1e-06,
+      "FOR": 0.14116602717058388,
+      "Acute Fatigue": 0.0997271125707064,
+      "NFOR": 0.49998949142096477,
+      "OTS": 0.6499999999999984
+    }
+  },
+  "hrv_trend": {
+    "rising": {
+      "Peak": 0.8379385455793003,
+      "Well-adapted": 0.2402420092503969,
+      "FOR": 0.10454919481567317,
+      "Acute Fatigue": 0.09993801397527448,
+      "NFOR": 0.050000655447900146,
+      "OTS": 0.009999999999999974
+    },
+    "stable": {
+      "Peak": 0.3841385697976097,
+      "Well-adapted": 0.31242370240111095,
+      "FOR": 0.21644670864511545,
+      "Acute Fatigue": 0.19960959656131597,
+      "NFOR": 0.09999933805480483,
+      "OTS": 0.04999999999999988
+    },
+    "slight_decline": {
+      "Peak": 0.053883742681634386,
+      "Well-adapted": 0.17100595692114773,
+      "FOR": 0.30256135741765444,
+      "Acute Fatigue": 0.301543939180584,
+      "NFOR": 0.15001471850794437,
+      "OTS": 0.09000000000000234
+    },
+    "significant_decline": {
+      "Peak": 1e-06,
+      "Well-adapted": 1e-06,
+      "FOR": 0.376442739121557,
+      "Acute Fatigue": 0.3989084502828256,
+      "NFOR": 0.6999852879893507,
+      "OTS": 0.799999999999998
+    }
+  },
+  "nutrition": {
+    "adequate": {
+      "Peak": 0.5038954266258672,
+      "Well-adapted": 0.6148863069263191,
+      "FOR": 0.5264341100188521,
+      "Acute Fatigue": 0.7008128877457732,
+      "NFOR": 0.40001258378831567,
+      "OTS": 0.3000000000000018
+    },
+    "inadequate_mild": {
+      "Peak": 0.4041176206879514,
+      "Well-adapted": 0.3851136930736811,
+      "FOR": 0.42651054759095336,
+      "Acute Fatigue": 0.3989142248249332,
+      "NFOR": 0.4999895179274914,
+      "OTS": 0.44999999999999885
+    },
+    "inadequate_moderate": {
+      "Peak": 0.27596085805854426,
+      "Well-adapted": 0.24178728999892649,
+      "FOR": 0.39526487607763483,
+      "Acute Fatigue": 0.3490448939974724,
+      "NFOR": 0.5499884405630613,
+      "OTS": 0.5999999999999984
+    },
+    "inadequate_severe": {
+      "Peak": 0.09198695268618143,
+      "Well-adapted": 0.10362312428525422,
+      "FOR": 0.376442739121557,
+      "Acute Fatigue": 0.2991813377121192,
+      "NFOR": 0.5999873897051577,
+      "OTS": 0.6999999999999982
+    }
+  },
+  "restorative_sleep": {
+    "high": {
+      "Peak": 0.8620195709707279,
+      "Well-adapted": 0.8272947928579097,
+      "FOR": 0.3412252065372753,
+      "Acute Fatigue": 0.2021830994343488,
+      "NFOR": 0.05001996630016695,
+      "OTS": 1.0000000025877144e-06
+    },
+    "medium": {
+      "Peak": 0.3679478107447257,
+      "Well-adapted": 0.34541041428418073,
+      "FOR": 0.376442739121557,
+      "Acute Fatigue": 0.3490448939974724,
+      "NFOR": 0.24999474571048239,
+      "OTS": 0.1499999999999996
+    },
+    "low": {
+      "Peak": 1e-06,
+      "Well-adapted": 0.06908208285683615,
+      "FOR": 0.1882213695607785,
+      "Acute Fatigue": 0.2991813377121192,
+      "NFOR": 0.6999852879893507,
+      "OTS": 0.799999999999998
+    }
+  },
+  "gi_symptoms": {
+    "none": {
+      "Peak": 0.8870001625343403,
+      "Well-adapted": 0.7787859089218905,
+      "FOR": 0.790588690239938,
+      "Acute Fatigue": 0.6986165853975115,
+      "NFOR": 0.49999140389284175,
+      "OTS": 0.399999999999999
+    },
+    "mild": {
+      "Peak": 0.06372205065819626,
+      "Well-adapted": 0.17540315525917477,
+      "FOR": 0.15999951662006587,
+      "Acute Fatigue": 0.2514822299312377,
+      "NFOR": 0.4000103153285899,
+      "OTS": 0.40000000000000163
+    },
+    "severe": {
+      "Peak": 1e-06,
+      "Well-adapted": 1e-06,
+      "FOR": 0.04941179313999613,
+      "Acute Fatigue": 0.04990118467125082,
+      "NFOR": 0.09999828077856836,
+      "OTS": 0.1999999999999995
+    }
+  },
+  "is_sick": {
+    "true": {
+      "Peak": 1e-09,
+      "Well-adapted": 1e-06,
+      "FOR": 0.05,
+      "Acute Fatigue": 0.4,
+      "NFOR": 0.8,
+      "OTS": 0.9
+    }
+  },
+  "is_injured": {
+    "true": {
+      "Peak": 1e-09,
+      "Well-adapted": 1e-06,
+      "FOR": 0.1,
+      "Acute Fatigue": 0.5,
+      "NFOR": 0.7,
+      "OTS": 0.6
+    }
+  },
+  "high_stress_event_today": {
+    "true": {
+      "Peak": 0.05,
+      "Well-adapted": 0.15,
+      "FOR": 0.25,
+      "Acute Fatigue": 0.3,
+      "NFOR": 0.5,
+      "OTS": 0.4
+    }
+  },
+  "meditation_done_today": {
+    "true": {
+      "Peak": 0.55,
+      "Well-adapted": 0.5,
+      "FOR": 0.45,
+      "Acute Fatigue": 0.4,
+      "NFOR": 0.35,
+      "OTS": 0.3
+    }
+  }
+}

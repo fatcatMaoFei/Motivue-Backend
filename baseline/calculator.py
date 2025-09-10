@@ -45,6 +45,7 @@ class PersonalBaselineCalculator:
             result.sleep_baseline_hours = sleep_baseline.get('sleep_baseline_hours')
             result.sleep_baseline_eff = sleep_baseline.get('sleep_baseline_eff') 
             result.rest_baseline_ratio = sleep_baseline.get('rest_baseline_ratio')
+            # result.apple_sleep_score_baseline = sleep_baseline.get('apple_sleep_score_baseline')  # 注释掉，苹果评分本身就是智能的
             result.sample_days_sleep = len(sleep_records)
         
         # 计算HRV基线
@@ -64,19 +65,28 @@ class PersonalBaselineCalculator:
     def _calculate_sleep_baseline(self, records: List[SleepRecord]) -> Dict[str, Optional[float]]:
         """计算睡眠基线"""
         if not records:
-            return {'sleep_baseline_hours': None, 'sleep_baseline_eff': None, 'rest_baseline_ratio': None}
+            return {'sleep_baseline_hours': None, 'sleep_baseline_eff': None, 'rest_baseline_ratio': None, 'apple_sleep_score_baseline': None}
         
-        # 提取数据
+        # 提取传统数据
         durations = [r.sleep_duration_hours for r in records]
         efficiencies = [r.sleep_efficiency for r in records]
         restorative_ratios = [r.restorative_ratio for r in records if r.restorative_ratio is not None]
         
-        # 过滤异常值并计算基线
+        # 提取iOS 26苹果评分数据
+        apple_scores = [r.apple_sleep_score for r in records if r.apple_sleep_score is not None]
+        
+        # 过滤异常值并计算传统基线
         duration_filtered = self._filter_outliers(durations, self.sleep_percentile_range)
         efficiency_filtered = self._filter_outliers(efficiencies, self.sleep_percentile_range)
         
         sleep_baseline_hours = self._robust_mean(duration_filtered) if duration_filtered else None
         sleep_baseline_eff = self._robust_mean(efficiency_filtered) if efficiency_filtered else None
+        
+        # iOS 26苹果评分基线 - 暂时注释，因为苹果评分本身就是智能的
+        apple_sleep_score_baseline = None
+        # if apple_scores and len(apple_scores) >= 10:  # 至少需要10个评分
+        #     apple_filtered = self._filter_outliers(apple_scores, (5, 95))  # 苹果评分过滤范围5-95%
+        #     apple_sleep_score_baseline = self._robust_mean(apple_filtered) if apple_filtered else None
         
         # 恢复性睡眠基线
         rest_baseline_ratio = None
@@ -88,6 +98,7 @@ class PersonalBaselineCalculator:
             'sleep_baseline_hours': round(sleep_baseline_hours, 2) if sleep_baseline_hours else None,
             'sleep_baseline_eff': round(sleep_baseline_eff, 3) if sleep_baseline_eff else None,
             'rest_baseline_ratio': round(rest_baseline_ratio, 3) if rest_baseline_ratio else None,
+            # 'apple_sleep_score_baseline': round(apple_sleep_score_baseline, 1) if apple_sleep_score_baseline else None  # 注释掉，苹果评分本身就是智能的
         }
     
     def _calculate_hrv_baseline(self, records: List[HRVRecord]) -> Dict[str, Optional[float]]:

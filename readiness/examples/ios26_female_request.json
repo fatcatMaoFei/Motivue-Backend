@@ -1,0 +1,41 @@
+{
+  "user_id": "user_ios26_female",
+  "date": "2024-09-10",
+  "gender": "女性",
+  "ios_version": 26,
+  "apple_sleep_score": 82,
+  "previous_state_probs": {
+    "Peak": 0.15,
+    "Well-adapted": 0.45,
+    "FOR": 0.25,
+    "Acute Fatigue": 0.1,
+    "NFOR": 0.04,
+    "OTS": 0.01
+  },
+  "training_load": "低",
+  "recent_training_loads": ["中", "低", "低", "中", "低", "无", "低"],
+  "journal": {
+    "alcohol_consumed": false,
+    "late_caffeine": true,
+    "screen_before_bed": false,
+    "late_meal": false,
+    "is_sick": false,
+    "is_injured": false,
+    "high_stress_event_today": true,
+    "meditation_done_today": true
+  },
+  "objective": {
+    "hrv_trend": "rising",
+    "restorative_sleep": "high"
+  },
+  "hooper": {
+    "fatigue": 2,
+    "soreness": 1,
+    "stress": 4,
+    "sleep": 2
+  },
+  "cycle": {
+    "day": 8,
+    "cycle_length": 28
+  }
+}

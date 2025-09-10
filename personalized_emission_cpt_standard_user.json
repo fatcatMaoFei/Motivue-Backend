@@ -1,0 +1,334 @@
+{
+  "subjective_fatigue": {
+    "low": {
+      "Peak": 0.8,
+      "Well-adapted": 0.7,
+      "FOR": 0.25,
+      "Acute Fatigue": 0.05,
+      "NFOR": 0.05,
+      "OTS": 1e-06
+    },
+    "medium": {
+      "Peak": 0.15,
+      "Well-adapted": 0.3,
+      "FOR": 0.2,
+      "Acute Fatigue": 0.15,
+      "NFOR": 0.1,
+      "OTS": 0.05
+    },
+    "high": {
+      "Peak": 1e-06,
+      "Well-adapted": 1e-06,
+      "FOR": 0.7,
+      "Acute Fatigue": 0.8,
+      "NFOR": 0.8,
+      "OTS": 0.9
+    }
+  },
+  "muscle_soreness": {
+    "low": {
+      "Peak": 0.8,
+      "Well-adapted": 0.75,
+      "FOR": 0.35,
+      "Acute Fatigue": 0.1,
+      "NFOR": 0.1,
+      "OTS": 0.2
+    },
+    "medium": {
+      "Peak": 0.1,
+      "Well-adapted": 0.25,
+      "FOR": 0.5,
+      "Acute Fatigue": 0.3,
+      "NFOR": 0.4,
+      "OTS": 0.5
+    },
+    "high": {
+      "Peak": 1e-06,
+      "Well-adapted": 1e-06,
+      "FOR": 0.35,
+      "Acute Fatigue": 0.6,
+      "NFOR": 0.5,
+      "OTS": 0.3
+    }
+  },
+  "subjective_stress": {
+    "low": {
+      "Peak": 0.8,
+      "Well-adapted": 0.7,
+      "FOR": 0.4,
+      "Acute Fatigue": 0.2,
+      "NFOR": 0.1,
+      "OTS": 1e-06
+    },
+    "medium": {
+      "Peak": 0.1,
+      "Well-adapted": 0.3,
+      "FOR": 0.5,
+      "Acute Fatigue": 0.5,
+      "NFOR": 0.3,
+      "OTS": 0.2
+    },
+    "high": {
+      "Peak": 1e-06,
+      "Well-adapted": 1e-06,
+      "FOR": 0.1,
+      "Acute Fatigue": 0.3,
+      "NFOR": 0.6,
+      "OTS": 0.8
+    }
+  },
+  "subjective_sleep": {
+    "good": {
+      "Peak": 0.8,
+      "Well-adapted": 0.75,
+      "FOR": 0.3,
+      "Acute Fatigue": 0.4,
+      "NFOR": 0.15,
+      "OTS": 0.1
+    },
+    "medium": {
+      "Peak": 0.15,
+      "Well-adapted": 0.25,
+      "FOR": 0.4,
+      "Acute Fatigue": 0.4,
+      "NFOR": 0.35,
+      "OTS": 0.2
+    },
+    "poor": {
+      "Peak": 1e-06,
+      "Well-adapted": 1e-06,
+      "FOR": 0.15,
+      "Acute Fatigue": 0.2,
+      "NFOR": 0.65,
+      "OTS": 0.7
+    }
+  },
+  "sleep_performance": {
+    "good": {
+      "Peak": 0.8,
+      "Well-adapted": 0.7,
+      "FOR": 0.25,
+      "Acute Fatigue": 0.35,
+      "NFOR": 0.2,
+      "OTS": 0.15
+    },
+    "medium": {
+      "Peak": 0.2,
+      "Well-adapted": 0.3,
+      "FOR": 0.5,
+      "Acute Fatigue": 0.5,
+      "NFOR": 0.4,
+      "OTS": 0.35
+    },
+    "poor": {
+      "Peak": 1e-06,
+      "Well-adapted": 1e-06,
+      "FOR": 0.25,
+      "Acute Fatigue": 0.15,
+      "NFOR": 0.4,
+      "OTS": 0.5
+    }
+  },
+  "apple_sleep_score": {
+    "excellent": {
+      "Peak": 0.85,
+      "Well-adapted": 0.75,
+      "FOR": 0.2,
+      "Acute Fatigue": 0.3,
+      "NFOR": 0.15,
+      "OTS": 0.1
+    },
+    "good": {
+      "Peak": 0.8,
+      "Well-adapted": 0.7,
+      "FOR": 0.25,
+      "Acute Fatigue": 0.35,
+      "NFOR": 0.2,
+      "OTS": 0.15
+    },
+    "fair": {
+      "Peak": 0.2,
+      "Well-adapted": 0.3,
+      "FOR": 0.5,
+      "Acute Fatigue": 0.5,
+      "NFOR": 0.4,
+      "OTS": 0.35
+    },
+    "poor": {
+      "Peak": 1e-06,
+      "Well-adapted": 1e-06,
+      "FOR": 0.25,
+      "Acute Fatigue": 0.15,
+      "NFOR": 0.4,
+      "OTS": 0.5
+    },
+    "very_poor": {
+      "Peak": 1e-06,
+      "Well-adapted": 1e-06,
+      "FOR": 0.15,
+      "Acute Fatigue": 0.1,
+      "NFOR": 0.5,
+      "OTS": 0.65
+    }
+  },
+  "hrv_trend": {
+    "rising": {
+      "Peak": 0.85,
+      "Well-adapted": 0.2,
+      "FOR": 0.1,
+      "Acute Fatigue": 0.1,
+      "NFOR": 0.05,
+      "OTS": 0.01
+    },
+    "stable": {
+      "Peak": 0.4,
+      "Well-adapted": 0.3,
+      "FOR": 0.2,
+      "Acute Fatigue": 0.2,
+      "NFOR": 0.1,
+      "OTS": 0.05
+    },
+    "slight_decline": {
+      "Peak": 0.05,
+      "Well-adapted": 0.1,
+      "FOR": 0.3,
+      "Acute Fatigue": 0.3,
+      "NFOR": 0.15,
+      "OTS": 0.09
+    },
+    "significant_decline": {
+      "Peak": 1e-06,
+      "Well-adapted": 1e-06,
+      "FOR": 0.4,
+      "Acute Fatigue": 0.4,
+      "NFOR": 0.7,
+      "OTS": 0.8
+    }
+  },
+  "nutrition": {
+    "adequate": {
+      "Peak": 0.5,
+      "Well-adapted": 0.6,
+      "FOR": 0.5,
+      "Acute Fatigue": 0.7,
+      "NFOR": 0.4,
+      "OTS": 0.3
+    },
+    "inadequate_mild": {
+      "Peak": 0.4,
+      "Well-adapted": 0.4,
+      "FOR": 0.45,
+      "Acute Fatigue": 0.4,
+      "NFOR": 0.5,
+      "OTS": 0.45
+    },
+    "inadequate_moderate": {
+      "Peak": 0.3,
+      "Well-adapted": 0.35,
+      "FOR": 0.42,
+      "Acute Fatigue": 0.35,
+      "NFOR": 0.55,
+      "OTS": 0.6
+    },
+    "inadequate_severe": {
+      "Peak": 0.1,
+      "Well-adapted": 0.15,
+      "FOR": 0.4,
+      "Acute Fatigue": 0.3,
+      "NFOR": 0.6,
+      "OTS": 0.7
+    }
+  },
+  "restorative_sleep": {
+    "high": {
+      "Peak": 0.85,
+      "Well-adapted": 0.75,
+      "FOR": 0.3,
+      "Acute Fatigue": 0.2,
+      "NFOR": 0.05,
+      "OTS": 1e-06
+    },
+    "medium": {
+      "Peak": 0.4,
+      "Well-adapted": 0.5,
+      "FOR": 0.4,
+      "Acute Fatigue": 0.35,
+      "NFOR": 0.25,
+      "OTS": 0.15
+    },
+    "low": {
+      "Peak": 1e-06,
+      "Well-adapted": 0.1,
+      "FOR": 0.2,
+      "Acute Fatigue": 0.3,
+      "NFOR": 0.7,
+      "OTS": 0.8
+    }
+  },
+  "gi_symptoms": {
+    "none": {
+      "Peak": 0.9,
+      "Well-adapted": 0.85,
+      "FOR": 0.8,
+      "Acute Fatigue": 0.7,
+      "NFOR": 0.5,
+      "OTS": 0.4
+    },
+    "mild": {
+      "Peak": 0.05,
+      "Well-adapted": 0.1,
+      "FOR": 0.15,
+      "Acute Fatigue": 0.25,
+      "NFOR": 0.4,
+      "OTS": 0.4
+    },
+    "severe": {
+      "Peak": 1e-06,
+      "Well-adapted": 1e-06,
+      "FOR": 0.05,
+      "Acute Fatigue": 0.05,
+      "NFOR": 0.1,
+      "OTS": 0.2
+    }
+  },
+  "is_sick": {
+    "true": {
+      "Peak": 1e-09,
+      "Well-adapted": 1e-06,
+      "FOR": 0.05,
+      "Acute Fatigue": 0.4,
+      "NFOR": 0.8,
+      "OTS": 0.9
+    }
+  },
+  "is_injured": {
+    "true": {
+      "Peak": 1e-09,
+      "Well-adapted": 1e-06,
+      "FOR": 0.1,
+      "Acute Fatigue": 0.5,
+      "NFOR": 0.7,
+      "OTS": 0.6
+    }
+  },
+  "high_stress_event_today": {
+    "true": {
+      "Peak": 0.05,
+      "Well-adapted": 0.15,
+      "FOR": 0.25,
+      "Acute Fatigue": 0.3,
+      "NFOR": 0.5,
+      "OTS": 0.4
+    }
+  },
+  "meditation_done_today": {
+    "true": {
+      "Peak": 0.55,
+      "Well-adapted": 0.5,
+      "FOR": 0.45,
+      "Acute Fatigue": 0.4,
+      "NFOR": 0.35,
+      "OTS": 0.3
+    }
+  }
+}

@@ -18,6 +18,14 @@ def compute_readiness_from_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
     gender = payload.get('gender') or '男性'
     prev_probs = payload.get('previous_state_probs')
 
+    # Normalize gender default (fix potential encoding and empty values)
+    try:
+        g = gender
+        if g is None or str(g).strip().lower() in ['', 'none', 'null', 'nan']:
+            gender = '男性'
+    except Exception:
+        gender = '男性'
+
     manager = ReadinessEngine(
         user_id=user_id,
         date=date,
@@ -96,8 +104,27 @@ def compute_readiness_from_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
     # Optional menstrual cycle as posterior evidence (from HealthKit)
     cycle = payload.get('cycle') or {}
 
-    objective = payload.get('objective') or {}
+    # Merge top-level objective-like fields to ensure consistent evidence usage
+    objective = dict(payload.get('objective') or {})
+    # Accept top-level fields commonly sent by clients or CSV ingestion
+    passthrough_keys = [
+        # direct enums
+        'sleep_performance_state', 'restorative_sleep', 'hrv_trend', 'nutrition', 'gi_symptoms', 'fatigue_3day_state',
+        # numeric metrics that mapping can convert
+        'sleep_duration_hours', 'sleep_efficiency', 'total_sleep_minutes',
+        'restorative_ratio', 'deep_sleep_ratio', 'rem_sleep_ratio',
+        'hrv_rmssd_today', 'hrv_rmssd_3day_avg', 'hrv_rmssd_7day_avg',
+        'hrv_baseline_mu', 'hrv_baseline_sd', 'hrv_rmssd_28day_avg', 'hrv_rmssd_28day_sd',
+        'sleep_baseline_hours', 'sleep_baseline_eff', 'rest_baseline_ratio',
+    ]
+    for k in passthrough_keys:
+        v = payload.get(k)
+        if v is not None and k not in objective:
+            objective[k] = v
     hooper = payload.get('hooper') or {}
+    
+    # 苹果睡眠评分支持：有数据就用，无版本检查
+    apple_sleep_score = payload.get('apple_sleep_score')
 
     # Hooper mapping
     hooper_mapped = {}
@@ -106,9 +133,18 @@ def compute_readiness_from_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
     if 'stress' in hooper: hooper_mapped['stress_hooper'] = hooper['stress']
     if 'sleep' in hooper: hooper_mapped['sleep_hooper'] = hooper['sleep']
 
+    # 苹果睡眠评分处理：有数据就用
+    apple_evidence = {}
+    if apple_sleep_score is not None:
+        apple_evidence['apple_sleep_score'] = apple_sleep_score
+
     # Stepwise updates
     if objective:
+        # Apple present? mapping enforces either-or between apple_sleep_score and sleep_performance,
+        # but restorative_sleep remains used alongside Apple.
         manager.add_evidence_and_update(objective)
+    if apple_evidence:
+        manager.add_evidence_and_update(apple_evidence)
     if hooper_mapped:
         manager.add_evidence_and_update(hooper_mapped)
     # Menstrual cycle evidence (posterior, continuous)

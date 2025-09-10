@@ -28,6 +28,7 @@ print(res['final_readiness_score'], res['final_diagnosis'])
       - 简化统一：`journal: {alcohol_consumed, late_caffeine, screen_before_bed, late_meal, is_sick, is_injured, high_stress_event_today, meditation_done_today}`。
       - 兼容键：`journal_yesterday`、`journal_today`。
     - 观测证据：如 `sleep_performance_state`、`hrv_trend`、`nutrition`、`gi_symptoms` 等。
+    - **iOS 26新增**：`ios_version: int`、`apple_sleep_score: float`（苹果原生睡眠评分0-100分）。
     - Hooper 主观量表：`hooper: {fatigue, soreness, stress, sleep}`（支持 1..7 连续映射）。
     - 月经周期（后验、连续）：`cycle: {day: int, cycle_length: int}`。
   - 输出：`prior_probs`、`final_posterior_probs`、`final_readiness_score`（0..100）、`final_diagnosis`、`update_history`、`evidence_pool`、`next_previous_state_probs` 等。
@@ -45,6 +46,7 @@ print(res['final_readiness_score'], res['final_diagnosis'])
   - 作用：将原始输入映射到模型期望的枚举/变量（供发射概率表使用）。
   - 能力：
     - 将 HealthKit 风格数值转换为类别：睡眠表现、恢复性睡眠、HRV 趋势等。
+    - **iOS 26睡眠评分**：自动检测iOS版本≥26且有苹果评分时，优先使用苹果评分，跳过传统睡眠时长+效率计算。
     - Hooper 键：`fatigue_hooper|soreness_hooper|stress_hooper|sleep_hooper` 映射到 `subjective_*`；同时保留 1..7 分数用于连续映射。
     - 日志布尔透传：`is_sick`、`is_injured`、`high_stress_event_today`、`meditation_done_today`。
 

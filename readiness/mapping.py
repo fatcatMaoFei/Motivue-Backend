@@ -20,9 +20,32 @@ def map_inputs_to_states(raw_inputs: Dict[str, Any]) -> Dict[str, Any]:
     """
     mapped: Dict[str, Any] = {}
 
-    # ===== HealthKit 数值 → 枚举（若未传枚举时按数值和个体基线映射） =====
+    # ===== 苹果睡眠评分优先处理（有数据就用，无版本检查）=====
+    apple_sleep_score = raw_inputs.get('apple_sleep_score')
+    
+    if apple_sleep_score is not None:
+        # 使用苹果原生睡眠评分，跳过传统的时长+效率计算
+        try:
+            score = float(apple_sleep_score)
+            if score >= 80:
+                mapped['apple_sleep_score'] = 'excellent'
+            elif score >= 70:
+                mapped['apple_sleep_score'] = 'good'  # 72分在这里
+            elif score >= 60:
+                mapped['apple_sleep_score'] = 'fair'
+            elif score >= 40:
+                mapped['apple_sleep_score'] = 'poor'
+            else:
+                mapped['apple_sleep_score'] = 'very_poor'
+            # 标记使用了苹果评分，跳过传统睡眠计算
+            mapped['_using_apple_sleep_score'] = True
+        except Exception:
+            # 解析失败，fallback到传统方法
+            pass
+    
+    # ===== HealthKit 数值 → 枚举（若未传枚举且未使用苹果评分时按数值和个体基线映射）=====
     # 1) 睡眠表现 sleep_performance_state（时长+效率：绝对阈值 ∧ 个体基线）
-    if 'sleep_performance_state' not in raw_inputs:
+    if 'sleep_performance_state' not in raw_inputs and not mapped.get('_using_apple_sleep_score', False):
         duration_hours = None
         if raw_inputs.get('sleep_duration_hours') is not None:
             try:
@@ -167,7 +190,7 @@ def map_inputs_to_states(raw_inputs: Dict[str, Any]) -> Dict[str, Any]:
 
     # --- HealthKit numeric → enum mapping (only if enum not already present) ---
     # Sleep performance: duration (hours or minutes) + efficiency (0..1 or 0..100)
-    if 'sleep_performance_state' not in raw_inputs:
+    if 'sleep_performance_state' not in raw_inputs and not mapped.get('_using_apple_sleep_score', False):
         duration_hours = None
         if raw_inputs.get('sleep_duration_hours') is not None:
             try:
@@ -269,7 +292,14 @@ def map_inputs_to_states(raw_inputs: Dict[str, Any]) -> Dict[str, Any]:
     # Direct categorical passthrough
     for key in ['sleep_performance_state', 'restorative_sleep', 'hrv_trend', 'nutrition', 'gi_symptoms', 'fatigue_3day_state']:
         if key in raw_inputs and raw_inputs[key] is not None:
+            # If Apple sleep score is present, enforce either-or: drop traditional sleep_performance
+            if key == 'sleep_performance_state' and mapped.get('_using_apple_sleep_score', False):
+                continue
             mapped[key.replace('_state', '')] = raw_inputs[key]
+
+    # Enforce either-or at the end defensively: if Apple score is used, drop any sleep_performance that may have slipped in
+    if mapped.get('_using_apple_sleep_score', False):
+        mapped.pop('sleep_performance', None)
 
     # Direct boolean journal evidence
     for key in ['is_sick', 'is_injured', 'high_stress_event_today', 'meditation_done_today']:

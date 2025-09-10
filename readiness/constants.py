@@ -37,6 +37,14 @@ EMISSION_CPT = {
         'medium': {'Peak': 0.20, 'Well-adapted': 0.30, 'FOR': 0.50, 'Acute Fatigue': 0.50, 'NFOR': 0.40, 'OTS': 0.35},
         'poor': {'Peak': 1e-6, 'Well-adapted': 1e-6, 'FOR': 0.25, 'Acute Fatigue': 0.15, 'NFOR': 0.40, 'OTS': 0.50}
     },
+    # iOS 26 苹果原生睡眠评分 (0-100分) - 严格基于现有sleep_performance概率
+    'apple_sleep_score': {
+        'excellent': {'Peak': 0.85, 'Well-adapted': 0.75, 'FOR': 0.20, 'Acute Fatigue': 0.30, 'NFOR': 0.15, 'OTS': 0.10},  # 80-100分，比good稍好
+        'good': {'Peak': 0.80, 'Well-adapted': 0.70, 'FOR': 0.25, 'Acute Fatigue': 0.35, 'NFOR': 0.20, 'OTS': 0.15},      # 70-79分，对应sleep_performance good
+        'fair': {'Peak': 0.20, 'Well-adapted': 0.30, 'FOR': 0.50, 'Acute Fatigue': 0.50, 'NFOR': 0.40, 'OTS': 0.35},      # 60-69分，对应sleep_performance medium
+        'poor': {'Peak': 1e-6, 'Well-adapted': 1e-6, 'FOR': 0.25, 'Acute Fatigue': 0.15, 'NFOR': 0.40, 'OTS': 0.50},      # 40-59分，对应sleep_performance poor
+        'very_poor': {'Peak': 1e-6, 'Well-adapted': 1e-6, 'FOR': 0.15, 'Acute Fatigue': 0.10, 'NFOR': 0.50, 'OTS': 0.65} # 0-39分，比poor稍差
+    },
     'hrv_trend': {
         'rising': {'Peak': 0.85, 'Well-adapted': 0.20, 'FOR': 0.10, 'Acute Fatigue': 0.10, 'NFOR': 0.05, 'OTS': 0.01},
         'stable': {'Peak': 0.4, 'Well-adapted': 0.3, 'FOR': 0.20, 'Acute Fatigue': 0.20, 'NFOR': 0.10, 'OTS': 0.05},
@@ -87,6 +95,7 @@ EVIDENCE_WEIGHTS_FITNESS = {
     "hrv_trend": 1.0,
     "restorative_sleep": 0.95,
     "sleep_performance": 0.90,
+    "apple_sleep_score": 1.0,   # iOS 26苹果原生评分，满权重（综合了时长+效率+一致性+觉醒频率）
     "subjective_fatigue": 0.75,
     "subjective_stress": 0.70,
     "muscle_soreness": 0.65,

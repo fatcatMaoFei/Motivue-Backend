@@ -1,0 +1,40 @@
+{
+  "_comment": "iOS 26用户但无苹果评分，fallback到传统睡眠评估",
+  "user_id": "user_ios26_fallback",
+  "date": "2024-09-10",
+  "gender": "男性",
+  "ios_version": 26,
+  "_apple_sleep_score_note": "无苹果评分，使用传统睡眠数据",
+  "sleep_baseline_hours": 7.5,
+  "sleep_baseline_eff": 0.88,
+  "rest_baseline_ratio": 0.32,
+  "previous_state_probs": {
+    "Peak": 0.25,
+    "Well-adapted": 0.4,
+    "FOR": 0.25,
+    "Acute Fatigue": 0.08,
+    "NFOR": 0.02,
+    "OTS": 0.0
+  },
+  "training_load": "高",
+  "recent_training_loads": ["中", "高", "高", "极高", "高", "中", "低"],
+  "journal": {
+    "alcohol_consumed": true,
+    "late_caffeine": false,
+    "screen_before_bed": true,
+    "late_meal": true,
+    "is_sick": false,
+    "is_injured": false
+  },
+  "objective": {
+    "sleep_performance_state": "medium",
+    "restorative_sleep": "low",
+    "hrv_trend": "slight_decline"
+  },
+  "hooper": {
+    "fatigue": 4,
+    "soreness": 4,
+    "stress": 3,
+    "sleep": 4
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "user_id": "standard_user",
+  "date": "2025-07-01",
+  "gender": "男性",
+  "apple_sleep_score": 75,
+  "restorative_ratio": 0.67,
+  "hrv_trend": "stable",
+  "hooper": {"fatigue": 3, "soreness": 2, "stress": 2, "sleep": 3},
+  "journal": {
+    "alcohol_consumed": false,
+    "late_caffeine": false,
+    "screen_before_bed": false,
+    "late_meal": true,
+    "is_sick": false,
+    "is_injured": false
+  }
+}

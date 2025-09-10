@@ -22,6 +22,8 @@ class SleepRecord:
     core_sleep_minutes: Optional[int] = None    # 核心睡眠分钟数
     awake_minutes: Optional[int] = 0            # 清醒分钟数
     source_device: Optional[str] = None
+    # iOS 26 新增字段
+    apple_sleep_score: Optional[float] = None   # 苹果原生睡眠评分 (0-100)
     
     # 计算属性
     @property
@@ -80,6 +82,7 @@ class SleepRecord:
             'core_sleep_minutes': self.core_sleep_minutes,
             'awake_minutes': self.awake_minutes,
             'source_device': self.source_device,
+            'apple_sleep_score': self.apple_sleep_score,
             # 计算属性
             'sleep_duration_hours': self.sleep_duration_hours,
             'sleep_efficiency': self.sleep_efficiency,
@@ -137,6 +140,8 @@ class BaselineResult:
     sleep_baseline_hours: Optional[float] = None
     sleep_baseline_eff: Optional[float] = None
     rest_baseline_ratio: Optional[float] = None
+    # iOS 26 新增基线
+    apple_sleep_score_baseline: Optional[float] = None  # 苹果评分基线 (0-100)
     
     # HRV基线
     hrv_baseline_mu: Optional[float] = None
@@ -192,6 +197,7 @@ class BaselineResult:
             'sleep_baseline_hours': self.sleep_baseline_hours,
             'sleep_baseline_eff': self.sleep_baseline_eff,
             'rest_baseline_ratio': self.rest_baseline_ratio,
+            'apple_sleep_score_baseline': self.apple_sleep_score_baseline,
             'hrv_baseline_mu': self.hrv_baseline_mu,
             'hrv_baseline_sd': self.hrv_baseline_sd,
             'data_quality_score': self.data_quality_score,
