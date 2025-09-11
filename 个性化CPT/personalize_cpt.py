@@ -12,7 +12,7 @@ def main():
     ap.add_argument('--csv', required=True, help='History CSV path (standardized format)')
     ap.add_argument('--user', required=True, help='User ID')
     ap.add_argument('--out', required=True, help='Output JSON path')
-    ap.add_argument('--shrink-k', type=float, default=100.0, help='Shrinkage strength (n/(n+k))')
+    ap.add_argument('--shrink-k', type=float, default=50.0, help='Shrinkage strength (n/(n+k))')
     args = ap.parse_args()
 
     na_vals = ["", "none", "null", "na", "nan", "None", "NULL", "NA", "NaN"]
@@ -27,5 +27,6 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
