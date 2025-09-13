@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from readiness.constants import TRAINING_LOAD_AU
 
 
 def _au_from_session(session: Dict) -> Tuple[float, str | None]:
-    """Return (au, label_used). Prefer RPE×minutes; else label→AU; else au.
+    """Return (au, label_used). Prefer RPE脳minutes; else label鈫扐U; else au.
     Label is returned only for record; RPE is the primary source when present.
     """
     rpe = session.get("rpe")
@@ -29,12 +29,10 @@ def _au_from_session(session: Dict) -> Tuple[float, str | None]:
 
 def _g_piecewise(au: float) -> float:
     """Piecewise minutes-based mapping to consumption points (0..40).
-    轻负荷也有小额扣分，整体坡度温和：
-    - 0..150   → 0..5
-    - 150..300 → 5..12
-    - 300..500 → 12..25
-    - >500     → 25..40（约在 900 饱和）
-    """
+    杞昏礋鑽蜂篃鏈夊皬棰濇墸鍒嗭紝鏁翠綋鍧″害娓╁拰锛?    - 0..150   鈫?0..5
+    - 150..300 鈫?5..12
+    - 300..500 鈫?12..25
+    - >500     鈫?25..40锛堢害鍦?900 楗卞拰锛?    """
     if au <= 0:
         return 0.0
     if au <= 150:
@@ -72,3 +70,4 @@ def compute_training_consumption(
         })
     total = min(cap_training_total, total)
     return float(total), results
+
