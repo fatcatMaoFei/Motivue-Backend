@@ -29,18 +29,20 @@ def _au_from_session(session: Dict) -> Tuple[float, str | None]:
 
 def _g_piecewise(au: float) -> float:
     """Piecewise minutes-based mapping to consumption points (0..40).
-    - AU ≤ 150 → 0
-    - 150..300 → 0..10
-    - 300..500 → 10..25
-    - >500     → 25..40 (saturates at 900)
+    轻负荷也有小额扣分，整体坡度温和：
+    - 0..150   → 0..5
+    - 150..300 → 5..12
+    - 300..500 → 12..25
+    - >500     → 25..40（约在 900 饱和）
     """
-    if au <= 150:
+    if au <= 0:
         return 0.0
+    if au <= 150:
+        return 5.0 * (au / 150.0)
     if au <= 300:
-        return 10.0 * (au - 150.0) / 150.0
+        return 5.0 + 7.0 * ((au - 150.0) / 150.0)
     if au <= 500:
-        return 10.0 + 15.0 * (au - 300.0) / 200.0
-    # cap at +40 around 900 AU
+        return 12.0 + 13.0 * ((au - 300.0) / 200.0)
     extra = min(1.0, (au - 500.0) / 400.0)
     return 25.0 + 15.0 * extra
 
@@ -70,4 +72,3 @@ def compute_training_consumption(
         })
     total = min(cap_training_total, total)
     return float(total), results
-
