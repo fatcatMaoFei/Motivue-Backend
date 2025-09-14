@@ -89,11 +89,12 @@ def map_inputs_to_states(raw_inputs: Dict[str, Any]) -> Dict[str, Any]:
             mu_dur = mu_eff = None
 
         if duration_hours is not None and eff is not None:
-            # 绉戝鍖栫殑鐫＄湢璇勫垽鏍囧噯锛氬熀绾?1灏忔椂绠梘ood锛?-9h锛夛紝鍩虹嚎-0.5灏忔椂绠梞edium锛?-8h锛?            good_dur_threshold = 7.0 if mu_dur is None else min(9.0, max(7.0, mu_dur + 1.0))
+            # Duration thresholds (personalized): good=min(9, max(7, mu_dur + 1)); medium=min(8, max(6, mu_dur - 0.5))
+            good_dur_threshold = 7.0 if mu_dur is None else min(9.0, max(7.0, mu_dur + 1.0))
             good_eff_threshold = EFFICIENCY_GOOD if mu_eff is None else max(EFFICIENCY_GOOD, mu_eff - 0.05)
             med_dur_threshold = 6.0 if mu_dur is None else min(8.0, max(6.0, mu_dur - 0.5))
             med_eff_threshold = EFFICIENCY_MED if mu_eff is None else max(EFFICIENCY_MED, mu_eff - 0.10)
-            # 默认关闭效率个性化：使用固定阈值；若开启，则保留上面的个性化结果
+            # Default: disable efficiency personalization; use fixed thresholds unless flag is on
             if not PERSONALIZE_SLEEP_EFFICIENCY:
                 good_eff_threshold = EFFICIENCY_GOOD
                 med_eff_threshold = EFFICIENCY_MED
@@ -105,7 +106,8 @@ def map_inputs_to_states(raw_inputs: Dict[str, Any]) -> Dict[str, Any]:
             else:
                 mapped['sleep_performance'] = 'poor'
 
-    # 2) 鎭㈠鎬х潯鐪?restorative_sleep锛堟繁鐫?REM 鍗犳瘮锛氱粷瀵归槇鍊?鈭?涓綋鍩虹嚎锛?    if 'restorative_sleep' not in raw_inputs and 'restorative_sleep' not in mapped:
+    # 2) Restorative sleep (deep + REM ratio; baseline optional)
+    if 'restorative_sleep' not in raw_inputs and 'restorative_sleep' not in mapped:
         rest_ratio = None
         if raw_inputs.get('restorative_ratio') is not None:
             try:
@@ -129,7 +131,7 @@ def map_inputs_to_states(raw_inputs: Dict[str, Any]) -> Dict[str, Any]:
             mu_rest = None
 
         if rest_ratio is not None:
-            # 绉戝鍖栫殑鎭㈠鎬х潯鐪犺瘎鍒ゆ爣鍑嗭細鍩虹嚎+10%绠梙igh锛?5-55%瀹夊叏鑼冨洿
+            # Restorative thresholds (fixed by default): high>=0.35, medium>=0.25
             high_thr = RESTORATIVE_HIGH if mu_rest is None else min(0.55, max(RESTORATIVE_HIGH, mu_rest + 0.10))
             med_thr = RESTORATIVE_MED if mu_rest is None else max(RESTORATIVE_MED, mu_rest - 0.05)
             # 默认关闭恢复性个性化：使用固定阈值；若开启，则保留上面的个性化结果

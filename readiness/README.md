@@ -104,3 +104,15 @@ print(summary['final_readiness_score'], summary['final_diagnosis'])
 - `simulate_5days_via_service.py`：演示如何通过 `service` 连续跑多天。
 - `demo_hooper_discrete_vs_continuous.py`：对比 Hooper 离散/连续映射效果。
 
+
+## Sleep Mapping Policy (for backend engineers)
+
+- Duration (personalized when baseline provided):
+  - good = min(9.0, max(7.0, mu_dur + 1.0))
+  - medium = min(8.0, max(6.0, mu_dur - 0.5))
+- Efficiency (fixed by default; personalization togglable in mapping.py):
+  - good ≥ 0.85; medium ≥ 0.75
+- Restorative (deep+REM ratio, fixed by default; togglable):
+  - high ≥ 0.35; medium ≥ 0.25
+- Personalization flags (default False): PERSONALIZE_SLEEP_EFFICIENCY, PERSONALIZE_RESTORATIVE
+- Rationale: duration demand varies widely per person; efficiency/restorative are normalized ratios and remain comparable with fixed thresholds. Personalization can be enabled later if stricter grading for high‑baseline users is desired.
