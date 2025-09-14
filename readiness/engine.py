@@ -91,18 +91,22 @@ class ReadinessEngine:
 
     def __init__(self, user_id: str, date: str,
                  previous_state_probs: Optional[Dict[str, float]] = None,
-                 gender: str = '男性') -> None:
+                 gender: str = '男性',
+                 emission_cpt_override: Optional[Dict[str, Any]] = None) -> None:
         self.user_id = user_id
         self.date = date
         self.gender = gender
         self.states = ['Peak', 'Well-adapted', 'FOR', 'Acute Fatigue', 'NFOR', 'OTS']
 
+        # PRD默认首日先验
         self.previous_probs = previous_state_probs or {
-            'Peak': 0.3, 'Well-adapted': 0.5, 'FOR': 0.15,
-            'Acute Fatigue': 0.05, 'NFOR': 0.0, 'OTS': 0.0
+            'Peak': 0.1, 'Well-adapted': 0.5, 'FOR': 0.3,
+            'Acute Fatigue': 0.1, 'NFOR': 0.0, 'OTS': 0.0
         }
 
         self.journal_manager = JournalManager()
+        # Personalized EMISSION_CPT per user if provided; else use global
+        self.emission_cpt: Dict[str, Any] = emission_cpt_override if isinstance(emission_cpt_override, dict) else EMISSION_CPT
         self.today_prior_probs: Optional[Dict[str, float]] = None
         self.today_posterior_probs: Optional[Dict[str, float]] = None
         self.prior_calculated = False
@@ -374,14 +378,14 @@ class ReadinessEngine:
         # Multiply by each categorical evidence likelihood with weights
         for var, val in evidence.items():
             # map to CPT var/level already done
-            if var not in EMISSION_CPT:
+            if var not in self.emission_cpt:
                 continue
-            if val not in EMISSION_CPT[var]:
+            if val not in self.emission_cpt[var]:
                 continue
             if var in used_vars:
                 # Skip categorical for vars already accounted by continuous Hooper
                 continue
-            like = EMISSION_CPT[var][val]
+            like = self.emission_cpt[var][val]
             w = float(EVIDENCE_WEIGHTS_FITNESS.get(var, 1.0))
             for s in self.states:
                 posterior[s] = posterior.get(s, 0.0) * max(like.get(s, 1e-6), 1e-6) ** w

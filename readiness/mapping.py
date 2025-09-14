@@ -31,17 +31,22 @@ def map_inputs_to_states(raw_inputs: Dict[str, Any]) -> Dict[str, Any]:
     - Direct booleans for journal keys (is_sick/is_injured/high_stress_event_today/meditation_done_today)
     """
 
-    # ===== Apple Sleep Score priority (use when present) =====
+    # ===== 苹果睡眠评分优先处理（仅当 iOS 版本 >= 26 时启用）=====
     apple_sleep_score = raw_inputs.get('apple_sleep_score')
-    
-    if apple_sleep_score is not None:
-        # 浣跨敤鑻规灉鍘熺敓鐫＄湢璇勫垎锛岃烦杩囦紶缁熺殑鏃堕暱+鏁堢巼璁＄畻
+    ios_version = raw_inputs.get('ios_version')
+    try:
+        ios_ver_int = int(ios_version) if ios_version is not None else None
+    except Exception:
+        ios_ver_int = None
+
+    if apple_sleep_score is not None and ios_ver_int is not None and ios_ver_int >= 26:
+        # 使用苹果原生睡眠评分，跳过传统的时长+效率计算
         try:
             score = float(apple_sleep_score)
             if score >= 80:
                 mapped['apple_sleep_score'] = 'excellent'
             elif score >= 70:
-                mapped['apple_sleep_score'] = 'good'  # 72鍒嗗湪杩欓噷
+                mapped['apple_sleep_score'] = 'good'
             elif score >= 60:
                 mapped['apple_sleep_score'] = 'fair'
             elif score >= 40:

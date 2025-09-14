@@ -13,6 +13,8 @@ from pathlib import Path
 import sqlite3
 
 from .models import BaselineResult
+from sqlalchemy import Column, String, Float, create_engine
+from sqlalchemy.orm import declarative_base, Session
 
 
 class BaselineStorage:
@@ -287,6 +289,86 @@ class SQLiteBaselineStorage(BaselineStorage):
             print(f"获取基线统计信息失败: {e}")
             return {}
 
+
+# ---------- SQLAlchemy (Postgres/Supabase) storage ----------
+BaseORM = declarative_base()
+
+
+class UserBaselineORM(BaseORM):
+    __tablename__ = "user_baselines"
+
+    user_id = Column(String, primary_key=True)
+    sleep_baseline_hours = Column(Float, nullable=True)
+    sleep_baseline_eff = Column(Float, nullable=True)
+    rest_baseline_ratio = Column(Float, nullable=True)
+    hrv_baseline_mu = Column(Float, nullable=True)
+    hrv_baseline_sd = Column(Float, nullable=True)
+
+
+class SQLAlchemyBaselineStorage(BaselineStorage):
+    """Use DATABASE_URL (e.g., Supabase Postgres via transaction pooler)"""
+
+    def __init__(self, database_url: str) -> None:
+        self.engine = create_engine(database_url, pool_pre_ping=True, future=True)
+        # Create table if not exists
+        BaseORM.metadata.create_all(self.engine)
+
+    def save_baseline(self, baseline: BaselineResult) -> bool:
+        try:
+            with Session(self.engine) as s:
+                row = s.get(UserBaselineORM, baseline.user_id)
+                if row is None:
+                    row = UserBaselineORM(user_id=baseline.user_id)
+                row.sleep_baseline_hours = baseline.sleep_baseline_hours
+                row.sleep_baseline_eff = baseline.sleep_baseline_eff
+                row.rest_baseline_ratio = baseline.rest_baseline_ratio
+                row.hrv_baseline_mu = baseline.hrv_baseline_mu
+                row.hrv_baseline_sd = baseline.hrv_baseline_sd
+                s.merge(row)
+                s.commit()
+            return True
+        except Exception as e:
+            print(f"保存基线数据到SQL数据库失败: {e}")
+            return False
+
+    def get_baseline(self, user_id: str) -> Optional[BaselineResult]:
+        try:
+            with Session(self.engine) as s:
+                row = s.get(UserBaselineORM, user_id)
+                if not row:
+                    return None
+                data = {
+                    'user_id': row.user_id,
+                    'sleep_baseline_hours': row.sleep_baseline_hours,
+                    'sleep_baseline_eff': row.sleep_baseline_eff,
+                    'rest_baseline_ratio': row.rest_baseline_ratio,
+                    'hrv_baseline_mu': row.hrv_baseline_mu,
+                    'hrv_baseline_sd': row.hrv_baseline_sd,
+                }
+                return BaselineResult.from_dict(data)
+        except Exception as e:
+            print(f"从SQL数据库读取基线数据失败: {e}")
+            return None
+
+    # Optional helpers
+    def delete_baseline(self, user_id: str) -> bool:
+        try:
+            with Session(self.engine) as s:
+                row = s.get(UserBaselineORM, user_id)
+                if row:
+                    s.delete(row)
+                    s.commit()
+            return True
+        except Exception:
+            return False
+
+    def list_users_with_baselines(self) -> List[str]:
+        try:
+            with Session(self.engine) as s:
+                res = s.query(UserBaselineORM.user_id).all()
+                return [r[0] for r in res]
+        except Exception:
+            return []
 
 # 默认存储实例（可配置）
 _default_storage: Optional[BaselineStorage] = None

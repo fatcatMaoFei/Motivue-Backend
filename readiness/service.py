@@ -26,11 +26,17 @@ def compute_readiness_from_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
     except Exception:
         gender = '男性'
 
+    # Try load personalized EMISSION_CPT if provided in payload
+    emission_override = None
+    if isinstance(payload.get('emission_cpt_override'), dict):
+        emission_override = payload.get('emission_cpt_override')
+
     manager = ReadinessEngine(
         user_id=user_id,
         date=date,
         previous_state_probs=prev_probs,
         gender=gender,
+        emission_cpt_override=emission_override,
     )
 
     causal_inputs: Dict[str, Any] = {}
@@ -123,8 +129,9 @@ def compute_readiness_from_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
             objective[k] = v
     hooper = payload.get('hooper') or {}
     
-    # 苹果睡眠评分支持：有数据就用，无版本检查
+    # 苹果睡眠评分支持：仅当 ios_version>=26 时在 mapping 中启用（由 mapping.py 判定）
     apple_sleep_score = payload.get('apple_sleep_score')
+    ios_version = payload.get('ios_version')
 
     # Hooper mapping
     hooper_mapped = {}
@@ -137,6 +144,8 @@ def compute_readiness_from_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
     apple_evidence = {}
     if apple_sleep_score is not None:
         apple_evidence['apple_sleep_score'] = apple_sleep_score
+        if ios_version is not None:
+            apple_evidence['ios_version'] = ios_version
 
     # Stepwise updates
     if objective:
@@ -147,9 +156,12 @@ def compute_readiness_from_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
         manager.add_evidence_and_update(apple_evidence)
     if hooper_mapped:
         manager.add_evidence_and_update(hooper_mapped)
-    # Menstrual cycle evidence (posterior, continuous)
+    # Menstrual cycle evidence (posterior, continuous) with key unification
     if cycle:
-        manager.add_evidence_and_update({'cycle': cycle})
+        cy = dict(cycle)
+        if 'length' not in cy and 'cycle_length' in cy and cy.get('cycle_length') is not None:
+            cy['length'] = cy.get('cycle_length')
+        manager.add_evidence_and_update({'cycle': cy})
     # Today's journal evidence is read from JournalManager inside the engine
     if persistent_all:
         manager.add_evidence_and_update({})
