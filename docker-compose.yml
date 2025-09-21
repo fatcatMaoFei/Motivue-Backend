@@ -6,9 +6,9 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=${DATABASE_URL:-sqlite:///./local.db}
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/%2f
-      - BASELINE_SERVICE_URL=http://baseline:8001
+      - DATABASE_URL=${DATABASE_URL}
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/%2f}
+      - BASELINE_SERVICE_URL=${BASELINE_SERVICE_URL:-http://baseline:8001}
     depends_on:
       - rabbitmq
 
@@ -20,7 +20,8 @@ services:
       - "8001:8001"
     environment:
       - BASELINE_DATABASE_URL=${BASELINE_DATABASE_URL}
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/%2f
+      - DATABASE_URL=${DATABASE_URL}
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/%2f}
     volumes:
       - baseline_data:/data
     depends_on:
@@ -31,6 +32,17 @@ services:
     ports:
       - "15672:15672"
       - "5672:5672"
+
+  physio-age:
+    build:
+      context: .
+      dockerfile: Dockerfile.physio_age
+    ports:
+      - "8002:8002"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+    depends_on:
+      - readiness
 
 volumes:
   baseline_data:

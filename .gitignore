@@ -14,3 +14,12 @@ venv/
 # OS
 .DS_Store
 Thumbs.db
+
+# Local environment
+.env
+
+# VSCode workspace settings
+.vscode/settings.json
+
+# VSCode (ignore entire workspace directory)
+.vscode/

@@ -50,8 +50,12 @@ class UserDaily(Base):
     objective: Optional[dict] = Column(JSON, nullable=True)
     hooper: Optional[dict] = Column(JSON, nullable=True)
     cycle: Optional[dict] = Column(JSON, nullable=True)
+    device_metrics: Optional[dict] = Column(JSON, nullable=True)
 
     final_readiness_score: Optional[int] = Column(Integer, nullable=True)
+    # 展示用的“当前剩余准备度”，由 /readiness/consumption 动态更新；
+    # 每日由 /readiness/from-healthkit 初始化为 final_readiness_score。
+    current_readiness_score: Optional[int] = Column(Integer, nullable=True)
     final_diagnosis: Optional[str] = Column(String, nullable=True)
     final_posterior_probs: Optional[dict] = Column(JSON, nullable=True)
     next_previous_state_probs: Optional[dict] = Column(JSON, nullable=True)
@@ -82,6 +86,25 @@ class UserBaseline(Base):
 
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
+    # 轻量级列迁移：为已存在的 user_daily 表添加 current_readiness_score 列
+    try:
+        with engine.begin() as conn:
+            dialect = engine.dialect.name
+            if dialect == "postgresql":
+                conn.exec_driver_sql(
+                    "ALTER TABLE user_daily ADD COLUMN IF NOT EXISTS current_readiness_score INTEGER"
+                )
+            elif dialect == "sqlite":
+                # SQLite 不支持 IF NOT EXISTS；用 PRAGMA 检查
+                res = conn.exec_driver_sql("PRAGMA table_info('user_daily')")
+                cols = [row[1] for row in res]
+                if "current_readiness_score" not in cols:
+                    conn.exec_driver_sql(
+                        "ALTER TABLE user_daily ADD COLUMN current_readiness_score INTEGER"
+                    )
+    except Exception:
+        # 迁移失败不影响 API 启动；后续由 DBA 修复
+        pass
 
 
 def get_session() -> Session:

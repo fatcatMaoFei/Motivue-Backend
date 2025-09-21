@@ -15,8 +15,9 @@ from typing import Any, Dict
 
 # ---------------------------- Mapping Config ----------------------------
 # Fixed thresholds (product rules)
-PERSONALIZE_SLEEP_EFFICIENCY = False
-PERSONALIZE_RESTORATIVE = False
+# 默认启用个性化阈值（效率/恢复性）
+PERSONALIZE_SLEEP_EFFICIENCY = True
+PERSONALIZE_RESTORATIVE = True
 
 # Fixed threshold values
 EFFICIENCY_GOOD = 0.85
@@ -30,6 +31,7 @@ def map_inputs_to_states(raw_inputs: Dict[str, Any]) -> Dict[str, Any]:
     - Direct categorical passthrough for sleep/HRV/nutrition/GI/fatigue_3day_state
     - Direct booleans for journal keys (is_sick/is_injured/high_stress_event_today/meditation_done_today)
     """
+    mapped: Dict[str, Any] = {}
 
     # ===== 苹果睡眠评分优先处理（仅当 iOS 版本 >= 26 时启用）=====
     apple_sleep_score = raw_inputs.get('apple_sleep_score')

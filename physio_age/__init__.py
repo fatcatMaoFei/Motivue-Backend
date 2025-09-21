@@ -6,6 +6,8 @@ Implementation will follow after requirements are finalized.
 
 from .core import compute_physiological_age
 
+__all__ = ["compute_physiological_age"]
+
 __all__ = [
     "compute_physiological_age",
 ]

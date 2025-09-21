@@ -400,12 +400,22 @@ async def post_readiness_from_healthkit(req: FromHKRequest, session: Session = D
         row = session.get(UserDaily, {"user_id": result["user_id"], "date": result["date"]})
         if row is None:
             row = UserDaily(user_id=result["user_id"], date=result["date"])
+        # Persist raw device metrics for downstream analytics/physio-age
+        device_metrics: Dict[str, Any] = {}
+        for k in [
+            "total_sleep_minutes", "in_bed_minutes", "deep_sleep_minutes", "rem_sleep_minutes",
+            "sleep_duration_hours", "sleep_efficiency", "restorative_ratio",
+            "deep_sleep_ratio", "rem_sleep_ratio", "hrv_rmssd_today"
+        ]:
+            if raw_dict.get(k) is not None:
+                device_metrics[k] = raw_dict.get(k)
         row.previous_state_probs = payload.get("previous_state_probs")
         row.training_load = None
         row.journal = (payload.get("journal") or {})
         row.objective = (payload.get("objective") or {})
         row.hooper = (payload.get("hooper") or {})
         row.cycle = (payload.get("cycle") or {})
+        row.device_metrics = (device_metrics or None)
         # Optional AU persist (no effect on today's compute)
         if raw_dict.get("daily_au") is not None:
             try:
@@ -413,6 +423,12 @@ async def post_readiness_from_healthkit(req: FromHKRequest, session: Session = D
             except Exception:
                 row.daily_au = None
         row.final_readiness_score = result.get("final_readiness_score")
+        # 初始化当日“当前剩余准备度”：仅在尚未设置时进行，避免覆写消费后的值
+        if row.current_readiness_score is None and row.final_readiness_score is not None:
+            try:
+                row.current_readiness_score = int(row.final_readiness_score)
+            except Exception:
+                row.current_readiness_score = row.final_readiness_score
         row.final_diagnosis = result.get("final_diagnosis")
         row.final_posterior_probs = result.get("final_posterior_probs")
         row.next_previous_state_probs = result.get("next_previous_state_probs")
@@ -424,3 +440,48 @@ async def post_readiness_from_healthkit(req: FromHKRequest, session: Session = D
     except Exception as e:
         session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
+
+
+class TrainingSessionIn(BaseModel):
+    rpe: Optional[int] = Field(None, ge=1, le=10)
+    duration_minutes: Optional[int] = Field(None, ge=1)
+    label: Optional[str] = None
+    au: Optional[float] = Field(None, ge=0)
+
+
+class ConsumptionRequest(BaseModel):
+    user_id: str
+    date: Optional[str] = None  # YYYY-MM-DD; default today if None
+    sessions: list[TrainingSessionIn]
+
+
+@app.post("/readiness/consumption")
+async def post_readiness_consumption(req: ConsumptionRequest, session: Session = Depends(get_session)) -> Dict[str, Any]:
+    from datetime import date as _date
+    from training.consumption import calculate_consumption
+
+    # Resolve date (default to today)
+    d = (req.date or str(_date.today()))
+    # Fetch today's readiness from DB
+    row = session.get(UserDaily, {"user_id": req.user_id, "date": d})
+    if row is None or row.final_readiness_score is None:
+        raise HTTPException(status_code=409, detail="今日准备度尚未计算，无法计算消耗")
+
+    payload: Dict[str, Any] = {
+        "user_id": req.user_id,
+        "date": d,
+        # 以当前剩余准备度为基准；若为空，回退到当日初始准备度
+        "base_readiness_score": int(row.current_readiness_score if row.current_readiness_score is not None else row.final_readiness_score),
+        "training_sessions": [s.model_dump(exclude_none=True) for s in req.sessions],
+    }
+    result = calculate_consumption(payload)  # type: ignore[arg-type]
+    # 将展示用 readiness 写回当前剩余准备度，形成当日可消耗的“状态”
+    try:
+        row.current_readiness_score = int(result.get("display_readiness") or 0)
+        session.merge(row)
+        session.commit()
+    except Exception:
+        session.rollback()
+        # 不中断响应，仅记录失败
+        pass
+    return result
