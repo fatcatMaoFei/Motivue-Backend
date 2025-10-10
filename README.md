@@ -2,6 +2,37 @@
 
 一个自包含的贝叶斯就绪度计算引擎与工具集。引擎清晰地分离“先验”（昨日→今日的状态转移 + 训练负荷与小幅调节）与“后验”（将今天的主观与客观证据按条件概率融合），既满足直觉化业务规则，也便于未来扩展更多证据与个性化。
 
+> **最近更新（2025-10）**
+> - Phase 3A 接入 Gemini LLM（多假设推理 + 自我批判），在默认流程失败时自动回退 mock。
+> - `RawInputs` 新增可选 `report_notes` 自由文本，可由周报/LLM 读取；不影响原有日度计算。
+> - Phase 3 规则扩展：增加 HRV×神经肌肉双疲劳、睡眠×生活方式联动、主观优先预警、生活方式趋势叠加、主客观冲突检测等逻辑。
+> - Phase 4 周报骨架到位：趋势图封装、Analyst/Communicator/Critique LLM 管线与示例脚本。
+> - Phase 5 调整为“Finalizer”方案（将结构化结果转为最终 Markdown/HTML），原通知/跟进/反馈流程保留为未来扩展。
+
+----------------------------------------
+## 阶段进展速览
+- **Phase 1（数据摄入）**：`ReadinessState` ingest + metrics 计算；payload 与数据库字段一一对应，新增 `report_notes` 供周报使用。
+- **Phase 2（确定性指标）**：`metrics_extractors` 计算训练/睡眠/HRV/主观指标；所有写入都通过 Pydantic 校验。
+- **Phase 3（规则洞察）**：`insights/rules.py` 输出结构化 `InsightItem`，并扩展了五条生活方式/冲突检测规则。
+- **Phase 3A（ToT & Critique）**：复杂度判定后调用 Gemini 生成多假设 + 自我批判，结果写入 `state.insight_reviews`。
+- **Phase 4（周报骨架）**：
+  - `readiness/report/models.py`：定义周报 Schema（`ChartSpec`, `WeeklyHistoryEntry`, `AnalystReport`, `CommunicatorReport`, `ReportCritique`, `WeeklyReportPackage` 等）。
+  - `readiness/report/trend_builder.py`：聚合历史数据 → 生成准备度/HRV/睡眠/训练/Hooper/生活方式图表（解耦，可单独调用），并支持准备度 × HRV 组合视图。
+  - `readiness/report/pipeline.py`：调用 Gemini（fallback 兜底）产出 Analyst/Communicator/Critique，最终形成结构化周报对象。
+  - 示例脚本 `samples/generate_weekly_report_samples.py` 写出 `samples/weekly_report_sample.json`（含自然语言段落 + 推荐图表）。
+  - **其余 readiness 目录文件**（例如 `service.py`, `engine.py`, `metrics_extractors.py`, `insights/`, `workflow/graph.py` 等）仍用于日常准备度计算，与周报模块解耦。
+- **Phase 5（Finalizer）**：`readiness/report/finalizer.generate_weekly_final_report` 将 Phase 4 JSON + 准备度历史/训练笔记整合为 Markdown/HTML 成品（支持 Gemini 或 fallback 模板），示例脚本输出 `samples/weekly_report_final_sample.*`；原“通知/跟进/反馈”方案保留为未来扩展。
+
+- **Phase 1（数据摄入）**：`ReadinessState` ingest + metrics 计算；payload 与数据库字段一一对应，新增 `report_notes` 供周报使用。
+- **Phase 2（确定性指标）**：`metrics_extractors` 计算训练/睡眠/HRV/主观指标；所有写入都通过 Pydantic 校验。
+- **Phase 3（规则洞察）**：`insights/rules.py` 输出结构化 `InsightItem`，并扩展了五条生活方式/冲突检测规则。
+- **Phase 3A（ToT & Critique）**：复杂度判定后调用 Gemini 生成多假设 + 自我批判，结果写入 `state.insight_reviews`。
+- **Phase 4（周报骨架）**：
+  - `readiness/report/trend_builder.py` 生成 HRV/睡眠/训练/Hooper/生活方式图表（解耦，可单独调用）。
+  - `readiness/report/pipeline.generate_weekly_report` 调用 LLM（fallback 兜底）产出 Analyst/Communicator/Critique + ChartSpec。
+  - 示例脚本 `samples/generate_weekly_report_samples.py` 输出 `weekly_report_sample.json`（含自然语言段落 + 图表数据）。
+- **Phase 5（Finalizer）**：`readiness/report/finalizer.generate_weekly_final_report` 将 Phase 4 JSON + 准备度历史/训练笔记整合为 Markdown/HTML 成品（支持 Gemini 或 fallback 模板），示例脚本输出 `samples/weekly_report_final_sample.*`；原“通知/跟进/反馈”方案保留为后续可扩展模块。
+
 ----------------------------------------
 ## 总览与典型来源
 - 穿戴/平台（自动采集）
@@ -63,6 +94,7 @@ print(res['final_readiness_score'], res['final_diagnosis'])
   - objective: { sleep_performance_state ∈ {good,medium,poor}, restorative_sleep ∈ {high,medium,low}, hrv_trend ∈ {rising,stable,slight_decline,significant_decline} }
   - hooper: { fatigue, soreness, stress, sleep }（1..7）
   - cycle?: { day, cycle_length }（女性，可选）
+  - report_notes?: string（周报/LLM 使用的自由文本，可为空）
 - Response（JSON）：
   - prior_probs；final_posterior_probs；final_readiness_score；final_diagnosis
   - evidence_pool；update_history；next_previous_state_probs（供次日 previous_state_probs 使用）
@@ -151,3 +183,38 @@ print(res['final_readiness_score'], res['final_diagnosis'])
 ## 术语与说明
 - payload：指计算服务的请求体 JSON（POST /readiness 的 body），或传给 readiness.service.compute_readiness_from_payload 的字典。
 - AU：由 RPE(1–10) × 时长(分钟) 得到的“训练任意单位”（用户不需要看到 AU，前端只填 RPE/时长或训练标签）。
+
+----------------------------------------
+## 功能总览与文件映射
+- **Readiness API 与引擎**：`api/main.py`, `readiness/service.py`, `readiness/engine.py`, `readiness/mapping.py`, `readiness/constants.py`  
+  - FastAPI 接口聚合 HealthKit 数据、调用引擎、持久化结果，并负责训练消耗接口与个性化 CPT 缓存。
+  - 引擎执行日先验/后验更新、ACWR 调整、Hooper 权重和月经周期证据，支持按用户覆盖 EMISSION_CPT。
+  - Mapping 层将原始数值映射为模型枚举，处理 iOS26 睡眠评分与传统睡眠指标的“二选一”逻辑。
+- **Phase 3A LLM 扩展**：`readiness/llm/models.py`, `readiness/llm/provider.py`, `readiness/workflow/graph.py`  
+  - 复杂度判断后调用 Gemini JSON Mode 生成多假设推理与自我批判，失败时回退 mock。
+  - 新增 `report_notes` 会被透传给 LLM，方便周报或教练语境使用。
+- **Weekly Report Pipeline**：`readiness/report/models.py`, `readiness/report/trend_builder.py`, `readiness/report/pipeline.py`  
+  - 根据历史数据生成 HRV/睡眠/训练等图表，并通过 Analyst/Communicator/Critique LLM 节点自动生成周报草稿（若 LLM 不可用则使用 heuristic fallback）。
+
+- **Baseline 服务**：`baseline/api.py`, `baseline/service.py`, `baseline/calculator.py`, `baseline/storage.py`, `baseline/default_baselines.py`, `baseline/auto_upgrade.py`, `baseline/updater.py`, `baseline/healthkit_integration.py`  
+  - 负责睡眠/HRV 基线计算、验证与存储，支持 7 天增量、30 天重算、自动升级与 MQ 通知。
+  - HealthKit 集成模块解析 XML/API 数据为结构化 `SleepRecord`、`HRVRecord`。
+
+- **Baseline Analytics**：`baseline_analytics/daily_vs_baseline.py`, `baseline_analytics/periodic_review.py`, `baseline_analytics/utils.py`  
+  - 提供纯函数对比“今天 vs 基线”“最近 N vs 上一个 N”，供前端和报告直接调用。
+
+- **训练消耗与 Physio Age**：`training/consumption.py`, `training/factors/training.py`, `training/schemas.py`, `physio_age/core.py`, `physio_age/api.py`, `physio_age/css.py`  
+  - 训练模块按 RPE×分钟或负荷标签计算当天 readiness 消耗并回写剩余分。
+  - Physio Age 服务基于 30 天 HRV/RHR 序列与当天 CSS 计算生理年龄，并复用睡眠指标计算逻辑。
+
+- **个性化 CPT 工具链**：`个性化CPT/train_personalization.py`, `个性化CPT/personalize_cpt.py`, `个性化CPT/monthly_update.py`, `个性化CPT/clean_history.py`, `个性化CPT/README.md`  
+  - 提供 EM 式离线训练，把日级历史 CSV 转换为用户定制 EMISSION_CPT，可通过 MQ 热加载到 `UserModel`。
+
+- **通用工具与脚本**：`backend/utils/sleep_metrics.py`, `scripts/db_check.py`, `gui/app.py`  
+  - 睡眠工具输出效率/恢复性供多服务复用；脚本校验数据库连通性；Streamlit GUI 支持手动录入和 CSV 导出。
+
+- **数据库模型**：`api/db.py`  
+  - 定义 readiness 日表、个性化模型、基线缓存结构，并提供统一 `Session` 工厂。
+
+- **Docker 与部署文档**：`Dockerfile.*`, `docker-compose.yml`, `BASELINE_DEPLOYMENT_CHECKLIST.md`, `后端文档/*.md`  
+  - 提供 Readiness/Baseline/Physio Age 容器及部署、迁移与运维指引。

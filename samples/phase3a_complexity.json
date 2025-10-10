@@ -1,0 +1,12 @@
+{
+  "score": 7,
+  "label": "complex",
+  "reasons": [
+    "ACWR 1.45 ≥ 1.25",
+    "3 consecutive high-load days",
+    "HRV Z-score -0.86 indicates moderate drop",
+    "Sleep duration delta -0.60h below baseline",
+    "Hooper high bands: fatigue, soreness",
+    "Lifestyle events recorded: screen_before_bed, work_travel"
+  ]
+}

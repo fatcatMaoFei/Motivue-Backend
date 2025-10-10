@@ -13,6 +13,7 @@ import json
 from readiness.service import compute_readiness_from_payload
 from readiness.mapping import map_inputs_to_states
 from api.db import init_db, get_session, UserDaily, UserModel, UserBaseline
+from readiness.workflow.graph import run_workflow_json
 
 app = FastAPI(title="Readiness API", version="0.3.0")
 
@@ -396,6 +397,14 @@ async def post_readiness_from_healthkit(req: FromHKRequest, session: Session = D
 
     try:
         result = compute_readiness_from_payload(payload)
+        # Build unified readiness state for downstream agents (non-blocking)
+        try:
+            workflow_payload = dict(raw_dict)
+            readiness_state_json = run_workflow_json(workflow_payload)
+            result["readiness_state"] = json.loads(readiness_state_json)
+        except Exception:
+            # 如果新工作流出错，不影响主流程
+            pass
         # Upsert into user_daily
         row = session.get(UserDaily, {"user_id": result["user_id"], "date": result["date"]})
         if row is None:

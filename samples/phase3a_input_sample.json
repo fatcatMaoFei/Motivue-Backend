@@ -1,0 +1,81 @@
+{
+  "user_id": "athlete_demo",
+  "date": "2025-09-15",
+  "gender": "male",
+  "total_sleep_minutes": 420,
+  "in_bed_minutes": 470,
+  "deep_sleep_minutes": 90,
+  "rem_sleep_minutes": 95,
+  "hrv_rmssd_today": 58.0,
+  "hrv_baseline_mu": 63.0,
+  "hrv_baseline_sd": 5.8,
+  "sleep_baseline_hours": 7.6,
+  "sleep_baseline_eff": 0.87,
+  "rest_baseline_ratio": 0.37,
+  "personalized_thresholds": {
+    "acwr_high": 1.25,
+    "acwr_low": 0.6,
+    "au_high": 500.0,
+    "hrv_decline": -0.5
+  },
+  "recent_training_au": [
+    200,
+    300,
+    0,
+    480,
+    360,
+    420,
+    300,
+    260,
+    0,
+    340,
+    380,
+    0,
+    420,
+    300,
+    0,
+    360,
+    400,
+    0,
+    500,
+    420,
+    560,
+    300,
+    360,
+    480,
+    520,
+    560,
+    510
+  ],
+  "training_sessions": [
+    {
+      "label": "高",
+      "rpe": 8,
+      "duration_minutes": 70,
+      "au": 560,
+      "notes": "力量训练-背部"
+    }
+  ],
+  "hooper": {
+    "fatigue": 6,
+    "soreness": 5,
+    "stress": 3,
+    "sleep": 4
+  },
+  "journal": {
+    "alcohol_consumed": false,
+    "late_caffeine": false,
+    "screen_before_bed": true,
+    "late_meal": false,
+    "lifestyle_tags": [
+      "work_travel"
+    ],
+    "sliders": {
+      "fatigue_slider": 6.0,
+      "mood_slider": 3.0
+    }
+  },
+  "bodyweight_kg": 83.4,
+  "resting_hr": 52.0,
+  "report_notes": "昨晚赶飞机回程，入睡前加班处理工作，整体感觉疲劳较高。"
+}
