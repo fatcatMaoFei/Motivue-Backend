@@ -4,7 +4,7 @@ import logging
 from typing import Iterable, List, Optional, Sequence
 
 from readiness.llm.provider import LLMCallError, LLMProvider, get_llm_provider
-from readiness.report.models import (
+from weekly_report.models import (
     CommunicatorReport,
     CommunicatorSection,
     WeeklyFinalReport,

@@ -3,7 +3,7 @@ from __future__ import annotations
 from statistics import mean
 from typing import List, Optional, Sequence
 
-from readiness.report.models import ChartSpec, WeeklyHistoryEntry
+from weekly_report.models import ChartSpec, WeeklyHistoryEntry
 
 
 def build_default_chart_specs(

@@ -43,8 +43,8 @@ Phase 3A Readiness LLM Roadmap (Plan v2)
     - 对 Phase 4/5 的未开发节点，预留 Prompt 草案与所需字段，确保后续开发对齐。
 
 2.4 Phase 4 周报骨架
-    - ✅ 实现 `readiness/report/trend_builder.py`，生成 准备度/HRV/睡眠/训练/Hooper/生活方式等默认图表，并提供准备度 vs HRV 组合视图。
-    - ✅ 实现 `readiness/report/pipeline.generate_weekly_report`：调用 LLM（含 fallback）输出 Analyst/Communicator/Critique + 图表。
+    - ✅ 实现 `weekly_report/trend_builder.py`，生成 准备度/HRV/睡眠/训练/Hooper/生活方式等默认图表，并提供准备度 vs HRV 组合视图。
+    - ✅ 实现 `weekly_report/pipeline.generate_weekly_report`：调用 LLM（含 fallback）输出 Analyst/Communicator/Critique + 图表。
     - ✅ 新增脚本 `samples/generate_weekly_report_samples.py` 与样例 JSON，便于端到端测试。
 
 3. 后续阶段（展望）
@@ -54,7 +54,7 @@ Phase 3A Readiness LLM Roadmap (Plan v2)
     - 使用 Gemini 函数调用生成 ECharts 配置，延续 JSON 模式。
 
 3.2 Phase 5 最终周报渲染（已落地）
-    - `readiness/report/finalizer.generate_weekly_final_report` 将 Phase 4 JSON + 准备度历史、训练/自由备注整合为 Markdown/HTML；默认调用 Gemini，失败时回退模板。
+    - `weekly_report/finalizer.generate_weekly_final_report` 将 Phase 4 JSON + 准备度历史、训练/自由备注整合为 Markdown/HTML；默认调用 Gemini，失败时回退模板。
     - 输出模型 `WeeklyFinalReport`，样例脚本写出 `samples/weekly_report_final_sample.json/.md` 供前端验收。
     - 保留原有“通知 / 跟进 / 反馈”方案作为未来扩展（对接 CRM/教练协同时再启用）。
 

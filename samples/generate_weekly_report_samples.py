@@ -11,9 +11,9 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from readiness.report.finalizer import generate_weekly_final_report
-from readiness.report.models import WeeklyFinalReport, WeeklyHistoryEntry
-from readiness.report.pipeline import generate_weekly_report
+from weekly_report.finalizer import generate_weekly_final_report
+from weekly_report.models import WeeklyFinalReport, WeeklyHistoryEntry
+from weekly_report.pipeline import generate_weekly_report
 from readiness.state import ReadinessState
 
 

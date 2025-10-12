@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Sequence
 from pydantic import ValidationError
 
 from readiness.llm.models import CritiqueResponse, TotResponse
-from readiness.report.models import (
+from weekly_report.models import (
     AnalystReport,
     ChartSpec,
     CommunicatorReport,

@@ -4,7 +4,7 @@ import logging
 from typing import Optional, Sequence
 
 from readiness.llm.provider import LLMCallError, LLMProvider, get_llm_provider
-from readiness.report.models import (
+from weekly_report.models import (
     AnalystOpportunity,
     AnalystReport,
     AnalystRisk,
@@ -15,7 +15,7 @@ from readiness.report.models import (
     WeeklyHistoryEntry,
     WeeklyReportPackage,
 )
-from readiness.report.trend_builder import build_default_chart_specs
+from weekly_report.trend_builder import build_default_chart_specs
 from readiness.state import InsightItem, ReadinessState
 
 logger = logging.getLogger(__name__)

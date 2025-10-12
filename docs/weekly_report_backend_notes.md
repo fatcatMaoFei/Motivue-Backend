@@ -52,12 +52,12 @@
 - Added five Phase 3 rule blocks (recovery matrix, sleep x lifestyle, subjective priority, lifestyle trend, objective vs subjective conflict) while retaining existing rules.
 
 ## Weekly Report Pipeline (Phase 4)
-- `readiness/report/trend_builder.py` generates default charts（准备度趋势、准备度 vs HRV、HRV、睡眠时长/结构、训练负荷、Hooper、生活方式时间线）。
-- `readiness/report/pipeline.generate_weekly_report` 调用 Gemini 构建 Analyst / Communicator / Critique 输出，未配置 LLM 时自动回退 heuristic。
+- `weekly_report/trend_builder.py` generates default charts（准备度趋势、准备度 vs HRV、HRV、睡眠时长/结构、训练负荷、Hooper、生活方式时间线）。
+- `weekly_report/pipeline.generate_weekly_report` 调用 Gemini 构建 Analyst / Communicator / Critique 输出，未配置 LLM 时自动回退 heuristic。
 - 新增脚本 `samples/generate_weekly_report_samples.py` 可生成周报样例（输出存储在 `samples/weekly_report_sample.json`）。
 
 ## Phase 5（Finalizer 已上线）
-- `readiness/report/finalizer.generate_weekly_final_report` 调用 Gemini（若失败则使用模板 fallback），把 Phase 4 结果 + 准备度历史 + 训练/自由备注整合为最终 Markdown/HTML。
+- `weekly_report/finalizer.generate_weekly_final_report` 调用 Gemini（若失败则使用模板 fallback），把 Phase 4 结果 + 准备度历史 + 训练/自由备注整合为最终 Markdown/HTML。
 - 最终输出模型 `WeeklyFinalReport`：
   ```json
   {
