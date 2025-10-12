@@ -16,7 +16,7 @@ Phase 3A Readiness LLM Roadmap (Plan v2)
     - 更新 `prompt_plan.txt`，成为所有 Prompt 的最新版本（含 Phase 4/5 桥接说明）。
 
 1.2 Schema 与校验（进行中）
-    - ✅ 新增 `readiness/llm/models.py`，落地 `TotHypothesis`, `TotResponse`, `CritiqueIssue`, `CritiqueResponse` Pydantic 模型。
+    - ✅ 新增 `weekly_report/llm/models.py`，落地 `TotHypothesis`, `TotResponse`, `CritiqueIssue`, `CritiqueResponse` Pydantic 模型。
     - ✅ Gemini 调用改用模型 JSON Schema（自动清洗不兼容关键字）并在节点内执行 `model_validate()`；mock 路径同样输出 Pydantic 结构。
     - ✅ `RawInputs` 增加 `report_notes` 自由文本字段，Phase 3A payload 透传至 LLM，供周报/后续阶段使用。
     - ✅ 定义 Phase 4 周报模型：`ChartSpec`, `AnalystReport`, `CommunicatorReport`, `ReportCritique`, `WeeklyReportPackage` 等，并扩展 `WeeklyHistoryEntry` 支持准备度历史（`readiness_score`/`readiness_band`）。

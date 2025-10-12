@@ -4,14 +4,14 @@ from typing import Any, Dict, List, Optional, Sequence
 
 from pydantic import BaseModel, Field
 
-from readiness.llm.models import CritiqueResponse, TotHypothesis, TotResponse
+from weekly_report.llm.models import CritiqueResponse, TotHypothesis, TotResponse
 from readiness.state import ReadinessState
-from readiness.state_utils import create_state, state_to_json
-from readiness.state_builder import hydrate_raw_inputs
-from readiness.metrics_extractors import populate_metrics
-from readiness.insights import populate_insights
-from readiness.insights.complexity import score_complexity
-from readiness.llm import LLMCallError, get_llm_provider
+from weekly_report.state_utils import create_state, state_to_json
+from weekly_report.state_builder import hydrate_raw_inputs
+from weekly_report.metrics_extractors import populate_metrics
+from weekly_report.insights import populate_insights
+from weekly_report.insights.complexity import score_complexity
+from weekly_report.llm import LLMCallError, get_llm_provider
 
 
 class GraphState(BaseModel):

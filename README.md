@@ -12,7 +12,7 @@ models and utilities inside this monorepo.
 
 | Service | What it does | Key modules | Dockerfile |
 | --- | --- | --- | --- |
-| **Readiness Engine** | Daily readiness score via a Bayesian prior/posterior engine that fuses training load, objective biomarkers, subjective Hooper scores, journals, menstrual cycle and interaction terms.  Also hosts the LangGraph workflow (ToT + critique) and exposes the REST façade. | `readiness/service.py`, `readiness/engine.py`, `readiness/mapping.py`, `readiness/constants.py`, `readiness/workflow/graph.py` | `Dockerfile.readiness` |
+| **Readiness Engine** | Daily readiness score via a Bayesian prior/posterior engine that fuses training load, objective biomarkers, subjective Hooper scores, journals, menstrual cycle and interaction terms.  Exposes a simple REST façade for per-day scoring. | `readiness/service.py`, `readiness/engine.py`, `readiness/mapping.py`, `readiness/constants.py` | `Dockerfile.readiness` |
 | **Weekly Report Pipeline** | Multi-agent LLM chain that turns a hydrated `ReadinessState` into chart packs and Markdown/HTML reports (Analyst → Communicator → Critique → Finaliser) with schema validation and fallbacks. | `weekly_report/trend_builder.py`, `weekly_report/pipeline.py`, `weekly_report/finalizer.py`, samples under `samples/weekly_*` | bundled with readiness image (or package separately) |
 | **Baseline Service** | Computes and maintains long-term personal baselines (sleep duration/efficiency, restorative ratio, HRV μ/σ) with questionnaire fallbacks and auto-upgrade logic.  Supplies thresholds to the readiness mapper. | `baseline/api.py`, `baseline/service.py`, `baseline/calculator.py`, `baseline/storage.py`, `baseline/auto_upgrade.py` | `Dockerfile.baseline` |
 | **Physiological Age** | Estimates physiological age from 30-day HRV/RHR history plus today’s sleep CSS using reference tables per gender. | `physio_age/api.py`, `physio_age/core.py`, `physio_age/css.py`, `physio_age/hrv_age_table*.csv` | `Dockerfile.physio_age` |
@@ -31,8 +31,8 @@ models and utilities inside this monorepo.
 | `docs/` | Design notes and backend integration guides (e.g. weekly report backend notes, prompt plans). | `weekly_report_backend_notes.md`, PDFs. |
 | `gui/` | Prototype UIs and demo assets. | – |
 | `physio_age/` | Physiological age engine (see above). | Example scripts + master tables. |
-| `readiness/` | Readiness engine, rule-based insights, workflow graph, LLM provider, Hooper/ACWR tools. | `readiness/state.py`, `insights/rules.py`, `workflow/graph.py`. |
-| `weekly_report/` | Dedicated weekly report service (charts + multi-agent pipeline + finaliser). | `weekly_report/models.py`, `weekly_report/pipeline.py`, `weekly_report/finalizer.py`. |
+| `readiness/` | Readiness engine, rule-based insights, mapping helpers, Hooper/ACWR tools. | `readiness/state.py`, `insights/rules.py`, `metrics_extractors.py`. |
+| `weekly_report/` | Weekly report service (charts, workflow, multi-agent chain, finaliser). | `weekly_report/models.py`, `weekly_report/trend_builder.py`, `weekly_report/pipeline.py`, `weekly_report/workflow/graph.py`, `weekly_report/finalizer.py`. |
 | `samples/` | Regression artefacts and example outputs. | `weekly_report_sample.json`, `weekly_report_final_sample.md`, `readiness_state_report_sample.json`. |
 | `scripts/` | Operational helpers. | `scripts/db_check.py`. |
 | `training/` | Training consumption module (see above). | Example configs under `training/factors/`. |
@@ -68,8 +68,8 @@ python samples/generate_weekly_report_samples.py
 1. **Ingestion** → raw inputs (`ReadinessState.raw_inputs`) including sleep, HRV, Hooper, journal, training and optional `report_notes`.
 2. **Deterministic metrics** → `metrics_extractors.populate_metrics` writes ACWR, HRV z-score, sleep deltas, personalised thresholds.
 3. **Bayesian engine** → `service.compute_readiness_from_payload` orchestrates prior/posterior updates and outputs daily readiness score + audit.
-4. **Insights & workflow** → `workflow/graph.run_workflow` adds rule-based insights, LLM ToT hypotheses and critiques.
-5. **Weekly report** → multi-agent LLM pipeline creates narratives and final Markdown/HTML.
+4. **Rule-based insights** → `insights/rules.generate_insights` adds deterministic alerts (ACWR high/low, sleep efficiency drop, HRV decline, lifestyle flags, etc.).
+5. **Weekly report** → multi-agent LLM pipeline (separate `weekly_report/` package) creates narratives and final Markdown/HTML.
 6. **Supporting services** → baseline service feeds personalised thresholds; physiological age engine and training consumption provide auxiliary scores.
 
 ### Readiness engine (Bayesian prior/posterior)
@@ -117,11 +117,11 @@ python samples/generate_weekly_report_samples.py
 ### Weekly report pipeline (multi-agent LLM)
 
 #### Inputs
-- Hydrated `ReadinessState` from workflow (`state.json`).
+- Hydrated `ReadinessState`（可由 readiness API 或缓存生成的 `state.json`）。
 - History list of `WeeklyHistoryEntry` (7 or 28 days) including readiness score/band, HRV, sleep metrics, AU, Hooper, lifestyle events.
 - Optional `report_notes` (coach/athlete comments).
 
-#### Process (defined in `weekly_report/pipeline.py` + `readiness/llm/provider.py`)
+#### Process (defined in `weekly_report/pipeline.py` + `weekly_report/llm/provider.py`)
 1. **Trend builder**: `build_default_chart_specs` summarises trends into ChartSpec objects (line, combo, radar, scatter).
 2. **LLM provider** (`GeminiProvider`):
    - Uses **JSON schema** enforcement and system prompts for stability.
@@ -236,7 +236,7 @@ Motivue 的后端由多套微服务组成，每个服务解决一个独立的运
 
 | 服务 | 功能概述 | 关键模块 | Dockerfile |
 | --- | --- | --- | --- |
-| **准备度引擎** | 采用贝叶斯先验/后验模型，融合训练负荷、客观生理信号、Hooper 主观评分、Journal 事件、月经周期以及交互项生成每日准备度，并提供 LangGraph 工作流（ToT + 自审）与 REST 接口。 | `readiness/service.py`, `readiness/engine.py`, `readiness/mapping.py`, `readiness/constants.py`, `readiness/workflow/graph.py` | `Dockerfile.readiness` |
+| **准备度引擎** | 采用贝叶斯先验/后验模型，融合训练负荷、客观生理信号、Hooper 主观评分、Journal 事件、月经周期以及交互项生成每日准备度，并通过 REST 接口对外提供日度评分。 | `readiness/service.py`, `readiness/engine.py`, `readiness/mapping.py`, `readiness/constants.py` | `Dockerfile.readiness` |
 | **周报流水线** | 基于多智能体 LLM 的周报生成链路（分析师 → 教练沟通 → 批注 → Finalizer），自动生成图表配置和 Markdown/HTML 报告，内置 Schema 校验与失败回退。 | `weekly_report/trend_builder.py`, `weekly_report/pipeline.py`, `weekly_report/finalizer.py`, `samples/weekly_*` | 可与 readiness 同容器或独立部署 |
 | **基线服务** | 计算并维护长期个性化基线（睡眠时长/效率、恢复性、HRV 均值与波动），支持问卷兜底与自动升级，为准备度映射层提供阈值。 | `baseline/api.py`, `baseline/service.py`, `baseline/calculator.py`, `baseline/storage.py`, `baseline/auto_upgrade.py` | `Dockerfile.baseline` |
 | **生理年龄服务** | 基于近 30 天 HRV/RHR 历史与当日睡眠 CSS，结合性别参考表估算生理年龄（整数 + 加权小数）。 | `physio_age/api.py`, `physio_age/core.py`, `physio_age/css.py`, `physio_age/hrv_age_table*.csv` | `Dockerfile.physio_age` |
@@ -255,8 +255,8 @@ Motivue 的后端由多套微服务组成，每个服务解决一个独立的运
 | `docs/` | 设计方案与集成笔记（如周报后端说明、提示词规划等）。 | `weekly_report_backend_notes.md`、各类 PDF。 |
 | `gui/` | 原型界面与演示资源。 | – |
 | `physio_age/` | 生理年龄引擎（见上）。 | 示例脚本与参考表。 |
-| `readiness/` | 准备度核心模块、规则洞察、工作流、LLM Provider、Hooper/ACWR 工具。 | `state.py`、`insights/rules.py`、`workflow/graph.py`。 |
-| `weekly_report/` | 周报服务（图表构建 + 多智能体流水线 + Finalizer）。 | `weekly_report/models.py`、`weekly_report/pipeline.py`、`weekly_report/finalizer.py`。 |
+| `readiness/` | 准备度核心模块、规则洞察、映射与 Hooper/ACWR 工具。 | `state.py`、`insights/rules.py`、`metrics_extractors.py`。 |
+| `weekly_report/` | 周报服务（趋势图、工作流、多智能体、Finalizer）。 | `weekly_report/models.py`、`weekly_report/trend_builder.py`、`weekly_report/pipeline.py`、`weekly_report/workflow/graph.py`、`weekly_report/finalizer.py`。 |
 | `samples/` | 回归样例与输出结果。 | `weekly_report_sample.json`、`weekly_report_final_sample.md`、`readiness_state_report_sample.json`。 |
 | `scripts/` | 运维脚本。 | `scripts/db_check.py`。 |
 | `training/` | 训练消耗计算模块。 | `training/README.md` + 因子实现。 |
@@ -292,8 +292,8 @@ python samples/generate_weekly_report_samples.py
 1. **数据摄入**：构建 `ReadinessState.raw_inputs`（睡眠、HRV、Hooper、Journal、训练、自由备注等）。
 2. **确定性指标**：`metrics_extractors.populate_metrics` 计算 ACWR、连续高强、睡眠/HRV 指标并写入 `state.metrics`。
 3. **贝叶斯引擎**：`service.compute_readiness_from_payload` 生成当日准备度分数、后验概率和审计日志。
-4. **洞察与工作流**：`workflow/graph.run_workflow` 执行 ingest → 指标 → 规则洞察 → ToT → critique，记录 LLM 假设与批注。
-5. **周报生成**：多智能体 LLM 流水线产出图表、分析稿、教练稿与最终 Markdown/HTML。
+4. **规则洞察**：`insights/rules.generate_insights` 生成 ACWR 高/低、睡眠效率下降、HRV 下降、生活方式事件等结构化提醒。
+5. **周报生成**：多智能体 LLM 流水线（`weekly_report/` 模块）产出图表、分析稿、教练稿与最终 Markdown/HTML。
 6. **辅助服务**：基线服务提供个体阈值；生理年龄与训练消耗作为附加指标；基线分析用于趋势对比。
 
 ### 准备度引擎（先验/后验）
@@ -336,7 +336,7 @@ python samples/generate_weekly_report_samples.py
 
 #### 流程
 1. **趋势图构建**：`weekly_report.trend_builder.build_default_chart_specs` 输出准备度趋势、准备度×HRV、HRV Z 分、睡眠结构、训练 AU、Hooper 雷达、生活方式时间线等 ChartSpec。
-2. **LLM 代理链**（配置在 `readiness/llm/provider.py`）：
+2. **LLM 代理链**（配置在 `weekly_report/llm/provider.py`）：
    - **Analyst**：生成 summary_points / risks / opportunities / chart_ids（严格 JSON Schema）。
    - **Communicator**：将分析结果转换成 Markdown 段落，输出语气标签与行动清单。
    - **Critique**：检查覆盖面、证据准确性、主客观冲突与行动性，返回结构化问题。

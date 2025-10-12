@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from readiness.workflow.graph import run_workflow, state_to_json
+from weekly_report.workflow.graph import run_workflow, state_to_json
 
 
 def main() -> None:

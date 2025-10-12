@@ -95,7 +95,7 @@
 
 ## Next Steps
 - Database team adds storage for `report_notes`.
-- Weekly report service loads historical readiness data, appends `report_notes`, and calls readiness workflow as before。
+- Weekly report service loads historical readiness data, appends `report_notes`, and calls the readiness scoring API as before。
 - **新增**：周报服务需同步聚合近 7/28 天的 `final_readiness_score`（及 band/诊断），构建 `WeeklyHistoryEntry` 时写入 `readiness_score` / `readiness_band`，以支持准备度趋势图与文案分析。
 - **Phase 5 接入时**：
   1. 完善 API → 数据库的保存逻辑，将 `WeeklyFinalReport` JSON 与 Markdown 入库；

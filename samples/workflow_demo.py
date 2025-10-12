@@ -7,7 +7,7 @@ ROOT = os.path.dirname(os.path.dirname(__file__))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from readiness.workflow.graph import run_workflow_json
+from weekly_report.workflow.graph import run_workflow_json
 
 
 SAMPLE_PAYLOAD = {
