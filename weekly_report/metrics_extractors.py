@@ -7,7 +7,7 @@ from backend.utils.sleep_metrics import compute_sleep_metrics
 from physio_age.css import compute_css
 
 from readiness.constants import TRAINING_LOAD_AU
-from readiness.state import ReadinessState
+from weekly_report.state import ReadinessState
 
 
 def _model_copy(model, updates: Dict[str, Any]):

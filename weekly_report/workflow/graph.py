@@ -2,14 +2,17 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Sequence
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
+from weekly_report.analysis import run_analysis
+from weekly_report.analysis.models import AnalysisBundle
 from weekly_report.llm.models import CritiqueResponse, TotHypothesis, TotResponse
-from readiness.state import ReadinessState
+from weekly_report.models import WeeklyHistoryEntry
+from weekly_report.state import ReadinessState
 from weekly_report.state_utils import create_state, state_to_json
 from weekly_report.state_builder import hydrate_raw_inputs
 from weekly_report.metrics_extractors import populate_metrics
-from weekly_report.insights import populate_insights
+from weekly_report.insights import generate_analysis_insights, populate_insights
 from weekly_report.insights.complexity import score_complexity
 from weekly_report.llm import LLMCallError, get_llm_provider
 
@@ -22,6 +25,8 @@ class GraphState(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
     logs: List[str] = Field(default_factory=list)
     errors: List[str] = Field(default_factory=list)
+    history: List[WeeklyHistoryEntry] = Field(default_factory=list)
+    analysis: Optional[AnalysisBundle] = None
 
     def log(self, message: str) -> None:
         self.logs.append(message)
@@ -45,6 +50,19 @@ def ingest_node(graph_state: GraphState) -> GraphState:
         if state.raw_inputs.gender is None:
             state.raw_inputs.gender = payload.get("gender")
         hydrate_raw_inputs(state, payload, payload.get("training_sessions"))
+        history_entries = payload.get("history") or payload.get("weekly_history")
+        if isinstance(history_entries, Sequence) and not isinstance(
+            history_entries, (str, bytes)
+        ):
+            parsed: List[WeeklyHistoryEntry] = []
+            for item in history_entries:
+                try:
+                    parsed.append(WeeklyHistoryEntry.model_validate(item))
+                except ValidationError:
+                    continue
+            if parsed:
+                graph_state.history = parsed
+                graph_state.log(f"ingest_node: parsed {len(parsed)} history entries")
         graph_state.log("ingest_node: raw inputs populated")
     except Exception as exc:  # pragma: no cover
         graph_state.add_error(f"ingest_node failed: {exc!r}")
@@ -86,10 +104,33 @@ def metrics_node(
     return graph_state
 
 
+def analysis_node(graph_state: GraphState) -> GraphState:
+    """Run statistical analysis prior to insight generation."""
+    if not graph_state.history:
+        graph_state.log("analysis_node: skipped (no history)")
+        return graph_state
+    try:
+        analysis = run_analysis(graph_state.history, state=graph_state.state)
+        graph_state.analysis = analysis
+        graph_state.metadata["analysis"] = analysis.model_dump()
+        graph_state.log("analysis_node: analysis bundle computed")
+    except Exception as exc:  # pragma: no cover
+        graph_state.add_error(f"analysis_node failed: {exc!r}")
+        raise
+    return graph_state
+
+
 def insights_node(graph_state: GraphState) -> GraphState:
     """Generate insights based on the populated metrics."""
     try:
         populate_insights(graph_state.state)
+        if graph_state.analysis is not None:
+            extra = generate_analysis_insights(graph_state.state, graph_state.analysis)
+            if extra:
+                graph_state.state.insights.extend(extra)
+                graph_state.log(
+                    f"insights_node: appended {len(extra)} analysis-derived insights"
+                )
         graph_state.log("insights_node: insights generated")
     except Exception as exc:  # pragma: no cover
         graph_state.add_error(f"insights_node failed: {exc!r}")
@@ -142,6 +183,9 @@ def tot_reasoning_node(graph_state: GraphState) -> GraphState:
     if complexity.get("label") != "complex":
         graph_state.log("tot_reasoning_node: skipped (simple case)")
         return graph_state
+    if not graph_state.metadata.get("use_llm", True):
+        graph_state.log("tot_reasoning_node: skipped (LLM disabled)")
+        return graph_state
     try:
         provider = get_llm_provider()
         if provider is None:
@@ -179,6 +223,9 @@ def critique_node(graph_state: GraphState) -> GraphState:
     """Placeholder critique node (mock implementation)."""
     if "tot_hypotheses" not in graph_state.metadata:
         graph_state.log("critique_node: skipped (no ToT output)")
+        return graph_state
+    if not graph_state.metadata.get("use_llm", True):
+        graph_state.log("critique_node: skipped (LLM disabled)")
         return graph_state
     try:
         tot_obj = graph_state.metadata.get("_tot_response_obj")
@@ -241,6 +288,7 @@ def run_workflow(
     baselines: Optional[Dict[str, float]] = None,
     personalized_thresholds: Optional[Dict[str, float]] = None,
     auto_insights: bool = True,
+    use_llm: bool = True,
 ) -> GraphState:
     """Execute ingest -> metrics -> (insights) nodes in sequence."""
     graph_state = GraphState(
@@ -251,6 +299,7 @@ def run_workflow(
         ),
         payload=dict(payload),
     )
+    graph_state.metadata["use_llm"] = use_llm
 
     ingest_node(graph_state)
     metrics_node(
@@ -260,6 +309,7 @@ def run_workflow(
         baselines=baselines,
         personalized_thresholds=personalized_thresholds,
     )
+    analysis_node(graph_state)
     if auto_insights:
         insights_node(graph_state)
         complexity_check_node(graph_state)

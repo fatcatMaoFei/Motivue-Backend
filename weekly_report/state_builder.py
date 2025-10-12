@@ -4,13 +4,13 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence
 
 from pydantic import ValidationError
 
-from readiness.state import (
+from weekly_report.state import (
     ReadinessState,
     TrainingSessionInput,
 )
-from readiness.state_utils import create_state, state_to_json
-from readiness.metrics_extractors import populate_metrics
-from readiness.insights import populate_insights
+from weekly_report.state_utils import create_state, state_to_json
+from weekly_report.metrics_extractors import populate_metrics
+from weekly_report.insights import populate_insights
 
 
 def _get(payload: Dict[str, Any], *keys: str) -> Any:

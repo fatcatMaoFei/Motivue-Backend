@@ -5,16 +5,7 @@ from datetime import date
 from typing import Optional
 
 from dotenv import load_dotenv
-from sqlalchemy import (
-    JSON,
-    Date,
-    Integer,
-    String,
-    Column,
-    create_engine,
-    DateTime,
-    Float,
-)
+from sqlalchemy import JSON, Date, Integer, String, Column, create_engine, DateTime, Float, func, Text
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
 
@@ -61,6 +52,7 @@ class UserDaily(Base):
     next_previous_state_probs: Optional[dict] = Column(JSON, nullable=True)
 
     daily_au: Optional[int] = Column(Integer, nullable=True)
+    report_notes: Optional[str] = Column(Text, nullable=True)
 
 
 class UserModel(Base):
@@ -82,6 +74,18 @@ class UserBaseline(Base):
     rest_baseline_ratio: Optional[float] = Column(Float, nullable=True)
     hrv_baseline_mu: Optional[float] = Column(Float, nullable=True)
     hrv_baseline_sd: Optional[float] = Column(Float, nullable=True)
+
+
+class WeeklyReportRecord(Base):
+    __tablename__ = "weekly_reports"
+
+    user_id: str = Column(String, primary_key=True)
+    week_start: date = Column(Date, primary_key=True)
+    week_end: date = Column(Date, nullable=False)
+    report_version: Optional[str] = Column(String, nullable=True)
+    report_payload: dict = Column(JSON, nullable=False)
+    markdown_report: str = Column(Text, nullable=False)
+    created_at: DateTime = Column(DateTime, nullable=False, server_default=func.now())
 
 
 def init_db() -> None:

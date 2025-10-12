@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from typing import Iterable, List, Optional, Sequence
 
-from readiness.state import (
+from weekly_report.state import (
     InsightAction,
     InsightEvidence,
     InsightItem,
     ReadinessState,
 )
+from weekly_report.analysis.models import AnalysisBundle, LifestyleImpact
 
 
 def _get_threshold(personalized: Optional[dict], key: str, default: float) -> float:
@@ -732,10 +733,571 @@ def generate_insights(state: ReadinessState) -> List[InsightItem]:
     return insights
 
 
+def generate_analysis_insights(
+    state: ReadinessState,
+    analysis: AnalysisBundle,
+) -> List[InsightItem]:
+    """Generate additional insights from analysis bundle."""
+    insights: List[InsightItem] = []
+
+    for idx, rc in enumerate(analysis.root_causes):
+        drivers_text = "；".join(rc.drivers) if rc.drivers else "未检测到显著驱动因素"
+        score_text = "未知" if rc.readiness_score is None else f"{rc.readiness_score:.0f}"
+        explanation = (
+            f"{rc.date.isoformat()} 准备度 {score_text}（{rc.readiness_band or 'unknown'}）——主要驱动：{drivers_text}。"
+        )
+        evidence = [
+            InsightEvidence(key="date", description=rc.date.isoformat()),
+        ]
+        for driver in rc.drivers:
+            evidence.append(InsightEvidence(key="driver", description=driver))
+        insights.append(
+            _create_insight(
+                state,
+                suffix=f"analysis_root_cause_{idx}",
+                trigger="analysis_root_cause",
+                summary=f"{rc.date.isoformat()} 准备度低值驱动",
+                explanation=explanation,
+                actions=[
+                    InsightAction(
+                        recommendation="针对驱动因素制定纠正计划（例如调整训练或优化睡眠）。",
+                        category="analysis",
+                        priority=2,
+                    )
+                ],
+                evidence=evidence,
+                confidence=0.55,
+                tags=["analysis", "readiness"],
+            )
+        )
+
+    load = analysis.load_impact
+    if (
+        load.high_acwr_days
+        or load.correlation_readiness is not None
+        or load.correlation_hrv is not None
+    ):
+        evidence = [
+            InsightEvidence(
+                key="high_acwr_days",
+                value=load.high_acwr_days,
+                description="ACWR ≥ 1.3 的天数",
+            )
+        ]
+        if load.high_acwr_ratio is not None:
+            evidence.append(
+                InsightEvidence(
+                    key="high_acwr_ratio",
+                    value=load.high_acwr_ratio,
+                    description="高 ACWR 占比",
+                )
+            )
+        if load.low_acwr_days:
+            evidence.append(
+                InsightEvidence(
+                    key="low_acwr_days",
+                    value=load.low_acwr_days,
+                    description="ACWR 低于窗口的天数",
+                )
+            )
+        if load.consecutive_high_runs:
+            evidence.append(
+                InsightEvidence(
+                    key="consecutive_high_runs",
+                    value=load.consecutive_high_runs,
+                    description="连续高负荷序列次数",
+                )
+            )
+        if load.avg_next_day_readiness_delta is not None:
+            evidence.append(
+                InsightEvidence(
+                    key="avg_next_day_readiness_delta",
+                    value=load.avg_next_day_readiness_delta,
+                    description="高 ACWR 次日准备度平均变化",
+                )
+            )
+        if load.avg_next_day_hrv_delta is not None:
+            evidence.append(
+                InsightEvidence(
+                    key="avg_next_day_hrv_delta",
+                    value=load.avg_next_day_hrv_delta,
+                    description="高 ACWR 次日 HRV 平均变化",
+                )
+            )
+        if load.avg_readiness_drop_after_streak is not None:
+            evidence.append(
+                InsightEvidence(
+                    key="avg_readiness_drop_after_streak",
+                    value=load.avg_readiness_drop_after_streak,
+                    description="连续高负荷后准备度变化",
+                )
+            )
+        if load.avg_hrv_drop_after_streak is not None:
+            evidence.append(
+                InsightEvidence(
+                    key="avg_hrv_drop_after_streak",
+                    value=load.avg_hrv_drop_after_streak,
+                    description="连续高负荷后 HRV 变化",
+                )
+            )
+        if load.correlation_readiness is not None:
+            evidence.append(
+                InsightEvidence(
+                    key="load_readiness_corr",
+                    value=round(load.correlation_readiness, 3),
+                    description="训练量 vs 准备度 相关系数",
+                )
+            )
+        if load.correlation_hrv is not None:
+            evidence.append(
+                InsightEvidence(
+                    key="load_hrv_corr",
+                    value=round(load.correlation_hrv, 3),
+                    description="训练量 vs HRV 相关系数",
+                )
+            )
+        explanation = "训练负荷与准备度/HRV 的关联分析提示高负荷对恢复的影响，需要调整训练与恢复节奏。"
+        insights.append(
+            _create_insight(
+                state,
+                suffix="analysis_load_correlation",
+                trigger="analysis_load_correlation",
+                summary="训练负荷与恢复关联",
+                explanation=explanation,
+                actions=[
+                    InsightAction(
+                        recommendation="若 ACWR 连续高于 1.3，应立即安排减量或恢复性训练。",
+                        category="training_adjustment",
+                        priority=1,
+                    )
+                ],
+                evidence=evidence,
+                confidence=0.65,
+                tags=["analysis", "training_load", "recovery"],
+            )
+        )
+
+    sleep = analysis.sleep_impact
+    if (
+        sleep.correlation_readiness is not None
+        or sleep.correlation_hrv is not None
+        or sleep.low_sleep_days
+    ):
+        evidence = []
+        if sleep.correlation_readiness is not None:
+            evidence.append(
+                InsightEvidence(
+                    key="sleep_readiness_corr",
+                    value=round(sleep.correlation_readiness, 3),
+                    description="睡眠 vs 准备度 相关系数",
+                )
+            )
+        if sleep.correlation_hrv is not None:
+            evidence.append(
+                InsightEvidence(
+                    key="sleep_hrv_corr",
+                    value=round(sleep.correlation_hrv, 3),
+                    description="睡眠 vs HRV 相关系数",
+                )
+            )
+        if sleep.restorative_correlation_readiness is not None:
+            evidence.append(
+                InsightEvidence(
+                    key="sleep_restorative_readiness_corr",
+                    value=round(sleep.restorative_correlation_readiness, 3),
+                    description="恢复性睡眠 vs 准备度 相关系数",
+                )
+            )
+        if sleep.restorative_correlation_hrv is not None:
+            evidence.append(
+                InsightEvidence(
+                    key="sleep_restorative_hrv_corr",
+                    value=round(sleep.restorative_correlation_hrv, 3),
+                    description="恢复性睡眠 vs HRV 相关系数",
+                )
+            )
+        evidence.append(
+            InsightEvidence(
+                key="low_sleep_days",
+                value=sleep.low_sleep_days,
+                description="睡眠不足触发次数",
+            )
+        )
+        if sleep.low_restorative_days:
+            evidence.append(
+                InsightEvidence(
+                    key="low_restorative_days",
+                    value=sleep.low_restorative_days,
+                    description="恢复性睡眠不足次数",
+                )
+            )
+        if sleep.avg_readiness_drop is not None:
+            evidence.append(
+                InsightEvidence(
+                    key="avg_readiness_drop_after_low_sleep",
+                    value=sleep.avg_readiness_drop,
+                    description="睡眠不足次日准备度平均变化",
+                )
+            )
+        if sleep.avg_hrv_drop is not None:
+            evidence.append(
+                InsightEvidence(
+                    key="avg_hrv_drop_after_low_sleep",
+                    value=sleep.avg_hrv_drop,
+                    description="睡眠不足次日 HRV 平均变化",
+                )
+            )
+        if sleep.avg_readiness_drop_after_low_rest is not None:
+            evidence.append(
+                InsightEvidence(
+                    key="avg_readiness_drop_after_low_rest",
+                    value=sleep.avg_readiness_drop_after_low_rest,
+                    description="恢复性睡眠不足次日准备度变化",
+                )
+            )
+        if sleep.avg_hrv_drop_after_low_rest is not None:
+            evidence.append(
+                InsightEvidence(
+                    key="avg_hrv_drop_after_low_rest",
+                    value=sleep.avg_hrv_drop_after_low_rest,
+                    description="恢复性睡眠不足次日 HRV 变化",
+                )
+            )
+        insights.append(
+            _create_insight(
+                state,
+                suffix="analysis_sleep_correlation",
+                trigger="analysis_sleep_correlation",
+                summary="睡眠与恢复的关联",
+                explanation="睡眠时长/效率与准备度、HRV 之间存在显著关联，建议强化睡眠卫生管理。",
+                actions=[
+                    InsightAction(
+                        recommendation="确保每日睡眠 ≥7 小时，近期睡眠不足时提前安排恢复日。",
+                        category="lifestyle",
+                        priority=1,
+                    )
+                ],
+                evidence=evidence,
+                confidence=0.6,
+                tags=["analysis", "sleep", "recovery"],
+            )
+        )
+
+    for impact in analysis.lifestyle_impacts:
+        evidence = [
+            InsightEvidence(
+                key="occurrences",
+                value=impact.occurrences,
+                description="事件发生次数",
+            )
+        ]
+        if impact.avg_readiness_delta is not None:
+            evidence.append(
+                InsightEvidence(
+                    key="avg_readiness_delta",
+                    value=impact.avg_readiness_delta,
+                    description="事件后准备度平均变化",
+                )
+            )
+        if impact.avg_hrv_delta is not None:
+            evidence.append(
+                InsightEvidence(
+                    key="avg_hrv_delta",
+                    value=impact.avg_hrv_delta,
+                    description="事件后 HRV 平均变化",
+                )
+            )
+        if impact.avg_sleep_delta is not None:
+            evidence.append(
+                InsightEvidence(
+                    key="avg_sleep_delta",
+                    value=impact.avg_sleep_delta,
+                    description="事件后睡眠时长平均变化",
+                )
+            )
+        if impact.notes:
+            evidence.append(
+                InsightEvidence(
+                    key="impact_notes",
+                    description=impact.notes,
+                )
+            )
+        insights.append(
+            _create_insight(
+                state,
+                suffix=f"analysis_lifestyle_{impact.event}",
+                trigger="analysis_lifestyle_impact",
+                summary=f"生活方式事件影响：{impact.event}",
+                explanation="该生活方式事件与睡眠/HRV/准备度的变化有关，建议针对性进行行为调整。",
+                actions=[
+                    InsightAction(
+                        recommendation="记录事件发生的具体情境，并采取缓解措施（如提前规划、使用放松技巧）。",
+                        category="lifestyle",
+                        priority=2,
+                    )
+                ],
+                evidence=evidence,
+                confidence=0.5,
+                tags=["analysis", "lifestyle"],
+            )
+        )
+
+    conflicts = analysis.subjective_objective_conflicts
+    if any(
+        [
+            conflicts.subjective_high_objective_stable,
+            conflicts.subjective_low_objective_low,
+            conflicts.stress_conflicts,
+            conflicts.sleep_quality_conflicts,
+        ]
+    ):
+        evidence = [
+            InsightEvidence(
+                key="subjective_high_objective_stable",
+                value=conflicts.subjective_high_objective_stable,
+                description="主观疲劳高但客观稳定 次数",
+            ),
+            InsightEvidence(
+                key="subjective_low_objective_low",
+                value=conflicts.subjective_low_objective_low,
+                description="主观轻松但客观疲劳 次数",
+            ),
+        ]
+        if conflicts.stress_conflicts:
+            evidence.append(
+                InsightEvidence(
+                    key="subjective_stress_conflict",
+                    value=conflicts.stress_conflicts,
+                    description="主观压力高但客观数据正常 次数",
+                )
+            )
+        if conflicts.sleep_quality_conflicts:
+            evidence.append(
+                InsightEvidence(
+                    key="subjective_sleep_quality_conflict",
+                    value=conflicts.sleep_quality_conflicts,
+                    description="主观睡眠评分差但睡眠时长充足 次数",
+                )
+            )
+        for label, dates in conflicts.details.items():
+            evidence.append(
+                InsightEvidence(
+                    key=label,
+                    description="、".join(d.isoformat() for d in dates),
+                )
+            )
+        insights.append(
+            _create_insight(
+                state,
+                suffix="analysis_subjective_objective",
+                trigger="analysis_subjective_objective_conflict",
+                summary="主客观信号差异",
+                explanation="本周存在主观与客观恢复信号的不一致，需要结合心理与生活压力重新评估训练计划。",
+                actions=[
+                    InsightAction(
+                        recommendation="安排反馈面谈，核查心理压力、恢复策略与客观数据是否一致。",
+                        category="monitoring",
+                        priority=2,
+                    )
+                ],
+                evidence=evidence,
+                confidence=0.55,
+                tags=["analysis", "subjective", "monitoring"],
+            )
+        )
+
+    recovery = analysis.recovery_response
+    if any(
+        [
+            recovery.average_recovery_ratio is not None,
+            recovery.slow_recovery_cases,
+            recovery.avg_readiness_rebound is not None,
+            recovery.avg_sleep_rebound is not None,
+            recovery.avg_sleep_rebound_vs_baseline is not None,
+        ]
+    ):
+        evidence = []
+        if recovery.average_recovery_ratio is not None:
+            evidence.append(
+                InsightEvidence(
+                    key="average_recovery_ratio",
+                    value=recovery.average_recovery_ratio,
+                    description="休息后 HRV 平均回升（ΔZ）",
+                )
+            )
+        evidence.append(
+            InsightEvidence(
+                key="slow_recovery_cases",
+                value=recovery.slow_recovery_cases,
+                description="恢复不足案例数",
+            )
+        )
+        if recovery.avg_readiness_rebound is not None:
+            evidence.append(
+                InsightEvidence(
+                    key="avg_readiness_rebound",
+                    value=recovery.avg_readiness_rebound,
+                    description="低负荷后准备度回升",
+                )
+            )
+        if recovery.avg_sleep_rebound is not None:
+            evidence.append(
+                InsightEvidence(
+                    key="avg_sleep_rebound",
+                    value=recovery.avg_sleep_rebound,
+                    description="低负荷后睡眠时长回升",
+                )
+            )
+        if recovery.avg_sleep_rebound_vs_baseline is not None:
+            evidence.append(
+                InsightEvidence(
+                    key="avg_sleep_rebound_vs_baseline",
+                    value=recovery.avg_sleep_rebound_vs_baseline,
+                    description="恢复日睡眠相对基线差值",
+                )
+            )
+        if recovery.notes:
+            evidence.append(
+                InsightEvidence(
+                    key="recovery_notes",
+                    description=recovery.notes,
+                )
+            )
+        insights.append(
+            _create_insight(
+                state,
+                suffix="analysis_recovery_response",
+                trigger="analysis_recovery_response",
+                summary="恢复反应评估",
+                explanation="休息后 HRV/恢复指标的回升幅度反映当前恢复能力，应关注恢复不足案例。",
+                actions=[
+                    InsightAction(
+                        recommendation="针对恢复不足案例补充恢复日程，如高质量睡眠、冷疗、低强度有氧。",
+                        category="recovery",
+                        priority=1,
+                    )
+                ],
+                evidence=evidence,
+                confidence=0.5,
+                tags=["analysis", "recovery"],
+            )
+        )
+
+    trend = analysis.trend_stability
+    if any(
+        value is not None
+        for value in [
+            trend.readiness_slope,
+            trend.hrv_slope,
+            trend.sleep_slope,
+            trend.readiness_volatility,
+            trend.hrv_volatility,
+            trend.sleep_volatility,
+            trend.readiness_change,
+            trend.hrv_vs_baseline,
+            trend.sleep_vs_baseline,
+        ]
+    ):
+        evidence = []
+        if trend.readiness_slope is not None:
+            evidence.append(
+                InsightEvidence(
+                    key="readiness_slope",
+                    value=trend.readiness_slope,
+                    description="准备度趋势斜率",
+                )
+            )
+        if trend.hrv_slope is not None:
+            evidence.append(
+                InsightEvidence(
+                    key="hrv_slope",
+                    value=trend.hrv_slope,
+                    description="HRV 趋势斜率",
+                )
+            )
+        if trend.sleep_slope is not None:
+            evidence.append(
+                InsightEvidence(
+                    key="sleep_slope",
+                    value=trend.sleep_slope,
+                    description="睡眠趋势斜率",
+                )
+            )
+        if trend.readiness_volatility is not None:
+            evidence.append(
+                InsightEvidence(
+                    key="readiness_volatility",
+                    value=trend.readiness_volatility,
+                    description="准备度波动度",
+                )
+            )
+        if trend.hrv_volatility is not None:
+            evidence.append(
+                InsightEvidence(
+                    key="hrv_volatility",
+                    value=trend.hrv_volatility,
+                    description="HRV 波动度",
+                )
+            )
+        if trend.sleep_volatility is not None:
+            evidence.append(
+                InsightEvidence(
+                    key="sleep_volatility",
+                    value=trend.sleep_volatility,
+                    description="睡眠波动度",
+                )
+            )
+        if trend.readiness_change is not None:
+            evidence.append(
+                InsightEvidence(
+                    key="readiness_change",
+                    value=trend.readiness_change,
+                    description="周内准备度净变化",
+                )
+            )
+        if trend.hrv_vs_baseline is not None:
+            evidence.append(
+                InsightEvidence(
+                    key="hrv_vs_baseline",
+                    value=trend.hrv_vs_baseline,
+                    description="最新 HRV 相对基线差值",
+                )
+            )
+        if trend.sleep_vs_baseline is not None:
+            evidence.append(
+                InsightEvidence(
+                    key="sleep_vs_baseline",
+                    value=trend.sleep_vs_baseline,
+                    description="最新睡眠时长相对基线差值",
+                )
+            )
+        insights.append(
+            _create_insight(
+                state,
+                suffix="analysis_trend_stability",
+                trigger="analysis_trend_stability",
+                summary="长期趋势与稳定性",
+                explanation="准备度、HRV、睡眠的趋势与稳定性评估可用于指导下阶段训练周期调整。",
+                actions=[
+                    InsightAction(
+                        recommendation="根据趋势稳定性调整周期化目标：若趋势向下或波动加大，应优先安排恢复周期。",
+                        category="strategy",
+                        priority=2,
+                    )
+                ],
+                evidence=evidence,
+                confidence=0.6,
+                tags=["analysis", "trend"],
+            )
+        )
+
+    return insights
+
+
 def populate_insights(state: ReadinessState) -> ReadinessState:
     """Populate the state's insights list in-place and return the state."""
     state.insights = generate_insights(state)
     return state
 
 
-__all__ = ["generate_insights", "populate_insights"]
+__all__ = ["generate_insights", "populate_insights", "generate_analysis_insights"]

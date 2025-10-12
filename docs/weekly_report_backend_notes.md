@@ -6,27 +6,37 @@
 - **Update 2025-10**：数据库/API 团队需尽快在 `user_daily`（或等价的日度表）中新增列 `report_notes`（类型建议 TEXT/JSONB），写入来自客户端的自由日志文本，以便 Phase 4/5 使用。所有微服务在聚合 readiness payload 时需原样透传该字段。
 
 ## Phase 1 Payload (Ingest) Example
+来自 readiness 数据库的“今日”原始数据（raw_inputs）+ 近 7 天历史（Phase 3/4/5 用），必须一次性返回给周报流水线：
+
 ```json
 {
   "user_id": "athlete_001",
   "date": "2025-09-15",
-  "gender": "male",
-  "total_sleep_minutes": 420,
-  "in_bed_minutes": 470,
-  "deep_sleep_minutes": 90,
-  "rem_sleep_minutes": 95,
-  "hrv_rmssd_today": 58.0,
-  "hrv_rmssd_3day_avg": 55.0,
-  "hrv_rmssd_7day_avg": 60.0,
-  "hrv_baseline_mu": 63.0,
-  "hrv_baseline_sd": 5.8,
+  "gender": "男性",
+  "total_sleep_minutes": 402,
+  "in_bed_minutes": 450,
+  "deep_sleep_minutes": 88,
+  "rem_sleep_minutes": 78,
+  "apple_sleep_score": 82,
+  "hrv_rmssd_today": 57,
+  "hrv_rmssd_3day_avg": 58,
+  "hrv_rmssd_7day_avg": 61,
+  "hrv_rmssd_28day_avg": 62.5,
+  "hrv_rmssd_28day_sd": 6.3,
   "sleep_baseline_hours": 7.6,
   "sleep_baseline_eff": 0.87,
   "rest_baseline_ratio": 0.37,
-  "recent_training_au": [...],
-  "recent_training_loads": [...],
+  "hrv_baseline_mu": 63,
+  "hrv_baseline_sd": 5.8,
+  "recent_training_au": [0, 500, 420, 560, 300, 360, 440],
   "training_sessions": [
-    {"label": "高", "rpe": 8, "duration_minutes": 70, "au": 560, "notes": "力量训练-背部"}
+    {
+      "label": "高",
+      "rpe": 8,
+      "duration_minutes": 70,
+      "au": 560,
+      "start_time": "2025-09-14T18:30:00"
+    }
   ],
   "hooper": {"fatigue": 6, "soreness": 5, "stress": 3, "sleep": 4},
   "journal": {
@@ -34,17 +44,117 @@
     "late_caffeine": false,
     "screen_before_bed": true,
     "late_meal": false,
-    "is_sick": false,
-    "is_injured": false,
     "lifestyle_tags": ["work_travel"],
-    "sliders": {"fatigue_slider": 6.0, "mood_slider": 3.0}
+    "sliders": {"fatigue_slider": 6, "mood_slider": 3}
   },
-  "bodyweight_kg": 83.4,
-  "resting_hr": 52.0,
-  "cycle": {...},
-  "objective": {...},
-  "previous_state_probs": {...},
-  "report_notes": "昨晚赶飞机回程，入睡前加班处理工作，整体感觉疲劳较高。"
+  "report_notes": "昨晚赶飞机回程，入睡前加班处理工作，整体感觉疲劳较高。",
+  "history": [
+    {
+      "date": "2025-09-09",
+      "readiness_score": 72,
+      "readiness_band": "Well-adapted",
+      "hrv_rmssd": 64,
+      "hrv_z_score": 0.2,
+      "sleep_duration_hours": 7.6,
+      "sleep_total_minutes": 456,
+      "sleep_deep_minutes": 110,
+      "sleep_rem_minutes": 95,
+      "daily_au": 320,
+      "acwr": null,
+      "hooper": {"fatigue": 3, "soreness": 3, "stress": 3, "sleep": 7},
+      "lifestyle_events": ["sex"]
+    },
+    {
+      "date": "2025-09-10",
+      "readiness_score": 100,
+      "readiness_band": "Well-adapted",
+      "hrv_rmssd": 63,
+      "hrv_z_score": 0.1,
+      "sleep_duration_hours": 7.4,
+      "sleep_total_minutes": 444,
+      "sleep_deep_minutes": 105,
+      "sleep_rem_minutes": 92,
+      "daily_au": 360,
+      "acwr": null,
+      "hooper": {"fatigue": 3, "soreness": 3, "stress": 3, "sleep": 7},
+      "lifestyle_events": []
+    },
+    {
+      "date": "2025-09-11",
+      "readiness_score": 68,
+      "readiness_band": "FOR",
+      "hrv_rmssd": 62,
+      "hrv_z_score": -0.1,
+      "sleep_duration_hours": 7.2,
+      "sleep_total_minutes": 432,
+      "sleep_deep_minutes": 100,
+      "sleep_rem_minutes": 90,
+      "daily_au": 420,
+      "acwr": null,
+      "hooper": {"fatigue": 4, "soreness": 3, "stress": 3, "sleep": 7},
+      "lifestyle_events": []
+    },
+    {
+      "date": "2025-09-12",
+      "readiness_score": 66,
+      "readiness_band": "FOR",
+      "hrv_rmssd": 61,
+      "hrv_z_score": -0.3,
+      "sleep_duration_hours": 7.1,
+      "sleep_total_minutes": 426,
+      "sleep_deep_minutes": 98,
+      "sleep_rem_minutes": 88,
+      "daily_au": 500,
+      "acwr": 1.15,
+      "hooper": {"fatigue": 5, "soreness": 4, "stress": 3, "sleep": 6},
+      "lifestyle_events": ["sex"]
+    },
+    {
+      "date": "2025-09-13",
+      "readiness_score": 99,
+      "readiness_band": "Acute Fatigue",
+      "hrv_rmssd": 60,
+      "hrv_z_score": -0.4,
+      "sleep_duration_hours": 7.0,
+      "sleep_total_minutes": 420,
+      "sleep_deep_minutes": 95,
+      "sleep_rem_minutes": 84,
+      "daily_au": 560,
+      "acwr": 1.32,
+      "hooper": {"fatigue": 6, "soreness": 4, "stress": 4, "sleep": 6},
+      "lifestyle_events": ["travel"]
+    },
+    {
+      "date": "2025-09-14",
+      "readiness_score": 64,
+      "readiness_band": "Acute Fatigue",
+      "hrv_rmssd": 58,
+      "hrv_z_score": -0.6,
+      "sleep_duration_hours": 6.8,
+      "sleep_total_minutes": 408,
+      "sleep_deep_minutes": 90,
+      "sleep_rem_minutes": 80,
+      "daily_au": 1500,
+      "acwr": 1.4,
+      "hooper": {"fatigue": 6, "soreness": 4, "stress": 4, "sleep": 6},
+      "lifestyle_events": ["late_meal", "sex"]
+    },
+    {
+      "date": "2025-09-15",
+      "readiness_score": 100,
+      "readiness_band": "Acute Fatigue",
+      "hrv_rmssd": 57,
+      "hrv_z_score": -0.85,
+      "sleep_duration_hours": 6.7,
+      "sleep_total_minutes": 402,
+      "sleep_deep_minutes": 88,
+      "sleep_rem_minutes": 78,
+      "daily_au": 510,
+      "acwr": 1.45,
+      "hooper": {"fatigue": 6, "soreness": 5, "stress": 4, "sleep": 5},
+      "lifestyle_events": ["travel", "sex"]
+    }
+  ]
 }
 ```
 
@@ -90,6 +200,17 @@
 
 3. **接口输出**
    - 周报 API 在返回最新周报时可直接返回 `WeeklyFinalReport` JSON，或同时附带 Markdown，确保前端/第三方系统可以选择结构化渲染或直接显示文稿。
+   - 周报微服务骨架：`weekly_report/api.py` 引入 FastAPI，提供 `POST /weekly-report/run`。请求携带 Phase 1 payload（含 `history`），可选 `use_llm`、`persist`。响应返回 Phase 3 state、Phase 4 包、Phase 5 成品，`persist=true` 时会把最终 JSON + Markdown 写入 `weekly_reports` 表。
+     ```bash
+     curl -X POST http://localhost:8000/weekly-report/run \
+     -H "Content-Type: application/json" \
+      -d '{"payload": {...}, "use_llm": true, "persist": true}'
+    ```
+
+### LLM 模型配置
+- 通过环境变量 `READINESS_LLM_MODEL` 设置主模型（默认 `gemini-2.5-flash`），`READINESS_LLM_FALLBACK_MODELS` 指定备选列表（逗号分隔）。
+- 若未设置或模型不可用，服务会自动回退至规则生成；调试时可直接传 `use_llm=false`。
+- 生产环境在容器/服务配置中注入 `GOOGLE_API_KEY` 与上述模型变量即可，无需修改代码。
 
 > **预留扩展**：若之后需要通知/跟进/反馈，可复用原设计（Notification / Follow-up Script / Feedback Summary）并追加至 Finalizer 之后。
 

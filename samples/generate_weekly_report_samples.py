@@ -14,7 +14,7 @@ if str(ROOT) not in sys.path:
 from weekly_report.finalizer import generate_weekly_final_report
 from weekly_report.models import WeeklyFinalReport, WeeklyHistoryEntry
 from weekly_report.pipeline import generate_weekly_report
-from readiness.state import ReadinessState
+from weekly_report.state import ReadinessState
 
 
 def _load_state() -> ReadinessState:
@@ -23,6 +23,9 @@ def _load_state() -> ReadinessState:
     state = ReadinessState.model_validate(data)
     if not state.raw_inputs.report_notes:
         state.raw_inputs.report_notes = "本周有一次出差和夜间加班，主观疲劳偏高。"
+    # 保证流程从空洞察开始，所有洞察由当前规则/LLM 重新生成
+    state.insights = []
+    state.insight_reviews = []
     return state
 
 

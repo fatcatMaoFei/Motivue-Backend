@@ -4,9 +4,19 @@
 # Motivue Backend – Service Map
 
 Motivue’s backend is a set of microservices that each tackle a specific piece of
-the coaching workflow.  Readiness scoring, physiological age, personal baselines
-and weekly reports run in separate deployable units, but they share common data
-models and utilities inside this monorepo.
+the coaching workflow.  Each top-level service directory (e.g. `readiness/`,
+`weekly_report/`, `baseline/`, `physio_age/`, `training/`) can be deployed as a
+standalone microservice; they share core Pydantic models (notably
+`ReadinessState`) and utilities inside this monorepo, but **execution and data
+contracts remain independent**:
+
+- `readiness/` focuses on the daily readiness score (our primary engine).
+- `weekly_report/` turns the same readiness data model + history into a Phase 5
+  report (Markdown/HTML).  It does not call the readiness engine – both services
+  read from / write to the database separately.
+- Every service follows the same pattern: **read from database → compute → write
+  results back / expose via API**.  Other consumers (front-end, analytics jobs)
+  can read the stored JSON/Markdown directly without chaining the services.
 
 ## Core services
 
@@ -20,6 +30,25 @@ models and utilities inside this monorepo.
 
 > Weekly report code now lives under the standalone `weekly_report/` package.  You can deploy it with the readiness image or create a dedicated container if needed.
 
+### Weekly report microservice
+
+- 启动 API：`uvicorn weekly_report.api:app --reload`（依赖 `fastapi` 已包含在 `requirements.txt`）。
+- 调用示例：
+  ```bash
+  curl -X POST http://localhost:8000/weekly-report/run \
+    -H "Content-Type: application/json" \
+    -d '{
+          "payload": FILE_CONTENTS,
+          "use_llm": true,
+          "persist": true
+        }'
+  ```
+  - `payload`：Phase 1 原始数据（含今日 raw_inputs + `history` 的 7 条 `WeeklyHistoryEntry`）。样例见 `samples/original_payload_sample.json`。
+  - `use_llm=true`：调用 Gemini；通过环境变量 `GOOGLE_API_KEY`、`READINESS_LLM_MODEL`、`READINESS_LLM_FALLBACK_MODELS` 配置模型，留空时自动回退规则。
+  - `persist=true`：调用结束后将 Phase 5 结果写入 `weekly_reports` 表（定义在 `api/db.py`，默认使用 `.env` 的 `DATABASE_URL`）。
+- 返回值同时包含 Phase 3 `ReadinessState` JSON、Phase 4 `WeeklyReportPackage`、Phase 5 `WeeklyFinalReport`（含 Markdown/HTML/图表 ID）。
+
+
 ## Directory guide
 
 | Path | Purpose | Highlights |
@@ -29,10 +58,11 @@ models and utilities inside this monorepo.
 | `baseline/` | Baseline microservice (see above). | README + API/Deployment guides. |
 | `baseline_analytics/` | Windowed comparisons (today vs baseline, recent vs previous) independent of the readiness engine. | `compare_today_vs_baseline`, `compare_recent_vs_previous`. |
 | `docs/` | Design notes and backend integration guides (e.g. weekly report backend notes, prompt plans). | `weekly_report_backend_notes.md`, PDFs. |
+| `docs/weekly_report_frontend_notes.md` | Front-end integration cheatsheet for weekly report API / payloads. | – |
 | `gui/` | Prototype UIs and demo assets. | – |
 | `physio_age/` | Physiological age engine (see above). | Example scripts + master tables. |
-| `readiness/` | Readiness engine, rule-based insights, mapping helpers, Hooper/ACWR tools. | `readiness/state.py`, `insights/rules.py`, `metrics_extractors.py`. |
-| `weekly_report/` | Weekly report service (charts, workflow, multi-agent chain, finaliser). | `weekly_report/models.py`, `weekly_report/trend_builder.py`, `weekly_report/pipeline.py`, `weekly_report/workflow/graph.py`, `weekly_report/finalizer.py`. |
+| `readiness/` | Readiness engine, rule-based insights, mapping helpers, Hooper/ACWR tools. | `readiness/engine.py`, `readiness/mapping.py`, `readiness/constants.py`. |
+| `weekly_report/` | Weekly report service (charts, workflow, multi-agent chain, finaliser). | `weekly_report/state.py`, `weekly_report/models.py`, `weekly_report/trend_builder.py`, `weekly_report/pipeline.py`, `weekly_report/workflow/graph.py`, `weekly_report/finalizer.py`. |
 | `samples/` | Regression artefacts and example outputs. | `weekly_report_sample.json`, `weekly_report_final_sample.md`, `readiness_state_report_sample.json`. |
 | `scripts/` | Operational helpers. | `scripts/db_check.py`. |
 | `training/` | Training consumption module (see above). | Example configs under `training/factors/`. |
@@ -135,6 +165,19 @@ python samples/generate_weekly_report_samples.py
    - `WeeklyReportPackage` (charts + analyst + communicator + optional critique).
    - `WeeklyFinalReport` (markdown/html + chart list + CTA) when finaliser is called.
 
+#### Five-stage architecture (per design PDFs)
+Drawing from *AI教练提示词与架构优化.pdf* 与 *智能体功能与商业模式优化.pdf*，`weekly_report/` 采用“主管-专家”LangGraph 架构，拆成五个阶段：
+
+| Stage | 作用 | 输入示例 | 输出示例 |
+| --- | --- | --- | --- |
+| **Phase 1 数据拉取** | 从数据库或缓存读取最近 7/28 天的准备度、HRV、睡眠、训练、Hooper、生活方式事件，外加 `report_notes` 与训练日志。 | 原始 `user_daily` 行、`weekly_history` 视图 | Python dict / dataframe 集合（raw metrics）。 |
+| **Phase 2 特征与聚合** | 清洗缺失值、计算滚动指标（ACWR、连续高负荷、睡眠恢复性、HRV z-score 等），补充生活方式标签与训练摘要。 | Phase 1 输出 | 结构化特征包（dict），供洞察/LLM 使用。 |
+| **Phase 3 洞察装配** | 规则/统计分析生成 JSON 洞察：训练超量、睡眠下降 vs 生活方式、主客观冲突、恢复速率等；同时整理成统一 schema。 | 特征包 + 原始历史 | `state.insights` 风格的 JSON（含 summary、evidence、actions）。 |
+| **Phase 4 多智能体 LLM** | 主管智能体调度 Analyst → Communicator → Critique（LangGraph），使用上阶段 JSON + chart specs + report notes 写出结构化文本。 | Phase 3 洞察 + chart specs + notes | `WeeklyReportPackage`：summary_points、risks、opportunities、sections、issues。 |
+| **Phase 5 Finalizer** | 将多智能体输出与历史记录、训练日志整合为 Markdown/HTML 成品，并附 CTA、chart_id 顺序。 | `WeeklyReportPackage` + history + notes | `WeeklyFinalReport`（Markdown/HTML + chart_ids + call_to_action）。 |
+
+> **提示**：阶段间所有数据均采用 JSON Schema 管控，方便在 LangGraph 中序列化与回放；主管-专家模式确保只有唯一写入通道（Finalizer），符合设计文档的鲁棒性要求。
+
 #### Running sample
 ```bash
 python samples/generate_weekly_report_samples.py \
@@ -230,7 +273,16 @@ Produces Phase 4 JSON (`weekly_report_sample.json`) and final markdown (`weekl
 
 Motivue 的后端由多套微服务组成，每个服务解决一个独立的运动科学场景。
 各模块在同一个代码库内共享数据模型与工具，但可以独立部署：日常准备度、
-周报生成、个性化基线、生理年龄、训练消耗等服务互相解耦。
+周报生成、个性化基线、生理年龄、训练消耗等服务互相解耦。顶层模块映射到
+微服务（`readiness/`、`weekly_report/`、`baseline/`、`physio_age/`、`training/`），
+它们共用同一套 `ReadinessState` 等 Pydantic 模型，但 **运行流程、接口、落库
+策略完全独立**：
+
+- `readiness/` 计算每日准备度，是核心评分引擎；
+- `weekly_report/` 仅读取数据库里的准备度/历史数据生成 Phase 5 周报，不调用
+  readiness 引擎；
+- 任一服务都是“从数据库取数 → 计算 → 把结果（JSON/Markdown 等）写回数据库或通过 API 返回”，
+  前端与其他后台只需按需读取存储结果，无需串联多个微服务。
 
 ## 核心服务
 
@@ -263,6 +315,7 @@ Motivue 的后端由多套微服务组成，每个服务解决一个独立的运
 | `tmp/` | 临时文件目录。 | – |
 | `个性化CPT/` | 证据 CPT 个性化实验脚本与成果。 | `personalize_cpt.py`、`artifacts/`。 |
 | `后端文档/` | 中文文档合集（微服务集成、部署、iOS26 迁移、基线计划等）。 | `MICROSERVICES_INTEGRATION.md` 等。 |
+| `docs/weekly_report_frontend_notes.md` | 周报前端对接说明（接口、字段、渲染提示）。 | – |
 
 ## 关键文档与样例
 

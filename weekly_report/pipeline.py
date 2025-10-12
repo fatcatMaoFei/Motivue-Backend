@@ -3,7 +3,9 @@ from __future__ import annotations
 import logging
 from typing import Optional, Sequence
 
-from readiness.llm.provider import LLMCallError, LLMProvider, get_llm_provider
+from weekly_report.analysis import run_analysis
+from weekly_report.insights import generate_analysis_insights
+from weekly_report.llm.provider import LLMCallError, LLMProvider, get_llm_provider
 from weekly_report.models import (
     AnalystOpportunity,
     AnalystReport,
@@ -16,7 +18,7 @@ from weekly_report.models import (
     WeeklyReportPackage,
 )
 from weekly_report.trend_builder import build_default_chart_specs
-from readiness.state import InsightItem, ReadinessState
+from weekly_report.state import InsightItem, ReadinessState
 
 logger = logging.getLogger(__name__)
 
@@ -28,20 +30,33 @@ def generate_weekly_report(
     sleep_baseline_hours: Optional[float] = None,
     hrv_baseline: Optional[float] = None,
     provider: Optional[LLMProvider] = None,
+    use_llm: bool = True,
 ) -> WeeklyReportPackage:
     """Generate charts + LLM summary + communicator draft for Phase 4."""
+
+    analysis = run_analysis(history, state=state)
+    analysis_insights = generate_analysis_insights(state, analysis)
+    if analysis_insights:
+        state.insights.extend(analysis_insights)
 
     charts = build_default_chart_specs(
         history, sleep_baseline_hours=sleep_baseline_hours, hrv_baseline=hrv_baseline
     )
     report_notes = state.raw_inputs.report_notes
 
-    llm = provider or get_llm_provider()
+    llm: Optional[LLMProvider] = provider
+    if llm is None and use_llm:
+        llm = get_llm_provider()
+
     analyst: AnalystReport
     communicator: CommunicatorReport
     critique: ReportCritique = _fallback_critique()
 
-    if llm is not None:
+    if llm is None:
+        logger.info("LLM provider unavailable; using heuristic weekly report.")
+        analyst = _fallback_analyst(state, charts)
+        communicator = _fallback_communicator(state, analyst)
+    else:
         try:
             analyst = llm.generate_weekly_analyst(
                 state, charts, report_notes=report_notes
@@ -50,7 +65,6 @@ def generate_weekly_report(
             logger.warning("Weekly analyst LLM failed, fallback to heuristic: %s", exc)
             analyst = _fallback_analyst(state, charts)
             communicator = _fallback_communicator(state, analyst)
-            critique = _fallback_critique()
         else:
             try:
                 communicator = llm.generate_weekly_communicator(
@@ -74,10 +88,6 @@ def generate_weekly_report(
                         "Weekly critique LLM failed, returning communicator draft as-is: %s",
                         exc,
                     )
-    else:
-        logger.info("LLM provider unavailable; using heuristic weekly report.")
-        analyst = _fallback_analyst(state, charts)
-        communicator = _fallback_communicator(state, analyst)
 
     return WeeklyReportPackage(
         charts=list(charts),

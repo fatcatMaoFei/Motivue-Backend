@@ -17,7 +17,7 @@ from weekly_report.models import (
     WeeklyHistoryEntry,
     WeeklyReportPackage,
 )
-from readiness.state import InsightItem, ReadinessState, TrainingSessionInput
+from weekly_report.state import InsightItem, ReadinessState, TrainingSessionInput
 
 logger = logging.getLogger(__name__)
 
@@ -218,17 +218,21 @@ You are an elite sports data scientist supporting a high-performance coach.
 Explain the athlete's current readiness by combining objective biomarkers and subjective feedback, and propose
 coaching hypotheses that respect sports science principles.
 
-## Method — S&C 四步诊断
+## Method — S&C 五步诊断
 1. Identify objective signals: training load (e.g., ACWR, consecutive high days), recovery metrics (HRV Z-score,
    sleep duration/efficiency, CMJ/VBT if present).
 2. Link probable stressors: relate load spikes, lifestyle events, travel, illness, or session notes to the signals.
 3. Integrate subjective context: incorporate Hooper评分、fatigue sliders、journal事件，指出客观与主观的
    一致或冲突（例如“HRV下降但主观感觉良好”）。
-4. Formulate hypotheses: summarise the likely driver on readiness/performance, with actionable interpretation.
+4. Evaluate recovery response: 当 HRV/睡眠连续下降后出现休息或低负荷日，比较休息前后的 readiness、
+   HRV、睡眠变化（最好使用百分比或 ΔZ）；若恢复不足，要指出 Hooper 是否同步或出现分歧。
+5. Formulate hypotheses: summarise the likely driver on readiness/performance, with actionable interpretation.
 
 ## Output Requirements
 - Generate ≥3 distinct hypotheses; each `factor` should be简洁（6~12字左右）并聚焦单一驱动因素。
 - 每条 `evidence` 必须引用具体数据或阈值（如“ACWR 1.45 超过 1.25 阈值”“HRV Z-score -0.86”）。
+- 至少一条 `evidence` 需要关注恢复窗口（休息日/低负荷日）后的 readiness、HRV、睡眠、Hooper 变化，
+  若恢复不足要解释可能原因。
 - 说明客观 vs 主观是否一致，以及相关的生活方式事件或缺失数据。
 - `confidence` 0.0~1.0，依据证据强弱；不确定时保持中低置信度并说明原因。
 - 输出 JSON，严格符合 Schema；禁止返回额外文本。
@@ -284,10 +288,12 @@ You are an experienced strength & conditioning data analyst supporting a weekly 
 
 ## Tasks
 1. 提炼 3-5 个 summary_points，解释本周状态变化及驱动。
-2. 列出 risks（metric/value/reason，若有 severity 请注明）。
-3. 列出 opportunities，给出可执行建议与简短理由。
-4. 甄选最相关的图表，以 `chart_ids` 字段列出对应的 chart_id。
-5. 仅输出 JSON，严格遵循提供的 schema。
+2. 明确指出训练负荷与恢复的关联，尤其是休息日/低负荷日后的 readiness、HRV、睡眠与 Hooper
+   变化（如能以百分比或 ΔZ 表达更佳）。
+3. 列出 risks（metric/value/reason，若有 severity 请注明），优先提示恢复不足或主客观分歧的风险。
+4. 列出 opportunities，给出可执行建议与简短理由（包括如何改进恢复或安排休息）。
+5. 甄选最相关的图表，以 `chart_ids` 字段列出对应的 chart_id。
+6. 仅输出 JSON，严格遵循提供的 schema。
 """.strip()
 
 ANALYST_RESPONSE_SCHEMA: Dict[str, Any] = {
@@ -439,10 +445,12 @@ Produce a weekly readiness report whose Markdown结构与参考模板高度一�
 | --- | --- | --- | --- |
 {逐日 7 行}
 - HRV 与训练/事件的关系（≥2 条，解释 Z-score 含义，引用图表）
+- 至少一条需要描述休息/低负荷日后的 readiness、HRV 回升（或未回升）幅度，并说明 Hooper 主观反馈是否对齐，
+  建议使用百分比或 ΔZ。
 | 日期 | 睡眠时长 (h) | 深睡 (min) | REM (min) | 事件 |
 | --- | --- | --- | --- | --- |
 {逐日 7 行}
-- 睡眠与训练/事件的关系（≥2 条，指出高负荷日对睡眠的影响，引用图表）
+- 睡眠与训练/事件的关系（≥2 条，指出高负荷日对睡眠的影响，并说明休息后的恢复幅度，引用图表）
 
 ## 主观反馈（Hooper 指数）
 | 日期 | 疲劳 | 酸痛 | 压力 | 睡眠质量 | 说明 |
@@ -458,7 +466,8 @@ Produce a weekly readiness report whose Markdown结构与参考模板高度一�
 - 将 report_notes 与 training_sessions.notes 的关键信息写成 1–3 条 bullet，说明它们如何影响准备度/HRV/睡眠。
 
 ## 相关性洞察
-- ≥3 条 bullet，总结训练量、睡眠、HRV、Hooper、生活方式之间的因果或相关关系，并给出触发阈值提醒。
+- ≥3 条 bullet，总结训练量、睡眠、HRV、Hooper、生活方式之间的因果或相关关系，并给出触发阈值提醒；
+  至少一条需评估休息日后的恢复成效（例如 readiness 回升百分比、HRV ΔZ、Hooper 是否同步改善）。
 
 ## 下周行动计划
 - ≥4 条 bullet，覆盖训练负荷、睡眠修复、压力管理、营养/生活方式、监测阈值，可用“训练负荷管理：…”等前缀，避免重复条目。

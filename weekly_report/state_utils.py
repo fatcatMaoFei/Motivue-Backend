@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from readiness.state import ReadinessState
+from weekly_report.state import ReadinessState
 
 
 def create_state(

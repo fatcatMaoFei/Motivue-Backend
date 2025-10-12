@@ -1,0 +1,156 @@
+{
+  "user_id": "athlete_001",
+  "date": "2025-09-15",
+  "gender": "男性",
+  "total_sleep_minutes": 420,
+  "in_bed_minutes": 470,
+  "deep_sleep_minutes": 90,
+  "rem_sleep_minutes": 95,
+  "apple_sleep_score": 82,
+  "hrv_rmssd_today": 58,
+  "hrv_rmssd_3day_avg": 55,
+  "hrv_rmssd_7day_avg": 60,
+  "hrv_rmssd_28day_avg": 62.5,
+  "hrv_rmssd_28day_sd": 6.3,
+  "hrv_baseline_mu": 63,
+  "hrv_baseline_sd": 5.8,
+  "sleep_baseline_hours": 7.6,
+  "sleep_baseline_eff": 0.87,
+  "rest_baseline_ratio": 0.37,
+  "recent_training_au": [0, 500, 420, 560, 300, 360, 440],
+  "training_sessions": [
+    {
+      "label": "高",
+      "rpe": 8,
+      "duration_minutes": 70,
+      "au": 560,
+      "start_time": "2025-09-14T18:30:00"
+    }
+  ],
+  "hooper": {
+    "fatigue": 6,
+    "soreness": 5,
+    "stress": 3,
+    "sleep": 4
+  },
+  "journal": {
+    "alcohol_consumed": false,
+    "late_caffeine": false,
+    "screen_before_bed": true,
+    "late_meal": false,
+    "lifestyle_tags": [
+      "work_travel"
+    ],
+    "sliders": {
+      "fatigue_slider": 6,
+      "mood_slider": 3
+    }
+  },
+  "history": [
+    {
+      "date": "2025-09-09",
+      "readiness_score": 72,
+      "readiness_band": "Well-adapted",
+      "hrv_rmssd": 64,
+      "hrv_z_score": 0.2,
+      "sleep_duration_hours": 7.6,
+      "sleep_total_minutes": 456,
+      "sleep_deep_minutes": 110,
+      "sleep_rem_minutes": 95,
+      "daily_au": 320,
+      "acwr": null,
+      "hooper": {"fatigue": 3, "soreness": 3, "stress": 3, "sleep": 7},
+      "lifestyle_events": ["sex"]
+    },
+    {
+      "date": "2025-09-10",
+      "readiness_score": 100,
+      "readiness_band": "Well-adapted",
+      "hrv_rmssd": 63,
+      "hrv_z_score": 0.1,
+      "sleep_duration_hours": 7.4,
+      "sleep_total_minutes": 444,
+      "sleep_deep_minutes": 105,
+      "sleep_rem_minutes": 92,
+      "daily_au": 360,
+      "acwr": null,
+      "hooper": {"fatigue": 3, "soreness": 3, "stress": 3, "sleep": 7},
+      "lifestyle_events": []
+    },
+    {
+      "date": "2025-09-11",
+      "readiness_score": 68,
+      "readiness_band": "FOR",
+      "hrv_rmssd": 62,
+      "hrv_z_score": -0.1,
+      "sleep_duration_hours": 7.2,
+      "sleep_total_minutes": 432,
+      "sleep_deep_minutes": 100,
+      "sleep_rem_minutes": 90,
+      "daily_au": 420,
+      "acwr": null,
+      "hooper": {"fatigue": 4, "soreness": 3, "stress": 3, "sleep": 7},
+      "lifestyle_events": []
+    },
+    {
+      "date": "2025-09-12",
+      "readiness_score": 66,
+      "readiness_band": "FOR",
+      "hrv_rmssd": 61,
+      "hrv_z_score": -0.3,
+      "sleep_duration_hours": 7.1,
+      "sleep_total_minutes": 426,
+      "sleep_deep_minutes": 98,
+      "sleep_rem_minutes": 88,
+      "daily_au": 500,
+      "acwr": 1.15,
+      "hooper": {"fatigue": 5, "soreness": 4, "stress": 3, "sleep": 6},
+      "lifestyle_events": ["sex"]
+    },
+    {
+      "date": "2025-09-13",
+      "readiness_score": 99,
+      "readiness_band": "Acute Fatigue",
+      "hrv_rmssd": 60,
+      "hrv_z_score": -0.4,
+      "sleep_duration_hours": 7.0,
+      "sleep_total_minutes": 420,
+      "sleep_deep_minutes": 95,
+      "sleep_rem_minutes": 84,
+      "daily_au": 560,
+      "acwr": 1.32,
+      "hooper": {"fatigue": 6, "soreness": 4, "stress": 4, "sleep": 6},
+      "lifestyle_events": ["travel"]
+    },
+    {
+      "date": "2025-09-14",
+      "readiness_score": 64,
+      "readiness_band": "Acute Fatigue",
+      "hrv_rmssd": 58,
+      "hrv_z_score": -0.6,
+      "sleep_duration_hours": 6.8,
+      "sleep_total_minutes": 408,
+      "sleep_deep_minutes": 90,
+      "sleep_rem_minutes": 80,
+      "daily_au": 1500,
+      "acwr": 1.4,
+      "hooper": {"fatigue": 6, "soreness": 4, "stress": 4, "sleep": 6},
+      "lifestyle_events": ["late_meal", "sex"]
+    },
+    {
+      "date": "2025-09-15",
+      "readiness_score": 100,
+      "readiness_band": "Acute Fatigue",
+      "hrv_rmssd": 57,
+      "hrv_z_score": -0.85,
+      "sleep_duration_hours": 6.7,
+      "sleep_total_minutes": 402,
+      "sleep_deep_minutes": 88,
+      "sleep_rem_minutes": 78,
+      "daily_au": 510,
+      "acwr": 1.45,
+      "hooper": {"fatigue": 6, "soreness": 5, "stress": 4, "sleep": 5},
+      "lifestyle_events": ["travel", "sex"]
+    }
+  ]
+}
