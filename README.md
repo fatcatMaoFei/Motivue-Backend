@@ -23,7 +23,7 @@ contracts remain independent**:
 | Service | What it does | Key modules | Dockerfile |
 | --- | --- | --- | --- |
 | **Readiness Engine** | Daily readiness score via a Bayesian prior/posterior engine that fuses training load, objective biomarkers, subjective Hooper scores, journals, menstrual cycle and interaction terms.  Exposes a simple REST façade for per-day scoring. | `readiness/service.py`, `readiness/engine.py`, `readiness/mapping.py`, `readiness/constants.py` | `Dockerfile.readiness` |
-| **Weekly Report Pipeline** | Multi-agent LLM chain that turns a hydrated `ReadinessState` into chart packs and Markdown/HTML reports (Analyst → Communicator → Critique → Finaliser) with schema validation and fallbacks. | `weekly_report/trend_builder.py`, `weekly_report/pipeline.py`, `weekly_report/finalizer.py`, samples under `samples/weekly_*` | bundled with readiness image (or package separately) |
+| **Weekly Report Pipeline** | Multi-agent LLM chain that turns a hydrated `ReadinessState` into chart packs and Markdown/HTML reports (Analyst → Communicator → Critique → Finaliser) with schema validation and fallbacks. | `weekly_report/trend_builder.py`, `weekly_report/pipeline.py`, `weekly_report/finalizer.py`, samples under `samples/weekly_*` | `Dockerfile.weekly_report` |
 | **Baseline Service** | Computes and maintains long-term personal baselines (sleep duration/efficiency, restorative ratio, HRV μ/σ) with questionnaire fallbacks and auto-upgrade logic.  Supplies thresholds to the readiness mapper. | `baseline/api.py`, `baseline/service.py`, `baseline/calculator.py`, `baseline/storage.py`, `baseline/auto_upgrade.py` | `Dockerfile.baseline` |
 | **Physiological Age** | Estimates physiological age from 30-day HRV/RHR history plus today’s sleep CSS using reference tables per gender. | `physio_age/api.py`, `physio_age/core.py`, `physio_age/css.py`, `physio_age/hrv_age_table*.csv` | `Dockerfile.physio_age` |
 | **Training Consumption** | Calculates daily “consumption” points from training sessions (RPE × minutes, AU caps) to display “remaining readiness = readiness − consumption”. | `training/consumption.py`, `training/factors/training.py`, `training/schemas.py` | – |
@@ -47,6 +47,21 @@ contracts remain independent**:
   - `use_llm=true`：调用 Gemini；通过环境变量 `GOOGLE_API_KEY`、`READINESS_LLM_MODEL`、`READINESS_LLM_FALLBACK_MODELS` 配置模型，留空时自动回退规则。
   - `persist=true`：调用结束后将 Phase 5 结果写入 `weekly_reports` 表（定义在 `api/db.py`，默认使用 `.env` 的 `DATABASE_URL`）。
 - 返回值同时包含 Phase 3 `ReadinessState` JSON、Phase 4 `WeeklyReportPackage`、Phase 5 `WeeklyFinalReport`（含 Markdown/HTML/图表 ID）。
+
+#### Weekly report payload quick reference
+
+- **Raw inputs（今日快照，可选）**：睡眠分钟、HRV 日值/滚动均值、Hooper、`journal` 布尔位与 `lifestyle_tags[]`（支持前缀，如 `sport:tennis`、`strength:legs`）、自由备注 `report_notes`。这些字段映射到 `ReadinessState.raw_inputs.*`，除滚动均值外都可缺省。
+- **History（近 7 天必填）**：`payload.history` 需要提供 `WeeklyHistoryEntry[]`，每条含 `date`、`readiness_score / readiness_band`、`hrv_rmssd / hrv_z_score`、`sleep_duration_hours / sleep_deep_minutes / sleep_rem_minutes`、`daily_au`、`hooper`、`lifestyle_events[]`。周报的表格和趋势完全基于此数组。
+- **Recent training AU（近 28 天）**：`recent_training_au` 用于 ACWR（EWMA7/EWMA28）；缺失时 ACWR 即返回 `None`。
+- **No training_sessions required**：日训练细项不是必填；如需为后续洞察/Planner 提供“训练类型/部位”，可在 `journal.lifestyle_tags[]` 或未来的 `training_sessions.type_tags[]` 中使用 `sport:` / `strength:` 前缀，聚合时透传到 `history[].lifestyle_events[]`。
+
+#### Weekly report output quick reference
+
+- Phase 3：`phase3_state`（包含 `metrics`、`insights`、`next_week_plan`）。
+- Phase 4：`package`（图表 `charts[]`、Analyst/Communicator 文稿、批注）。
+- Phase 5：`final_report` (`WeeklyFinalReport`)：`markdown_report`、可选 `html_report`、`chart_ids`、`call_to_action`。
+- Markdown 会在固定位置插入图表锚点 `[[chart:<id>]]`（训练负荷、HRV、睡眠、Hooper、生活方式）；前端按锚点替换成 `package.charts[]` 中的图表组件。
+- Planner（Phase 3B）生成 `next_week_plan`：周目标、监测阈值、原则、分日强度/AU 区间。Finalizer 与 LLM 均能看到该结构，Markdown 里的“下周行动计划”已展示这些信息。
 
 
 ## Directory guide
@@ -84,6 +99,7 @@ contracts remain independent**:
 docker build -f Dockerfile.readiness -t motivue-readiness .
 docker build -f Dockerfile.baseline   -t motivue-baseline .
 docker build -f Dockerfile.physio_age -t motivue-physio-age .
+docker build -f Dockerfile.weekly_report -t motivue-weekly-report .
 
 # Sample scripts
 python readiness/examples/simulate_days_via_service.py

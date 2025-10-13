@@ -270,6 +270,8 @@ class ReadinessState(BaseModel):
     insights: List[InsightItem] = Field(default_factory=list)
     insight_reviews: List[Dict[str, Any]] = Field(default_factory=list)
     report_payload: ReportPayload = ReportPayload()
+    # 可选：下周训练计划（由 Planner 规则生成，Phase 3B）。不强耦合具体模型，避免循环依赖。
+    next_week_plan: Optional[Any] = None
 
 
 __all__ = [

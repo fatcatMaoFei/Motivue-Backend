@@ -1,26 +1,27 @@
 # Weekly Report Backend Notes
 
-## Field Additions
-- readiness payload now supports an optional free-text field `report_notes` (stored at `ReadinessState.raw_inputs.report_notes`) for weekly report / LLM usage.
-- Database changes are deferred, but the service team should plan to persist `report_notes` (JSON/Text column on `user_daily` or a dedicated table) and inject it into the readiness payload.
-- **Update 2025-10**：数据库/API 团队需尽快在 `user_daily`（或等价的日度表）中新增列 `report_notes`（类型建议 TEXT/JSONB），写入来自客户端的自由日志文本，以便 Phase 4/5 使用。所有微服务在聚合 readiness payload 时需原样透传该字段。
+## Field add-ons & storage
+- readiness payload 支持自由文本字段 `report_notes`（`ReadinessState.raw_inputs.report_notes`），Phase 4/5 会引用。
+- **Report notes 持久化**：推荐在 `user_daily` 新增 `report_notes` 列（TEXT/JSONB），读取 readiness payload 时原样透传。
+- **Lifestyle 标签规范**：`journal.lifestyle_tags[]` 支持前缀，例如 `sport:tennis`、`strength:legs`、`travel` 等。聚合到周报时写入 `history[i].lifestyle_events[]`，供洞察/Planner 使用。
+- **Training sessions（可选）**：周报不强依赖训练 session 明细；如需补充类型/部位，可在 `user_daily.objective.training_sessions[]`（JSON）或独立表记录 `type_tags[]`，聚合时同样写入 `history[].lifestyle_events[]`。
 
 ## Phase 1 Payload (Ingest) Example
-来自 readiness 数据库的“今日”原始数据（raw_inputs）+ 近 7 天历史（Phase 3/4/5 用），必须一次性返回给周报流水线：
+来自 readiness 数据库的“今日”原始数据（可选）+ 近 7 天历史（必需），一次性返回给周报流水线：
 
 ```json
 {
   "user_id": "athlete_001",
   "date": "2025-09-15",
   "gender": "男性",
-  "total_sleep_minutes": 402,
-  "in_bed_minutes": 450,
-  "deep_sleep_minutes": 88,
-  "rem_sleep_minutes": 78,
-  "apple_sleep_score": 82,
-  "hrv_rmssd_today": 57,
-  "hrv_rmssd_3day_avg": 58,
-  "hrv_rmssd_7day_avg": 61,
+  "total_sleep_minutes": 420,
+  "in_bed_minutes": 480,
+  "deep_sleep_minutes": 110,
+  "rem_sleep_minutes": 95,
+  "apple_sleep_score": 84,
+  "hrv_rmssd_today": 63,
+  "hrv_rmssd_3day_avg": 62,
+  "hrv_rmssd_7day_avg": 60,
   "hrv_rmssd_28day_avg": 62.5,
   "hrv_rmssd_28day_sd": 6.3,
   "sleep_baseline_hours": 7.6,
@@ -28,26 +29,17 @@
   "rest_baseline_ratio": 0.37,
   "hrv_baseline_mu": 63,
   "hrv_baseline_sd": 5.8,
-  "recent_training_au": [0, 500, 420, 560, 300, 360, 440],
-  "training_sessions": [
-    {
-      "label": "高",
-      "rpe": 8,
-      "duration_minutes": 70,
-      "au": 560,
-      "start_time": "2025-09-14T18:30:00"
-    }
-  ],
+  "recent_training_au": [300, 350, 450, 0, 0, 0, 350],
   "hooper": {"fatigue": 6, "soreness": 5, "stress": 3, "sleep": 4},
   "journal": {
     "alcohol_consumed": false,
     "late_caffeine": false,
     "screen_before_bed": true,
     "late_meal": false,
-    "lifestyle_tags": ["work_travel"],
+    "lifestyle_tags": ["sport:tennis"],
     "sliders": {"fatigue_slider": 6, "mood_slider": 3}
   },
-  "report_notes": "昨晚赶飞机回程，入睡前加班处理工作，整体感觉疲劳较高。",
+  "report_notes": "周三网球后加了一次腿部力量，晚上熬夜，周五周六安排了恢复日。",
   "history": [
     {
       "date": "2025-09-09",
@@ -59,14 +51,14 @@
       "sleep_total_minutes": 456,
       "sleep_deep_minutes": 110,
       "sleep_rem_minutes": 95,
-      "daily_au": 320,
+      "daily_au": 300,
       "acwr": null,
       "hooper": {"fatigue": 3, "soreness": 3, "stress": 3, "sleep": 7},
-      "lifestyle_events": ["sex"]
+      "lifestyle_events": ["sport:tennis"]
     },
     {
       "date": "2025-09-10",
-      "readiness_score": 100,
+      "readiness_score": 70,
       "readiness_band": "Well-adapted",
       "hrv_rmssd": 63,
       "hrv_z_score": 0.1,
@@ -74,85 +66,85 @@
       "sleep_total_minutes": 444,
       "sleep_deep_minutes": 105,
       "sleep_rem_minutes": 92,
-      "daily_au": 360,
+      "daily_au": 350,
       "acwr": null,
       "hooper": {"fatigue": 3, "soreness": 3, "stress": 3, "sleep": 7},
-      "lifestyle_events": []
+      "lifestyle_events": ["sport:tennis"]
     },
     {
       "date": "2025-09-11",
-      "readiness_score": 68,
+      "readiness_score": 66,
       "readiness_band": "FOR",
-      "hrv_rmssd": 62,
-      "hrv_z_score": -0.1,
+      "hrv_rmssd": 61,
+      "hrv_z_score": -0.2,
+      "sleep_duration_hours": 6.0,
+      "sleep_total_minutes": 360,
+      "sleep_deep_minutes": 80,
+      "sleep_rem_minutes": 75,
+      "daily_au": 450,
+      "acwr": null,
+      "hooper": {"fatigue": 4, "soreness": 4, "stress": 3, "sleep": 6},
+      "lifestyle_events": ["sport:tennis", "strength:legs", "late_night"]
+    },
+    {
+      "date": "2025-09-12",
+      "readiness_score": 62,
+      "readiness_band": "FOR",
+      "hrv_rmssd": 59,
+      "hrv_z_score": -0.4,
       "sleep_duration_hours": 7.2,
       "sleep_total_minutes": 432,
+      "sleep_deep_minutes": 95,
+      "sleep_rem_minutes": 85,
+      "daily_au": 0,
+      "acwr": null,
+      "hooper": {"fatigue": 5, "soreness": 4, "stress": 3, "sleep": 6},
+      "lifestyle_events": ["fatigue_day"]
+    },
+    {
+      "date": "2025-09-13",
+      "readiness_score": 65,
+      "readiness_band": "FOR",
+      "hrv_rmssd": 60,
+      "hrv_z_score": -0.3,
+      "sleep_duration_hours": 7.8,
+      "sleep_total_minutes": 468,
       "sleep_deep_minutes": 100,
       "sleep_rem_minutes": 90,
-      "daily_au": 420,
+      "daily_au": 0,
       "acwr": null,
       "hooper": {"fatigue": 4, "soreness": 3, "stress": 3, "sleep": 7},
       "lifestyle_events": []
     },
     {
-      "date": "2025-09-12",
-      "readiness_score": 66,
-      "readiness_band": "FOR",
-      "hrv_rmssd": 61,
-      "hrv_z_score": -0.3,
-      "sleep_duration_hours": 7.1,
-      "sleep_total_minutes": 426,
-      "sleep_deep_minutes": 98,
-      "sleep_rem_minutes": 88,
-      "daily_au": 500,
-      "acwr": 1.15,
-      "hooper": {"fatigue": 5, "soreness": 4, "stress": 3, "sleep": 6},
-      "lifestyle_events": ["sex"]
-    },
-    {
-      "date": "2025-09-13",
-      "readiness_score": 99,
-      "readiness_band": "Acute Fatigue",
-      "hrv_rmssd": 60,
-      "hrv_z_score": -0.4,
-      "sleep_duration_hours": 7.0,
-      "sleep_total_minutes": 420,
-      "sleep_deep_minutes": 95,
-      "sleep_rem_minutes": 84,
-      "daily_au": 560,
-      "acwr": 1.32,
-      "hooper": {"fatigue": 6, "soreness": 4, "stress": 4, "sleep": 6},
-      "lifestyle_events": ["travel"]
-    },
-    {
       "date": "2025-09-14",
-      "readiness_score": 64,
-      "readiness_band": "Acute Fatigue",
-      "hrv_rmssd": 58,
-      "hrv_z_score": -0.6,
-      "sleep_duration_hours": 6.8,
-      "sleep_total_minutes": 408,
-      "sleep_deep_minutes": 90,
-      "sleep_rem_minutes": 80,
-      "daily_au": 1500,
-      "acwr": 1.4,
-      "hooper": {"fatigue": 6, "soreness": 4, "stress": 4, "sleep": 6},
-      "lifestyle_events": ["late_meal", "sex"]
+      "readiness_score": 68,
+      "readiness_band": "Well-adapted",
+      "hrv_rmssd": 62,
+      "hrv_z_score": -0.1,
+      "sleep_duration_hours": 8.0,
+      "sleep_total_minutes": 480,
+      "sleep_deep_minutes": 105,
+      "sleep_rem_minutes": 95,
+      "daily_au": 0,
+      "acwr": null,
+      "hooper": {"fatigue": 3, "soreness": 3, "stress": 3, "sleep": 7},
+      "lifestyle_events": []
     },
     {
       "date": "2025-09-15",
-      "readiness_score": 100,
-      "readiness_band": "Acute Fatigue",
-      "hrv_rmssd": 57,
-      "hrv_z_score": -0.85,
-      "sleep_duration_hours": 6.7,
-      "sleep_total_minutes": 402,
-      "sleep_deep_minutes": 88,
-      "sleep_rem_minutes": 78,
-      "daily_au": 510,
-      "acwr": 1.45,
-      "hooper": {"fatigue": 6, "soreness": 5, "stress": 4, "sleep": 5},
-      "lifestyle_events": ["travel", "sex"]
+      "readiness_score": 70,
+      "readiness_band": "Well-adapted",
+      "hrv_rmssd": 63,
+      "hrv_z_score": 0.0,
+      "sleep_duration_hours": 7.6,
+      "sleep_total_minutes": 456,
+      "sleep_deep_minutes": 110,
+      "sleep_rem_minutes": 92,
+      "daily_au": 350,
+      "acwr": null,
+      "hooper": {"fatigue": 3, "soreness": 3, "stress": 3, "sleep": 7},
+      "lifestyle_events": ["sport:tennis"]
     }
   ]
 }
@@ -198,14 +190,10 @@
      | `created_at` | TIMESTAMP | 生成时间 |
    - 上述 `report_payload` 应完整保存 `markdown_report/html_report/chart_ids/call_to_action`，以便前端、订阅服务或后续分析直接复用。
 
-3. **接口输出**
-   - 周报 API 在返回最新周报时可直接返回 `WeeklyFinalReport` JSON，或同时附带 Markdown，确保前端/第三方系统可以选择结构化渲染或直接显示文稿。
-   - 周报微服务骨架：`weekly_report/api.py` 引入 FastAPI，提供 `POST /weekly-report/run`。请求携带 Phase 1 payload（含 `history`），可选 `use_llm`、`persist`。响应返回 Phase 3 state、Phase 4 包、Phase 5 成品，`persist=true` 时会把最终 JSON + Markdown 写入 `weekly_reports` 表。
-     ```bash
-     curl -X POST http://localhost:8000/weekly-report/run \
-     -H "Content-Type: application/json" \
-      -d '{"payload": {...}, "use_llm": true, "persist": true}'
-    ```
+3. **接口输出与渲染要点**
+   - 周报 API 返回 `phase3_state`、`package`、`final_report`。`final_report.markdown_report` 已包含固定图表锚点 `[[chart:<id>]]`，前端按锚点替换成图表组件。
+   - 图表数据在 `package.charts[]`（`ChartSpec`）；全局推荐顺序在 `final_report.chart_ids`。
+   - Planner 在 `phase3_state.next_week_plan` 中输出周目标/原则/分日强度，Finalizer 已渲染到 Markdown 的“下周行动计划”段落。
 
 ### LLM 模型配置
 - 通过环境变量 `READINESS_LLM_MODEL` 设置主模型（默认 `gemini-2.5-flash`），`READINESS_LLM_FALLBACK_MODELS` 指定备选列表（逗号分隔）。

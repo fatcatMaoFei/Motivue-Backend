@@ -40,13 +40,26 @@ def _labels_to_au(labels: Sequence[str]) -> list[float]:
     return res
 
 
+def _ewma(values: Sequence[float], alpha: float) -> float:
+    it = iter(values)
+    try:
+        acc = float(next(it))
+    except StopIteration:
+        return 0.0
+    for v in it:
+        acc = alpha * float(v) + (1.0 - alpha) * acc
+    return acc
+
+
 def _calc_acwr(
     recent_au: Sequence[float],
     acute_window: int = 7,
     chronic_window: int = 28,
     *,
     personalized_threshold: Optional[float] = None,
+    use_ewma: bool = True,
 ) -> Dict[str, float | str | None]:
+    # 保持与旧实现一致的缺数据防守：不足以计算急性窗口时不返回 ACWR
     if len(recent_au) < acute_window or len(recent_au) < 1:
         return {
             "acwr_value": None,
@@ -54,16 +67,21 @@ def _calc_acwr(
             "acute_load": None,
             "chronic_load": None,
         }
-    acute_slice = recent_au[-acute_window:]
-    chronic_slice = (
-        recent_au[-chronic_window:] if len(recent_au) >= chronic_window else recent_au
-    )
-    chronic = mean(chronic_slice) if chronic_slice else 0.0
-    acute = mean(acute_slice) if acute_slice else 0.0
-    if chronic <= 0:
-        ratio = 0.0
+
+    if use_ewma:
+        # EWMA 实现：急性 7d，慢性 28d
+        alpha_a = 2.0 / (acute_window + 1.0)
+        alpha_c = 2.0 / (chronic_window + 1.0)
+        acute = _ewma(recent_au[-acute_window:], alpha_a)
+        chronic_slice = recent_au[-chronic_window:] if len(recent_au) >= chronic_window else recent_au
+        chronic = _ewma(chronic_slice, alpha_c) if chronic_slice else 0.0
     else:
-        ratio = acute / chronic
+        acute_slice = recent_au[-acute_window:]
+        chronic_slice = recent_au[-chronic_window:] if len(recent_au) >= chronic_window else recent_au
+        chronic = mean(chronic_slice) if chronic_slice else 0.0
+        acute = mean(acute_slice) if acute_slice else 0.0
+
+    ratio = 0.0 if chronic <= 1e-9 else (acute / chronic)
     threshold = personalized_threshold or 1.3
     band: str
     if ratio >= threshold:

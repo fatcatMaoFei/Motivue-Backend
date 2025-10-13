@@ -15,6 +15,7 @@ from weekly_report.metrics_extractors import populate_metrics
 from weekly_report.insights import generate_analysis_insights, populate_insights
 from weekly_report.insights.complexity import score_complexity
 from weekly_report.llm import LLMCallError, get_llm_provider
+from weekly_report.planner import build_next_week_plan
 
 
 class GraphState(BaseModel):
@@ -277,6 +278,22 @@ def revision_node(graph_state: GraphState) -> GraphState:
     return graph_state
 
 
+def planner_node(graph_state: GraphState) -> GraphState:
+    """Generate next-week plan (rules-only) based on Phase2/3 metrics and insights."""
+    try:
+        if not graph_state.history:
+            graph_state.log("planner_node: skipped (no history)")
+            return graph_state
+        plan = build_next_week_plan(graph_state.state, graph_state.history)
+        graph_state.state.next_week_plan = plan
+        graph_state.metadata["next_week_plan"] = plan.model_dump()
+        graph_state.log("planner_node: next-week plan generated")
+    except Exception as exc:  # pragma: no cover
+        graph_state.add_error(f"planner_node failed: {exc!r}")
+        raise
+    return graph_state
+
+
 # -------- Workflow runner -------- #
 
 
@@ -313,6 +330,7 @@ def run_workflow(
     if auto_insights:
         insights_node(graph_state)
         complexity_check_node(graph_state)
+        planner_node(graph_state)
         tot_reasoning_node(graph_state)
         critique_node(graph_state)
         revision_node(graph_state)

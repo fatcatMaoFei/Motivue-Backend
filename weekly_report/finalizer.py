@@ -51,6 +51,9 @@ def generate_weekly_final_report(
                 history=history,
                 report_notes=report_notes,
                 training_sessions=list(training_sessions or state.raw_inputs.training_sessions),
+                next_week_plan=(
+                    state.next_week_plan.model_dump(mode="json") if state.next_week_plan else None
+                ),
             )
         except LLMCallError as exc:
             logger.warning("Weekly finalizer LLM failed, fallback to heuristic: %s", exc)
@@ -208,6 +211,13 @@ def _fallback_final_report(
     markdown_parts.extend(summary_lines)
 
     markdown_parts.append("\n## 训练负荷与表现")
+    # 图表占位工具与可用集（仅为存在的图表注入锚点）
+    try:
+        _available_chart_ids = {c.chart_id for c in weekly_package.charts}
+    except Exception:
+        _available_chart_ids = set()
+    def _anchor(cid: str) -> str:
+        return f"[[chart:{cid}]]" if cid in _available_chart_ids else ""
     markdown_parts.append("| 日期 | 训练量 (AU) | 准备度分数 / 分档 | 生活方式事件 / 备注 |")
     markdown_parts.append("| --- | --- | --- | --- |")
     for entry in history_sorted:
@@ -216,6 +226,14 @@ def _fallback_final_report(
         markdown_parts.append(
             f"| {entry.date:%m-%d} | {au_text} | {_fmt_readiness(entry)} | {lifestyle} |"
         )
+
+    # 锚点：训练负荷与整体趋势
+    anchor_training = _anchor("training_load")
+    if anchor_training:
+        markdown_parts.append(anchor_training)
+    anchor_readiness = _anchor("readiness_trend")
+    if anchor_readiness:
+        markdown_parts.append(anchor_readiness)
 
     markdown_parts.append("- 每日重点")
     for entry in history_sorted:
@@ -266,6 +284,14 @@ def _fallback_final_report(
             f"| {entry.date:%m-%d} | {hrv_text} | {z} | {event_text} |"
         )
 
+    # 锚点：HRV 趋势与 readiness 对照
+    anchor_hrv = _anchor("hrv_trend")
+    if anchor_hrv:
+        markdown_parts.append(anchor_hrv)
+    anchor_combo = _anchor("readiness_vs_hrv")
+    if anchor_combo:
+        markdown_parts.append(anchor_combo)
+
     hrv_lines: List[str] = []
     if hrv_numeric:
         hrv_first = float(next(v for v in hrv_values if v is not None))
@@ -296,6 +322,14 @@ def _fallback_final_report(
             f"{entry.sleep_deep_minutes or '-'} | "
             f"{entry.sleep_rem_minutes or '-'} | {lifestyle} |"
         )
+
+    # 锚点：睡眠时长与结构
+    anchor_sleep = _anchor("sleep_duration")
+    if anchor_sleep:
+        markdown_parts.append(anchor_sleep)
+    anchor_struct = _anchor("sleep_structure")
+    if anchor_struct:
+        markdown_parts.append(anchor_struct)
 
     sleep_lines: List[str] = []
     if sleep_numeric:
@@ -339,6 +373,11 @@ def _fallback_final_report(
             f"{sleep if sleep is not None else '-'} | {lifestyle or '-'} |"
         )
 
+    # 锚点：Hooper 雷达
+    anchor_hooper = _anchor("hooper_radar")
+    if anchor_hooper:
+        markdown_parts.append(anchor_hooper)
+
     if fatigue_scores:
         hooper_summary.append(
             f"- Hooper 疲劳均值 { _avg(fatigue_scores):.1f} 分，请与准备度对照评估过度疲劳。"
@@ -362,6 +401,11 @@ def _fallback_final_report(
         markdown_parts.extend(lifestyle_lines)
     else:
         markdown_parts.append("- 本周无显著生活方式事件记录。")
+
+    # 锚点：生活方式时间线
+    anchor_life = _anchor("lifestyle_timeline")
+    if anchor_life:
+        markdown_parts.append(anchor_life)
 
     markdown_parts.append("\n## 自由备注与训练日志洞察")
     note_lines: List[str] = []
@@ -410,38 +454,62 @@ def _fallback_final_report(
     markdown_parts.extend(correlation_lines[:3])
 
     markdown_parts.append("\n## 下周行动计划")
-    action_lines: List[str] = []
-    seen_action_lines: set[str] = set()
-    opportunity_lines = 0
-    for opp in analyst.opportunities:
-        label = _CATEGORY_LABELS.get(
-            opp.area,
-            "洞察修正" if opp.area == "analysis" else (opp.area or "重点行动"),
-        )
-        reason = f"（依据：{opp.reason}）" if opp.reason else ""
-        line = f"- {label}：{opp.recommendation}{reason}"
-        if line not in seen_action_lines:
-            action_lines.append(line)
-            seen_action_lines.add(line)
-            opportunity_lines += 1
-        if opportunity_lines >= 2:
-            break
-    for action in communicator.call_to_action:
-        line = f"- 行动提醒：{action}"
-        if line not in seen_action_lines:
-            action_lines.append(line)
-            seen_action_lines.add(line)
-    defaults = [
-        "- 训练负荷管理：安排 1–2 天低负荷或技术训练，检查 ACWR 是否回落到安全区。",
-        "- 恢复策略：保持连续 7.5 小时睡眠，并加入主动放松（呼吸、拉伸）。",
-        "- 生活方式：减少晚间电子屏幕与咖啡因，优化睡前环境。",
-        "- 监测提醒：每天同步 Hooper/HRV，异常时及时与教练沟通。",
-    ]
-    for default in defaults:
-        if len(action_lines) >= 4:
-            break
-        action_lines.append(default)
-    markdown_parts.extend(action_lines[:4])
+    # 若 Planner 已给出 next_week_plan，则优先渲染分日计划；否则回退到机会/行动提醒
+    if getattr(state, "next_week_plan", None) and state.next_week_plan and state.next_week_plan.day_plans:
+        plan = state.next_week_plan
+        markdown_parts.append(f"- 本周目标：{plan.week_objective}")
+        mt = plan.monitor_thresholds
+        mt_text = []
+        if mt.readiness_lt is not None:
+            mt_text.append(f"准备度<{mt.readiness_lt:.0f}")
+        if mt.hrv_z_lt is not None:
+            mt_text.append(f"HRV Z<{mt.hrv_z_lt:+.1f}")
+        if mt.hooper_fatigue_gt is not None:
+            mt_text.append(f"疲劳>{mt.hooper_fatigue_gt:.0f}")
+        if mt_text:
+            markdown_parts.append("- 监测阈值：" + "，".join(mt_text) + "（触发则当日降一档/改主动恢复）")
+        markdown_parts.append("- 分日安排：")
+        for dp in plan.day_plans:
+            label = dp.day_label or (dp.date.strftime("%m-%d") if dp.date else "D")
+            drills = f"；重点：{'、'.join(dp.key_drills)}" if dp.key_drills else ""
+            recs = f"；恢复：{'、'.join(dp.recovery_tasks)}" if dp.recovery_tasks else ""
+            rationale = f"；依据：{dp.rationale}" if dp.rationale else ""
+            markdown_parts.append(
+                f"  - {label}: {dp.load_target} / {dp.session_type}{drills}{recs}{rationale}"
+            )
+    else:
+        action_lines: List[str] = []
+        seen_action_lines: set[str] = set()
+        opportunity_lines = 0
+        for opp in analyst.opportunities:
+            label = _CATEGORY_LABELS.get(
+                opp.area,
+                "洞察修正" if opp.area == "analysis" else (opp.area or "重点行动"),
+            )
+            reason = f"（依据：{opp.reason}）" if opp.reason else ""
+            line = f"- {label}：{opp.recommendation}{reason}"
+            if line not in seen_action_lines:
+                action_lines.append(line)
+                seen_action_lines.add(line)
+                opportunity_lines += 1
+            if opportunity_lines >= 2:
+                break
+        for action in communicator.call_to_action:
+            line = f"- 行动提醒：{action}"
+            if line not in seen_action_lines:
+                action_lines.append(line)
+                seen_action_lines.add(line)
+        defaults = [
+            "- 训练负荷管理：安排 1–2 天低负荷或技术训练，检查 ACWR 是否回落到安全区。",
+            "- 恢复策略：保持连续 7.5 小时睡眠，并加入主动放松（呼吸、拉伸）。",
+            "- 生活方式：减少晚间电子屏幕与咖啡因，优化睡前环境。",
+            "- 监测提醒：每天同步 Hooper/HRV，异常时及时与教练沟通。",
+        ]
+        for default in defaults:
+            if len(action_lines) >= 4:
+                break
+            action_lines.append(default)
+        markdown_parts.extend(action_lines[:4])
 
     markdown_parts.append("\n## 鼓励与后续")
     encouragement: Optional[str] = None

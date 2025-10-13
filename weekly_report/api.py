@@ -25,7 +25,10 @@ class WeeklyReportRequest(BaseModel):
 
     payload: Dict[str, Any] = Field(
         ...,
-        description="Phase 1 ingest payload：包含今日 raw_inputs + history（WeeklyHistoryEntry[]）。",
+        description=(
+            "Phase 1 ingest payload：包含今日 raw_inputs（可选）+ history（必需，7 条 WeeklyHistoryEntry），"
+            "需同时提供 recent_training_au 以计算 ACWR。payload 样例见 samples/original_payload_sample.json。"
+        ),
     )
     use_llm: bool = Field(
         default=False,
@@ -44,7 +47,12 @@ class WeeklyReportRequest(BaseModel):
 
 
 class WeeklyReportResponse(BaseModel):
-    """统一返回 Phase 3、Phase 4、Phase 5 的结果，方便数据库或前端直接使用。"""
+    """统一返回 Phase 3、Phase 4、Phase 5 的结果，方便数据库或前端直接使用。
+
+    - phase3_state：包含 metrics/insights/next_week_plan。
+    - package：图表及多智能体文稿。
+    - final_report：Markdown（含 `[[chart:<id>]]` 锚点）、HTML（可选）、chart_ids、call_to_action。
+    """
 
     phase3_state: Dict[str, Any]
     package: WeeklyReportPackage
@@ -62,7 +70,7 @@ async def run_weekly_report(request: WeeklyReportRequest) -> WeeklyReportRespons
     """
     执行完整 Phase 1 → Phase 5 流程。
 
-    - payload：今天的 raw_inputs + `history`（近 7 天 `WeeklyHistoryEntry`）。
+    - payload：今天的 raw_inputs（可选） + `history`（必需，近 7 天 `WeeklyHistoryEntry`）+ `recent_training_au`（建议 28 天）。
     - use_llm=True 时，会尝试加载 Gemini；若本地未配置 API Key，会自动回退规则 fallback。
     """
 

@@ -18,6 +18,7 @@ from weekly_report.models import (
     WeeklyReportPackage,
 )
 from weekly_report.state import InsightItem, ReadinessState, TrainingSessionInput
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +79,7 @@ class LLMProvider:
         *,
         report_notes: Optional[str] = None,
         training_sessions: Optional[Sequence[TrainingSessionInput]] = None,
+        next_week_plan: Optional[Dict[str, Any]] = None,
     ) -> WeeklyFinalReport:
         raise NotImplementedError
 
@@ -716,6 +718,11 @@ def _build_weekly_analyst_payload(
         "insight_reviews": _insight_reviews_summary(state),
         "chart_specs": _charts_payload(charts),
         "report_notes": report_notes or state.raw_inputs.report_notes,
+        "next_week_plan": (
+            state.next_week_plan.model_dump(mode="json")
+            if getattr(state, "next_week_plan", None)
+            else None
+        ),
     }
 
 
@@ -730,6 +737,11 @@ def _build_weekly_communicator_payload(
         "chart_specs": _charts_payload(charts),
         "report_notes": report_notes or state.raw_inputs.report_notes,
         "insights_summary": _insights_summary(state),
+        "next_week_plan": (
+            state.next_week_plan.model_dump(mode="json")
+            if getattr(state, "next_week_plan", None)
+            else None
+        ),
     }
 
 
@@ -935,6 +947,7 @@ class GeminiLLMProvider(LLMProvider):
         *,
         report_notes: Optional[str] = None,
         training_sessions: Optional[Sequence[TrainingSessionInput]] = None,
+        next_week_plan: Optional[Dict[str, Any]] = None,
     ) -> WeeklyFinalReport:
         payload = _build_weekly_finalizer_payload(
             weekly_package,
@@ -942,6 +955,8 @@ class GeminiLLMProvider(LLMProvider):
             report_notes,
             training_sessions,
         )
+        if next_week_plan is not None:
+            payload["next_week_plan"] = next_week_plan
         raw = self._invoke(
             self._models,
             system_prompt=FINALIZER_SYSTEM_PROMPT,

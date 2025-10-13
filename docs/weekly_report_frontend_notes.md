@@ -19,12 +19,12 @@
 | 基础信息 | `user_id`, `date` (YYYY-MM-DD), `gender` (`男性`/`女性`) | 登录态/用户档案 | 所有服务必填 |
 | 睡眠原始值 | `total_sleep_minutes`, `in_bed_minutes`, `deep_sleep_minutes`, `rem_sleep_minutes`, *可选* `core_sleep_minutes` | HealthKit / 可穿戴直传原始分钟数；**不用**自行算效率 | `raw_inputs.sleep.*` |
 | HRV 原始值 | `hrv_rmssd_today`; *可选* `hrv_rmssd_3day_avg/7day_avg/28day_avg/28day_sd` | HealthKit RMSSD。只有日值也可，后端会滚动缓存 | `raw_inputs.hrv.*` |
-| 当日训练 Session | `training_sessions[{label, rpe, duration_minutes, au, notes}]` | 客户端训练记录 | `raw_inputs.training_sessions`（供 readiness/周报使用） |
+| 当日训练数据 | `daily_au`（必填，日粒度）、`rpe` / `duration_minutes` / `au`（可选） | 训练记录界面（与 AU、RPE、时长同一表单） | `user_daily.daily_au`；可选写入 `user_daily.objective.training_sessions[]`（JSON，含 `type_tags[]`） |
 | Hooper 问卷 | `fatigue`, `soreness`, `stress`, `sleep` (1–7) | 客户端问卷 | `raw_inputs.hooper`，周报历史也会引用 |
 | Lifestyle / Journal | `alcohol_consumed`, `late_caffeine`, `screen_before_bed`, `late_meal`, `is_sick`, `is_injured`, `lifestyle_tags[]`, `sliders{fatigue_slider, mood_slider,...}` | 客户端问卷 | `raw_inputs.journal`、`history.lifestyle_events` |
 | 报告备注 | `report_notes`（自由文本，由教练/用户填写） | 客户端编辑 | `raw_inputs.report_notes`（周报 Finalizer 会引用） |
 
-> 提交体例参见 `samples/original_payload_sample.json` 中的 `raw_inputs` 部分。
+> 提交体例参见 `samples/original_payload_sample.json`：顶层可传今日快照（睡眠/HRV/Hooper/Journal），但**周报必需的数据是 `history[7]` + `recent_training_au`**。若未维护训练 session 明细，可忽略 `training_sessions` 字段。
 
 ### 1.2 推荐同步的历史/辅助数据
 
@@ -108,9 +108,27 @@
 }
 ```
 
-- `markdown_report` 为完整周报，可直接渲染。`chart_ids` 指示图表展示顺序。  
+- `markdown_report` 为完整周报；从本版本起，正文会包含图表占位锚点（见下节）。
+- `chart_ids` 指示图表的“全局推荐顺序”（用于图表面板或不解析占位的页面）。
+- 图表数据在 `package.charts[]`（`ChartSpec{chart_id,title,chart_type,data}`）。
 - 样例输出：`samples/original_workflow_state.json`（Phase 3）、`samples/original_package_sample.json`（Phase 4）、`samples/original_final_report.{json,md}`（Phase 5）。
 - 当 `use_llm=false` 时，响应仍包含完整结构，只是 Analyst/Communicator/Finalizer 由规则组装。
+
+### 3.1 Markdown 图表占位锚点（固定位置）
+
+- 语法：`[[chart:<chart_id>]]`
+- Finalizer 会在固定章节注入占位（仅当对应图表存在时才注入）：
+  - 训练负荷与表现：`training_load`（表格后）；可选 `readiness_trend`
+  - 恢复与生理（HRV 段）：`hrv_trend`、`readiness_vs_hrv`
+  - 恢复与生理（睡眠段）：`sleep_duration`、`sleep_structure`
+  - 主观反馈：`hooper_radar`
+  - 生活方式事件：`lifestyle_timeline`
+
+前端渲染步骤：
+1. 扫描 `final_report.markdown_report` 中的 `[[chart:...]]` 占位；
+2. 按 `chart_id` 从 `package.charts[]` 中取对应 `ChartSpec` 的 `title/chart_type/data` 渲染图表组件；
+3. 找不到的占位跳过（不渲染）；
+4. 若需图表面板或总览，按 `final_report.chart_ids` 顺序排列。
 
 ### `weekly_reports` 表结构（当 `persist=true`）
 
@@ -146,8 +164,8 @@
 
 ## 5. 周报渲染与其他注意事项
 
-1. `weekly_report/trend_builder.py` 定义所有 `ChartSpec`。常用 `chart_id`：`readiness_trend`、`readiness_vs_hrv`、`hrv_trend`、`sleep_duration`、`sleep_structure`、`training_load`、`hooper_radar`、`lifestyle_timeline`。渲染时按 `final_report.chart_ids` 顺序取对应图表配置。
-2. Markdown 不包含图表数据；前端需根据 `chart_id` 查 `package.charts[]` 并渲染。
+1. `weekly_report/trend_builder.py` 定义所有 `ChartSpec`。常用 `chart_id`：`readiness_trend`、`readiness_vs_hrv`、`hrv_trend`、`sleep_duration`、`sleep_structure`、`training_load`、`hooper_radar`、`lifestyle_timeline`。渲染时优先根据 Markdown 占位插入；不解析占位时，按 `final_report.chart_ids` 顺序渲染图表面板。
+2. Markdown 不包含图表数据；前端需根据占位中的 `chart_id` 去 `package.charts[]` 取 `ChartSpec` 渲染。
 3. LLM 相关环境变量：
    - `GOOGLE_API_KEY`
    - `READINESS_LLM_MODEL`（默认 `gemini-2.5-flash`）
@@ -159,3 +177,17 @@
    若只需结构，可保持 `use_llm=false`，或在 `run_workflow` 阶段仅用于预览洞察。
 
 如有接口/字段调整，请同步更新本文档并通知后端团队。
+
+---
+
+## 6. Journal 标签（lifestyle）规范与前缀（可扩展）
+
+- 输入位：`raw_inputs.journal.lifestyle_tags[]`（字符串数组，可扩展）。聚合后写入 `history[i].lifestyle_events[]`。
+- 标准标签（建议优先使用）：`travel`、`night_shift`、`alcohol`、`late_meal`、`screen_before_bed`、`sick`、`injured` 等。
+- 训练类型推荐使用前缀，便于规则识别：
+  - 运动类：`sport:tennis`、`sport:run`、`sport:swim` …
+  - 力量部位：`strength:chest`、`strength:back`、`strength:legs` …
+- 前端实现：在“选择标签”的控件中分组/前缀化，所选标签写入 `journal.lifestyle_tags[]`；后端不改表，仅透传。
+- 规则消费：洞察/Planner 会优先匹配标准标签；前缀标签用于识别类型（例如“同日组合压力”“部位分布不均衡”等）。
+
+规范建议：小写、蛇形，去重与非法字符过滤；未知标签按“自定义事件”渲染，不触发强阈值。
