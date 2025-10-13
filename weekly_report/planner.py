@@ -60,12 +60,17 @@ def build_next_week_plan(
     sleep_delta = rec.sleep_duration_delta
     flags = _recent_load_flags(state)
 
-    # 目标与模板选择
+    # 主客观信号（用于微调：不把建议说死、给出“建议维持或减载”等语气）
+    hooper = state.metrics.subjective.hooper_bands or {}
+    subj_high = (hooper.get("fatigue") == "high") or (hooper.get("stress") == "high") or \
+                ((state.metrics.subjective.fatigue_score or 0) >= 7.0)
+
+    # 目标与模板选择（四象限：剪载 / 维持 / 回升 / 冲击(建议)）
     if acwr_band == "high" or consecutive_high >= 3 or (
-        (hrv_z is not None and hrv_z <= -0.5)
-        and (sleep_delta is not None and sleep_delta <= -0.5)
+        (hrv_z is not None and hrv_z <= -0.5) and (sleep_delta is not None and sleep_delta <= -0.5)
     ):
-        week_objective = "减量与恢复窗口"
+        # 高 ACWR 或恢复不足：默认剪载；若主观良好，则以“建议维持或减载”表达，不下死结论
+        week_objective = "维持或减载（建议）" if not subj_high else "减量与恢复窗口"
         template = [
             ("low", "recovery", ["低强度有氧"], ["睡前无屏幕60min"], "高负荷/恢复不足"),
             ("moderate", "technique", ["技术巩固"], ["拉伸+呼吸训练"], "维持技能"),
@@ -76,7 +81,8 @@ def build_next_week_plan(
             ("moderate", "technique", ["技术/速度"], ["补水营养"], "准备下周"),
         ]
     elif acwr_band == "low" or flags["recent_low"]:
-        week_objective = "容量回升与适应"
+        # ACWR 过低并非理想：提示逐步提高容量，避免去适应；明确建议“回升”而非强冲
+        week_objective = "容量回升（建议逐步增加训练量）"
         template = [
             ("moderate", "technique", ["技术激活"], ["拉伸"], "激活准备"),
             ("high", "capacity", ["容量刺激"], ["营养补给"], "回升容量"),
@@ -87,16 +93,31 @@ def build_next_week_plan(
             ("moderate", "technique", ["技术整合"], ["营养"], "准备下周"),
         ]
     else:
-        week_objective = "维持与技术巩固"
-        template = [
-            ("moderate", "technique", ["技术"], ["拉伸"], "巩固技能"),
-            ("moderate", "capacity", ["中等容量"], ["补水"], "维持水平"),
-            ("low", "recovery", ["主动恢复"], ["睡眠卫生"], "恢复窗口"),
-            ("moderate", "strength", ["力量基础"], ["放松"], "维持适应"),
-            ("moderate", "capacity", ["中等容量"], ["营养"], "稳态训练"),
-            ("low", "recovery", ["灵活性"], ["无屏幕60min"], "巩固恢复"),
-            ("moderate", "technique", ["技术/速度"], ["补水"], "准备下周"),
-        ]
+        # 安全窗内且恢复/主观良好 → “冲击（建议）”；否则维持
+        if (state.metrics.training_load.acwr_value or 0) >= 0.8 and \
+           (state.metrics.training_load.acwr_value or 0) <= 1.1 and \
+           (hrv_z is None or hrv_z > -0.3) and (sleep_delta is None or sleep_delta > -0.3) and not subj_high:
+            week_objective = "冲击周（建议）"
+            template = [
+                ("high", "capacity", ["专项强度/速度"], ["营养/补水"], "峰值刺激"),
+                ("low", "recovery", ["主动恢复"], ["睡眠卫生"], "恢复窗口"),
+                ("moderate", "strength", ["力量维持"], ["拉伸"], "稳态巩固"),
+                ("low", "recovery", ["灵活性"], ["放松"], "减压"),
+                ("moderate", "technique", ["技术整合"], ["补水"], "提升质量"),
+                ("low", "recovery", ["呼吸/放松"], ["无屏幕60min"], "巩固恢复"),
+                ("moderate", "capacity", ["中等容量"], ["补水"], "准备下周"),
+            ]
+        else:
+            week_objective = "维持与技术巩固"
+            template = [
+                ("moderate", "technique", ["技术"], ["拉伸"], "巩固技能"),
+                ("moderate", "capacity", ["中等容量"], ["补水"], "维持水平"),
+                ("low", "recovery", ["主动恢复"], ["睡眠卫生"], "恢复窗口"),
+                ("moderate", "strength", ["力量基础"], ["放松"], "维持适应"),
+                ("moderate", "capacity", ["中等容量"], ["营养"], "稳态训练"),
+                ("low", "recovery", ["灵活性"], ["无屏幕60min"], "巩固恢复"),
+                ("moderate", "technique", ["技术/速度"], ["补水"], "准备下周"),
+            ]
 
     start_date = (last_date + timedelta(days=1)) if last_date else None
     day_plans = _make_dayplans(start_date, template) if start_date else []
@@ -164,6 +185,7 @@ def build_next_week_plan(
         "控制高负荷日数≤2天且间隔≥48小时",
         "若 readiness<65 或 HRV Z<-0.5 或 疲劳>5，当日降一档或改主动恢复",
         "若出现旅行/酒精/夜班等事件，次日训练降一档或改主动恢复（原则性建议）",
+        "ACWR 过低也不理想：建议逐步增加训练容量至 0.8–1.0 区间，避免去适应或突增导致风险",
     ]
 
     plan = NextWeekPlan(

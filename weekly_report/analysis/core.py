@@ -14,6 +14,7 @@ from weekly_report.analysis.models import (
     SleepImpactSummary,
     SubjectiveObjectiveConflictSummary,
     TrendStabilitySummary,
+    OutlierSummary,
 )
 from weekly_report.models import WeeklyHistoryEntry
 from weekly_report.state import ReadinessState
@@ -82,6 +83,7 @@ def run_analysis(
     conflicts = _compute_subjective_objective_conflicts(entries, context)
     recovery = _compute_recovery_response(entries, context)
     trend = _compute_trends(entries, context)
+    outliers = _compute_outliers(entries, context)
 
     return AnalysisBundle(
         root_causes=root_causes,
@@ -91,6 +93,7 @@ def run_analysis(
         subjective_objective_conflicts=conflicts,
         recovery_response=recovery,
         trend_stability=trend,
+        outliers=outliers,
     )
 
 
@@ -638,6 +641,30 @@ def _compute_trends(
         hrv_vs_baseline=hrv_vs_baseline,
         sleep_vs_baseline=sleep_vs_baseline,
     )
+
+
+def _compute_outliers(
+    entries: Sequence[WeeklyHistoryEntry],
+    context: Dict[str, Any],
+) -> Optional[OutlierSummary]:
+    # Absolute AU threshold for plausibility
+    ABS_THR = 2000.0
+    au_outliers: list[tuple[date, float]] = []
+    for e in entries:
+        if e.daily_au is not None:
+            try:
+                au = float(e.daily_au)
+            except Exception:
+                continue
+            if au > ABS_THR:
+                au_outliers.append((e.date, au))
+    if not au_outliers:
+        return None
+    # Build summary
+    notes = (
+        f"检测到 {len(au_outliers)} 天训练量 AU 超过阈值 {ABS_THR:.0f}，建议核查数据录入是否异常。"
+    )
+    return OutlierSummary(au_threshold_abs=ABS_THR, au_outliers=au_outliers, notes=notes)
 
 
 def _pearson_corr(xs: Sequence[Optional[float]], ys: Sequence[Optional[float]]) -> Optional[float]:

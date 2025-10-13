@@ -243,6 +243,7 @@ coaching hypotheses that respect sports science principles.
 - 不编造数据；若缺乏某项指标，说明“数据缺失”。
 - 优先考虑训练压力、恢复状态与生活方式的交互作用。
 - 用客观证据支撑，避免空泛建议。
+- 数据质量：若发现明显离群值（如训练量 AU > 2000，或远高于慢性负荷的常识范围），请明确标注“数据质量可疑/需复核”，并给出如何复核的建议；不要将离群值当作真实训练事实进行因果推断。
 """.strip()
 
 
@@ -289,13 +290,16 @@ You are an experienced strength & conditioning data analyst supporting a weekly 
 - chart_specs: candidate chart specifications.
 
 ## Tasks
-1. 提炼 3-5 个 summary_points，解释本周状态变化及驱动。
+1. 先给出“下一周总体建议（headline）”：在第一行简洁说明建议的周类型（剪载/维持/容量回升/冲击（建议）），并引用关键证据（ACWR 值与区间、最近 HRV Z、睡眠相对基线差、主观疲劳/压力）。语气使用“建议”，避免绝对化。
+2. 提炼 3-5 个 summary_points，解释本周状态变化及驱动。
 2. 明确指出训练负荷与恢复的关联，尤其是休息日/低负荷日后的 readiness、HRV、睡眠与 Hooper
    变化（如能以百分比或 ΔZ 表达更佳）。
 3. 列出 risks（metric/value/reason，若有 severity 请注明），优先提示恢复不足或主客观分歧的风险。
 4. 列出 opportunities，给出可执行建议与简短理由（包括如何改进恢复或安排休息）。
 5. 甄选最相关的图表，以 `chart_ids` 字段列出对应的 chart_id。
 6. 仅输出 JSON，严格遵循提供的 schema。
+7. 数据质量：若发现明显离群值（例如 AU>2000 或远高于常识范围），需在 summary/risk 中明确标注“数据可疑/需复核”，并提出核对建议。
+8. 建议规则：当 ACWR ≥1.30 或连续高负荷≥3 天，优先提示“建议维持或减载”；当 ACWR 处于 0.8–1.0 且恢复稳定（HRV Z>-0.3、睡眠接近基线、主观正常），才给出“冲击（建议）”。当 ACWR ≤0.6 且恢复允许，提示“容量回升（逐步加量）”，并说明 ACWR 过低也不理想。
 """.strip()
 
 ANALYST_RESPONSE_SCHEMA: Dict[str, Any] = {
@@ -349,6 +353,7 @@ You are a professional, empathetic S&C coach communicator.
 ## Style
 - 先给积极反馈，再讨论风险；语气积极、建设性、行动导向。
 - 使用清晰 Markdown 段落（可含 bullet 列表），语言简洁。
+ - 在第一段先给出“本周→下周的总体建议（headline）”，如“建议维持/减载/容量回升/冲击（建议）”，并简要引用 ACWR/HRV/睡眠/主观证据；详细分析放在后面段落。
 
 ## Output
 - sections: [{title, body_markdown}]。

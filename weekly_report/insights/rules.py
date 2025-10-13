@@ -740,6 +740,39 @@ def generate_analysis_insights(
     """Generate additional insights from analysis bundle."""
     insights: List[InsightItem] = []
 
+    # Data quality: training AU outliers
+    if analysis.outliers and analysis.outliers.au_outliers:
+        count = len(analysis.outliers.au_outliers)
+        max_item = max(analysis.outliers.au_outliers, key=lambda x: x[1])
+        explanation = (
+            f"本周检测到 {count} 天训练量 AU 超过合理阈值（{analysis.outliers.au_threshold_abs:.0f}），"
+            f"最高值出现在 {max_item[0].isoformat()}：AU {max_item[1]:.0f}。建议核对当日训练记录或更正输入。"
+        )
+        evidence = [
+            InsightEvidence(key="au_threshold_abs", value=analysis.outliers.au_threshold_abs, description="AU 绝对阈值"),
+        ]
+        for dt, au in analysis.outliers.au_outliers[:5]:
+            evidence.append(InsightEvidence(key="daily_au", value=au, description=dt.isoformat()))
+        insights.append(
+            _create_insight(
+                state,
+                suffix="training_load_outlier",
+                trigger="training_load_outlier",
+                summary="训练量数据疑似异常",
+                explanation=explanation,
+                actions=[
+                    InsightAction(
+                        recommendation="请核对 AU 输入；若录入有误请更正。极端 AU 会严重影响图表与分析。",
+                        category="monitoring",
+                        priority=1,
+                    )
+                ],
+                evidence=evidence,
+                confidence=0.8,
+                tags=["data_quality", "training_load"],
+            )
+        )
+
     for idx, rc in enumerate(analysis.root_causes):
         drivers_text = "；".join(rc.drivers) if rc.drivers else "未检测到显著驱动因素"
         score_text = "未知" if rc.readiness_score is None else f"{rc.readiness_score:.0f}"

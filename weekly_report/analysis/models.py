@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from pydantic import BaseModel, Field
 
@@ -77,6 +77,14 @@ class TrendStabilitySummary(BaseModel):
     sleep_vs_baseline: Optional[float] = None
 
 
+class OutlierSummary(BaseModel):
+    """Data quality outliers detected from history (e.g., extremely high AU)."""
+
+    au_threshold_abs: float = 2000.0
+    au_outliers: List[Tuple[date, float]] = Field(default_factory=list)
+    notes: Optional[str] = None
+
+
 class AnalysisBundle(BaseModel):
     root_causes: List[DailyRootCause] = Field(default_factory=list)
     load_impact: LoadImpactSummary = LoadImpactSummary()
@@ -85,3 +93,4 @@ class AnalysisBundle(BaseModel):
     subjective_objective_conflicts: SubjectiveObjectiveConflictSummary = SubjectiveObjectiveConflictSummary()
     recovery_response: RecoveryResponseSummary = RecoveryResponseSummary()
     trend_stability: TrendStabilitySummary = TrendStabilitySummary()
+    outliers: Optional[OutlierSummary] = None

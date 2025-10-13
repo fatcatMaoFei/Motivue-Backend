@@ -48,7 +48,7 @@
       "sleep_total_minutes": 456,
       "sleep_deep_minutes": 110,
       "sleep_rem_minutes": 95,
-      "daily_au": 300,
+      "daily_au": 10000,
       "acwr": null,
       "hooper": {"fatigue": 3, "soreness": 3, "stress": 3, "sleep": 7},
       "lifestyle_events": ["sport:tennis"]

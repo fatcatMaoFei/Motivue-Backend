@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>Weekly Report Charts Preview</title>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif; margin: 16px; }
+    .chart { width: 1000px; height: 360px; margin: 16px 0; border: 1px solid #eee; }
+    h3 { margin: 8px 0; }
+    .note { color: #666; font-size: 12px; }
+  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data:;" />
+  <script>
+    function mkOption(spec) {
+      const d = spec.data || {};
+      // Basic axes
+      let opt = {
+        title: { text: spec.title || spec.chart_id },
+        tooltip: { trigger: 'axis' },
+        legend: {},
+        grid: { left: 48, right: 24, top: 48, bottom: 48 },
+      };
+
+      // Radar special-case
+      if (spec.chart_type === 'radar' || d.indicator) {
+        opt.tooltip = { trigger: 'item' };
+        opt.radar = { indicator: d.indicator || [] };
+        opt.series = (d.series || []).map(s => ({ ...s, type: 'radar' }));
+        return opt;
+      }
+
+      // Category X axis
+      if (Array.isArray(d.xAxis)) {
+        opt.xAxis = { type: 'category', data: d.xAxis };
+      } else if (typeof d.xAxis === 'object') {
+        // Allow passing through {type, data}
+        opt.xAxis = d.xAxis;
+      } else {
+        opt.xAxis = { type: 'category', data: [] };
+      }
+
+      // yAxis passthrough or default
+      if (Array.isArray(d.yAxis)) {
+        opt.yAxis = d.yAxis;
+      } else if (typeof d.yAxis === 'object') {
+        opt.yAxis = d.yAxis;
+      } else {
+        opt.yAxis = { type: 'value' };
+      }
+
+      // Series passthrough; enforce type if provided by spec
+      opt.series = (d.series || []).map(s => {
+        const t = s.type || (spec.chart_type === 'bar' ? 'bar' : 'line');
+        return { ...s, type: t, smooth: s.smooth ?? (t === 'line') };
+      });
+
+      return opt;
+    }
+  </script>
+</head>
+<body>
+  <h2>Weekly Report Charts Preview</h2>
+  <div id="mount"></div>
+  <script>
+    const specs = [{"chart_id": "readiness_trend", "title": "近 7 天准备度趋势", "chart_type": "line", "data": {"xAxis": ["09-09", "09-10", "09-11", "09-12", "09-13", "09-14", "09-15"], "series": [{"name": "准备度得分", "type": "line", "smooth": true, "data": [72.0, 70.0, 66.0, 62.0, 65.0, 68.0, 70.0]}], "normal_range": [70, 100]}, "notes": "最新准备度 70（band: Well-adapted）。"}, {"chart_id": "readiness_vs_hrv", "title": "准备度 vs HRV", "chart_type": "multi_axis_line", "data": {"xAxis": ["09-09", "09-10", "09-11", "09-12", "09-13", "09-14", "09-15"], "series": [{"name": "准备度得分", "type": "line", "yAxisIndex": 0, "smooth": true, "data": [72.0, 70.0, 66.0, 62.0, 65.0, 68.0, 70.0]}, {"name": "HRV (RMSSD)", "type": "line", "yAxisIndex": 1, "smooth": true, "data": [64.0, 63.0, 61.0, 59.0, 60.0, 62.0, 63.0]}], "yAxis": [{"name": "准备度", "min": 0, "max": 100}, {"name": "HRV", "min": null, "max": null}]}, "notes": "对照准备度与 HRV 变化，评估恢复是否跟上训练刺激。"}, {"chart_id": "hrv_trend", "title": "近 28 天 HRV 趋势", "chart_type": "line", "data": {"xAxis": ["09-09", "09-10", "09-11", "09-12", "09-13", "09-14", "09-15"], "series": [{"name": "HRV (RMSSD)", "type": "line", "smooth": true, "data": [64.0, 63.0, 61.0, 59.0, 60.0, 62.0, 63.0]}], "baseline": 63}, "notes": "最新 HRV 63 ms，Z-score +0.00，趋势判断：稳定。"}, {"chart_id": "sleep_duration", "title": "睡眠时长与基线对比", "chart_type": "line", "data": {"xAxis": ["09-09", "09-10", "09-11", "09-12", "09-13", "09-14", "09-15"], "series": [{"name": "睡眠时长 (h)", "type": "line", "smooth": true, "data": [7.6, 7.4, 6.0, 7.2, 7.8, 8.0, 7.6]}], "baseline": 7.6}, "notes": "最近一日睡眠 7.6 小时，相较基线 +0.0 小时。"}, {"chart_id": "sleep_structure", "title": "睡眠结构堆叠图", "chart_type": "stacked_bar", "data": {"xAxis": ["09-09", "09-10", "09-11", "09-12", "09-13", "09-14", "09-15"], "series": [{"name": "深睡 (h)", "type": "bar", "stack": "sleep", "data": [1.83, 1.75, 1.33, 1.58, 1.67, 1.75, 1.83]}, {"name": "REM (h)", "type": "bar", "stack": "sleep", "data": [1.58, 1.53, 1.25, 1.42, 1.5, 1.58, 1.53]}, {"name": "浅睡/其他 (h)", "type": "bar", "stack": "sleep", "data": [4.18, 4.12, 3.42, 4.2, 4.63, 4.67, 4.23]}]}, "notes": "展示近 7/28 天睡眠阶段占比，用于识别深睡或 REM 缺口。"}, {"chart_id": "training_load", "title": "训练负荷与 ACWR", "chart_type": "bar", "data": {"xAxis": ["09-09", "09-10", "09-11", "09-12", "09-13", "09-14", "09-15"], "series": [{"name": "训练量 (AU)", "type": "bar", "data": [10000.0, 350.0, 450.0, 0.0, 0.0, 0.0, 350.0]}]}, "notes": null}, {"chart_id": "hooper_radar", "title": "主观疲劳雷达", "chart_type": "radar", "data": {"indicator": [{"name": "疲劳", "max": 10, "min": 0}, {"name": "酸痛", "max": 10, "min": 0}, {"name": "压力", "max": 10, "min": 0}, {"name": "睡眠质量", "max": 10, "min": 0}], "series": [{"name": "09-15", "type": "radar", "data": [[3.0, 3.0, 3.0, 7.0]]}]}, "notes": "雷达图展示最新 Hooper 评分，便于识别主观疲劳与压力。"}, {"chart_id": "lifestyle_timeline", "title": "生活方式事件概览", "chart_type": "timeline", "data": {"events": [{"date": "09-09", "tags": ["sport:tennis"]}, {"date": "09-10", "tags": ["sport:tennis"]}, {"date": "09-11", "tags": ["sport:tennis", "strength:legs", "late_night"]}, {"date": "09-12", "tags": ["fatigue_day"]}, {"date": "09-15", "tags": ["sport:tennis"]}]}, "notes": "标注旅行、加班等事件，便于对照 HRV/睡眠变化。"}];
+    const mount = document.getElementById('mount');
+    specs.forEach((spec, idx) => {
+      const container = document.createElement('div');
+      const title = document.createElement('h3');
+      title.textContent = `${idx+1}. ${spec.title || spec.chart_id}`;
+      const note = document.createElement('div');
+      note.className = 'note';
+      note.textContent = spec.notes || '';
+      const el = document.createElement('div');
+      el.className = 'chart';
+      el.id = `chart_${idx}`;
+      container.appendChild(title);
+      container.appendChild(note);
+      container.appendChild(el);
+      mount.appendChild(container);
+      const chart = echarts.init(el);
+      const option = mkOption(spec);
+      chart.setOption(option);
+    });
+  </script>
+</body>
+</html>

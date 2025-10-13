@@ -1,9 +1,34 @@
 from __future__ import annotations
 
 from statistics import mean
-from typing import List, Optional, Sequence
+from typing import List, Optional, Sequence, Tuple
 
 from weekly_report.models import ChartSpec, WeeklyHistoryEntry
+
+# Plausibility threshold for daily AU to avoid chart distortion by outliers
+_AU_OUTLIER_ABS_THRESHOLD = 2000.0
+
+
+def _filter_au_outliers(values: Sequence[Optional[float]], threshold: float = _AU_OUTLIER_ABS_THRESHOLD) -> Tuple[List[Optional[float]], bool]:
+    """Return a copy with outliers (>threshold) set to None for plotting, and a flag whether any were filtered."""
+    filtered: List[Optional[float]] = []
+    hit = False
+    for v in values:
+        if v is None:
+            filtered.append(None)
+            continue
+        try:
+            f = float(v)
+        except Exception:
+            filtered.append(None)
+            hit = True
+            continue
+        if f > threshold:
+            filtered.append(None)
+            hit = True
+        else:
+            filtered.append(f)
+    return filtered, hit
 
 
 def build_default_chart_specs(
@@ -251,22 +276,27 @@ def _build_training_load_chart(
 ) -> Optional[ChartSpec]:
     if not any(entry.daily_au is not None for entry in entries):
         return None
+    raw_vals = [entry.daily_au for entry in entries]
+    series_vals, had_outliers = _filter_au_outliers(raw_vals)
+    notes = None
+    if had_outliers:
+        notes = f"已过滤超过 {int(_AU_OUTLIER_ABS_THRESHOLD)} AU 的异常值，以避免图表失真。"
     dataset = {
         "xAxis": _date_labels(entries),
         "series": [
             {
                 "name": "训练量 (AU)",
                 "type": "bar",
-                "data": [entry.daily_au for entry in entries],
+                "data": series_vals,
             }
         ],
     }
     last_acwr = next(
         (entry.acwr for entry in reversed(entries) if entry.acwr is not None), None
     )
-    notes = None
     if last_acwr is not None:
-        notes = f"最近 ACWR ≈ {last_acwr:.2f}。若 ≥1.3 需警惕疲劳，≤0.6 留意去适应。"
+        acwr_note = f"最近 ACWR ≈ {last_acwr:.2f}。若 ≥1.3 需警惕疲劳，≤0.6 留意去适应。"
+        notes = f"{acwr_note} " + (notes or "")
     return ChartSpec(
         chart_id="training_load",
         title="训练负荷与 ACWR",
