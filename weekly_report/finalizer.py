@@ -552,31 +552,56 @@ def _fallback_final_report(
 
     # 行动计划
     markdown_parts.append("\n## 下周行动计划")
-    base_actions = list(communicator.call_to_action) if communicator.call_to_action else [
-        "保持规律训练与睡眠，并记录每日主观状态。"
-    ]
-    action_candidates: List[str] = []
-    if analyst.opportunities:
-        for opp in analyst.opportunities:
-            label = opp.area or "改进建议"
-            label = _CATEGORY_LABELS.get(label, label)
-            action_candidates.append(f"{label}：{opp.recommendation}")
-    merged_actions: List[str] = []
-    normalized_seen: set[str] = set()
+    plan = getattr(state, "next_week_plan", None)
+    if plan is not None:
+        try:
+            week_obj = getattr(plan, "week_objective", None)
+            if week_obj:
+                markdown_parts.append(f"- 下一周总体建议：{week_obj}（建议）")
+            gl = list(getattr(plan, "guidelines", []) or [])
+            for g in gl[:3]:
+                markdown_parts.append(f"- {g}")
+            # 摘取 2–3 个关键训练日
+            dps = list(getattr(plan, "day_plans", []) or [])
+            pick = [dp for dp in dps if getattr(dp, 'load_target', 'low') != 'low'] or dps
+            for dp in pick[:3]:
+                label = dp.day_label or (dp.date.strftime("%m-%d") if getattr(dp, 'date', None) else "D")
+                lt = dp.load_target
+                st = dp.session_type
+                drills = ", ".join(dp.key_drills or []) if getattr(dp, 'key_drills', None) else None
+                line = f"- {label}: {lt} / {st}"
+                if drills:
+                    line += f"，重点：{drills}"
+                markdown_parts.append(line)
+        except Exception:
+            # 若解析失败，退回到通用 CTA 合并
+            plan = None
+    if plan is None:
+        base_actions = list(communicator.call_to_action) if communicator.call_to_action else [
+            "保持规律训练与睡眠，并记录每日主观状态。"
+        ]
+        action_candidates: List[str] = []
+        if analyst.opportunities:
+            for opp in analyst.opportunities:
+                label = opp.area or "改进建议"
+                label = _CATEGORY_LABELS.get(label, label)
+                action_candidates.append(f"{label}：{opp.recommendation}")
+        merged_actions: List[str] = []
+        normalized_seen: set[str] = set()
 
-    def _normalize_action(text: str) -> str:
-        if "：" in text:
-            return text.split("：", 1)[1].strip()
-        return text.strip()
+        def _normalize_action(text: str) -> str:
+            if "：" in text:
+                return text.split("：", 1)[1].strip()
+            return text.strip()
 
-    for item in base_actions + action_candidates:
-        if not item:
-            continue
-        norm = _normalize_action(item)
-        if norm not in normalized_seen:
-            merged_actions.append(item)
-            normalized_seen.add(norm)
-            markdown_parts.append(f"- {item}")
+        for item in base_actions + action_candidates:
+            if not item:
+                continue
+            norm = _normalize_action(item)
+            if norm not in normalized_seen:
+                merged_actions.append(item)
+                normalized_seen.add(norm)
+                markdown_parts.append(f"- {item}")
 
     # 教练寄语
     markdown_parts.append("\n## 鼓励与后续")

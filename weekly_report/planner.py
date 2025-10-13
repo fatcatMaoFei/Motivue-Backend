@@ -22,6 +22,62 @@ def _default_thresholds() -> MonitorThresholds:
     return MonitorThresholds(readiness_lt=65.0, hrv_z_lt=-0.5, hooper_fatigue_gt=5)
 
 
+def _analyze_type_coverage(history: Sequence[WeeklyHistoryEntry]) -> dict:
+    """Infer last-week training type coverage from lifestyle_events tags.
+
+    Supported tags (examples):
+      - strength:* (legs/chest/back/upper/lower)
+      - push/pull/hinge/squat (free-form)
+      - sport:* (tennis/basketball/run/etc.)
+    """
+    counts = {
+        "strength": {},
+        "movement": {"push": 0, "pull": 0, "hinge": 0, "squat": 0},
+        "sport": {},
+    }
+    for e in history:
+        for tag in (e.lifestyle_events or []):
+            if not isinstance(tag, str):
+                continue
+            t = tag.strip().lower()
+            if t.startswith("strength:"):
+                key = t.split(":", 1)[1] or "unspecified"
+                counts["strength"][key] = counts["strength"].get(key, 0) + 1
+            elif t.startswith("sport:"):
+                key = t.split(":", 1)[1] or "unspecified"
+                counts["sport"][key] = counts["sport"].get(key, 0) + 1
+            elif t in counts["movement"]:
+                counts["movement"][t] += 1
+    return counts
+
+
+def _build_focus_recommendations(coverage: dict) -> list[str]:
+    recs: list[str] = []
+    # Identify over/under-represented movement patterns
+    mv = coverage.get("movement", {})
+    if mv:
+        # Simple heuristic: suggest balancing push/pull & hinge/squat
+        if mv.get("push", 0) > mv.get("pull", 0) + 1:
+            recs.append("补齐拉力训练：加入上肢拉/水平拉动作")
+        if mv.get("pull", 0) > mv.get("push", 0) + 1:
+            recs.append("补齐推力训练：加入上肢推/水平推动作")
+        if mv.get("hinge", 0) > mv.get("squat", 0) + 1:
+            recs.append("补齐深蹲模式：安排蹲类模式（前蹲/后蹲/分腿蹲）")
+        if mv.get("squat", 0) > mv.get("hinge", 0) + 1:
+            recs.append("补齐髋主导：安排硬拉/髋铰链模式（轻中强度）")
+    st = coverage.get("strength", {})
+    if st:
+        # If legs seen >> upper, suggest upper; if chest >> back, suggest back, etc.
+        legs = st.get("legs", 0) + st.get("lower", 0)
+        upper = st.get("upper", 0) + st.get("chest", 0) + st.get("back", 0)
+        if legs > upper + 1:
+            recs.append("上肢力量维持：加入上肢推/拉与肩部稳定性训练")
+        if upper > legs + 1:
+            recs.append("下肢均衡：加入下肢髋/膝主导维持与灵活性")
+    # Limit to top-2 suggestions to keep plan concise
+    return recs[:2]
+
+
 def _make_dayplans(
     start_date, template: List[tuple]
 ) -> List[DayPlan]:
@@ -122,6 +178,10 @@ def build_next_week_plan(
     start_date = (last_date + timedelta(days=1)) if last_date else None
     day_plans = _make_dayplans(start_date, template) if start_date else []
 
+    # 类型覆盖建议：基于上周标签（strength:/sport:/push/pull/hinge/squat）
+    coverage = _analyze_type_coverage(history_sorted)
+    focus_recs = _build_focus_recommendations(coverage)
+
     # 训练频次建议：依据上一周有负荷的天数（AU>au_low）。不强制，仅做模板分配。
     au_low = state.metrics.baselines.personalized_thresholds.get("au_low", 150.0)
     train_days_last_week = sum(1 for e in history_sorted if (e.daily_au or 0) > au_low)
@@ -181,12 +241,28 @@ def build_next_week_plan(
         dp.au_target_low = lo
         dp.au_target_high = hi
 
+    # 将类型覆盖建议注入到前 1–2 个训练日的 key_drills
+    if focus_recs:
+        injected = 0
+        for dp in day_plans:
+            if dp.load_target != "low":
+                # Append missing focus into drills if not present
+                for r in focus_recs:
+                    if all(r not in (dp.key_drills or []) for _ in [0]):
+                        dp.key_drills.append(r)
+                        injected += 1
+                        break
+            if injected >= len(focus_recs):
+                break
+
     guidelines = [
         "控制高负荷日数≤2天且间隔≥48小时",
         "若 readiness<65 或 HRV Z<-0.5 或 疲劳>5，当日降一档或改主动恢复",
         "若出现旅行/酒精/夜班等事件，次日训练降一档或改主动恢复（原则性建议）",
         "ACWR 过低也不理想：建议逐步增加训练容量至 0.8–1.0 区间，避免去适应或突增导致风险",
     ]
+    if focus_recs:
+        guidelines.insert(0, "类型覆盖建议：" + "；".join(focus_recs))
 
     plan = NextWeekPlan(
         week_objective=week_objective,

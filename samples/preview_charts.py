@@ -78,6 +78,29 @@ HTML_TMPL = """<!DOCTYPE html>
         return { ...s, type: t, smooth: s.smooth ?? (t === 'line') };
       });
 
+      // Baseline support: if spec.data.baseline present (number), draw a horizontal markLine
+      if (typeof d.baseline === 'number' && Array.isArray(opt.series) && opt.series.length > 0) {
+        opt.series[0].markLine = {
+          symbol: 'none',
+          lineStyle: { type: 'dashed', color: '#888' },
+          data: [{ yAxis: d.baseline, name: 'Baseline' }],
+          label: { formatter: 'Baseline' }
+        };
+      }
+
+      // Normal range for readiness (e.g., [70, 100])
+      if (Array.isArray(d.normal_range) && d.normal_range.length === 2) {
+        const [low, high] = d.normal_range;
+        opt.graphic = opt.graphic || [];
+        // Use markArea on first line series
+        if (!opt.series[0].markArea) opt.series[0].markArea = { data: [] };
+        opt.series[0].markArea.data.push([
+          { yAxis: low },
+          { yAxis: high }
+        ]);
+        opt.series[0].markArea.itemStyle = { color: 'rgba(0, 128, 0, 0.06)' };
+      }
+
       return opt;
     }
   </script>
@@ -134,4 +157,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

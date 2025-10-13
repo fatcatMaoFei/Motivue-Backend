@@ -180,7 +180,70 @@
 
 ---
 
-## 6. Journal 标签（lifestyle）规范与前缀（可扩展）
+## 6. iOS 图表（SwiftUI）数据规格与渲染规范
+
+本节用于 iOS 端统一图表渲染的数据契约与规范。后端推荐提供“分析接口”返回简单时序，前端用 SwiftUI Charts 渲染；不强依赖 `ChartSpec`。
+
+### 6.1 大类与图组
+- Readiness：`readiness_score`（日分数）、`readiness_band`
+- Training Load：`daily_au`（柱状）、`acute_load`、`chronic_load`、`acwr_value`、`acwr_band`（折线）
+- HRV：`hrv_rmssd`（折线）、`hrv_z_score`（折线，辅轴）、`hrv_baseline_mu`（基线）
+- Sleep：`sleep_duration_hours`（折线）、`sleep_efficiency`（0..1）、`restorative_ratio`（0..1）、`sleep_baseline_hours`（基线）
+- Subjective（Hooper）：`fatigue/soreness/stress/sleep`（1..7，折线/雷达）
+- Lifestyle：按日事件标注（垂直标记/标注）
+
+### 6.2 通用返回结构（建议）
+```json
+{
+  "user_id": "u001",
+  "dates": ["2025-09-09", "2025-09-10", ...],
+  "series": {
+    "<metric_key>": [number|null, ...],
+    "<metric_key2>": [number|null, ...]
+  },
+  "baseline": {
+    "<metric_key>": number|null
+  },
+  "thresholds": {
+    "<metric_key>": {"low": number|null, "high": number|null}
+  }
+}
+```
+说明：
+- `dates[]` 与 `series[*]` 一一对齐；缺失值用 null。
+- `baseline` 可为标量（画水平线），或如需逐日基线可将其也放入 `series`。
+- `thresholds` 用于绘制参考带（例如 ACWR 安全窗、readiness 正常区间）。
+
+### 6.3 叠加规则（Overlay）
+- 在任意图组内支持选择 1–N 条序列叠加渲染；采用颜色区分，必要时使用双 Y 轴（例如 HRV vs Hooper 疲劳）。
+- X 轴对齐方式：按 `dates[]` 完整对齐；不对齐的数据由前端插值或跳空显示。
+- 推荐组合：
+  - HRV（RMSSD/Z）↔ Hooper 疲劳/压力（辅助轴）
+  - Sleep duration ↔ ACWR/Readiness（辅助轴）
+  - Daily AU（柱）↔ Readiness（线）
+
+### 6.4 渲染细则（SwiftUI）
+- 折线：平滑、缺失断点不连线；柱状：间距与对齐一致。
+- 基线：以虚线/markLine 绘制，标注 `Baseline`；阈值/安全窗用浅色 `markArea`。
+- 单位：AU（无单位）、HRV（ms）、sleep（h）、eff/restorative（0..1）；必要时百分比表示。
+- 平滑与异常：不做前端平滑计算；异常值（如 `daily_au > 2000`）画图时可直接跳过（留空），并在图注提示“已过滤异常值”。
+- 交互：多序列图例可见；支持手势查看某日所有序列的数值。
+
+### 6.5 建议的分析接口（草案，仅文档约定）
+- `GET /analytics/training-load/{user_id}?window_days=28`
+  - 返回：`dates[]`, `series.daily_au`, `series.acute_load`, `series.chronic_load`, `series.acwr_value`, `thresholds.acwr_value={low:0.6, high:1.3}`
+- `GET /analytics/hrv/{user_id}?window_days=28`
+  - 返回：`series.hrv_rmssd`, `series.hrv_z_score`, `baseline.hrv_rmssd=hrv_mu`
+- `GET /analytics/sleep/{user_id}?window_days=28`
+  - 返回：`series.sleep_duration_hours`, `series.sleep_efficiency`, `series.restorative_ratio`, `baseline.sleep_duration_hours`
+- `GET /analytics/subjective/{user_id}?window_days=28`
+  - 返回：`series.hooper_fatigue/soreness/stress/sleep`
+
+> 注意：接口实现可以统一由后端聚合，或由客户端拉取 `user_daily` 后按本结构组装；本规范仅约定前端需要的字段与渲染方式。
+
+---
+
+## 7. Journal 标签（lifestyle）规范与前缀（可扩展）
 
 - 输入位：`raw_inputs.journal.lifestyle_tags[]`（字符串数组，可扩展）。聚合后写入 `history[i].lifestyle_events[]`。
 - 标准标签（建议优先使用）：`travel`、`night_shift`、`alcohol`、`late_meal`、`screen_before_bed`、`sick`、`injured` 等。

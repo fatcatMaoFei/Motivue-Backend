@@ -477,7 +477,11 @@ Produce a weekly readiness report whose Markdown结构与参考模板高度一�
   至少一条需评估休息日后的恢复成效（例如 readiness 回升百分比、HRV ΔZ、Hooper 是否同步改善）。
 
 ## 下周行动计划
-- ≥4 条 bullet，覆盖训练负荷、睡眠修复、压力管理、营养/生活方式、监测阈值，可用“训练负荷管理：…”等前缀，避免重复条目。
+用 `next_week_plan`（若存在）作为主要信息源：
+- 第一句先给“下一周总体建议（headline）”，例如“建议维持/减载/容量回升/冲击（建议）”，并引用 ACWR/HRV/睡眠/主观依据；
+- 将 `next_week_plan.week_objective` 与 `guidelines` 组织为 2–4 条 bullet；
+- 概述 2–3 个关键训练日安排（从 `day_plans` 提取 `load_target` 与 `session_type`，可引用 `key_drills`），避免逐日长清单；
+- 若无 `next_week_plan`，再退回 `call_to_action` + 分析建议。
 
 ## 鼓励与后续
 - 1 段鼓励语：肯定投入、提醒执行行动项，并说明下周重点关注的指标。
