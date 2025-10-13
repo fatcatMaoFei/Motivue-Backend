@@ -290,7 +290,7 @@ You are an experienced strength & conditioning data analyst supporting a weekly 
 - chart_specs: candidate chart specifications.
 
 ## Tasks
-1. 先给出“下一周总体建议（headline）”：在第一行简洁说明建议的周类型（剪载/维持/容量回升/冲击（建议）），并引用关键证据（ACWR 值与区间、最近 HRV Z、睡眠相对基线差、主观疲劳/压力）。语气使用“建议”，避免绝对化。
+1. 先给出“下一周总体建议（headline）”：简洁说明建议的周类型（剪载/维持/容量回升/冲击（建议）），并引用关键证据（ACWR 值与区间、最近 HRV Z、睡眠相对基线差、主观疲劳/压力）。语气使用“建议”，避免绝对化；不要给具体日期或逐日安排。
 2. 提炼 3-5 个 summary_points，解释本周状态变化及驱动。
 2. 明确指出训练负荷与恢复的关联，尤其是休息日/低负荷日后的 readiness、HRV、睡眠与 Hooper
    变化（如能以百分比或 ΔZ 表达更佳）。
@@ -300,6 +300,12 @@ You are an experienced strength & conditioning data analyst supporting a weekly 
 6. 仅输出 JSON，严格遵循提供的 schema。
 7. 数据质量：若发现明显离群值（例如 AU>2000 或远高于常识范围），需在 summary/risk 中明确标注“数据可疑/需复核”，并提出核对建议。
 8. 建议规则：当 ACWR ≥1.30 或连续高负荷≥3 天，优先提示“建议维持或减载”；当 ACWR 处于 0.8–1.0 且恢复稳定（HRV Z>-0.3、睡眠接近基线、主观正常），才给出“冲击（建议）”。当 ACWR ≤0.6 且恢复允许，提示“容量回升（逐步加量）”，并说明 ACWR 过低也不理想。
+9. 周期化幅度指引（仅做建议，不替代排期）：
+   - 冲击（建议）：总量较上周 +10%~15%；高强度≤2日（间隔≥48h）；以中强度为主，插入主动恢复。
+   - 容量回升：总量 +5%~10%，将 ACWR 拉回 0.8–1.0 区间。
+   - 维持：总量 ±0%~5%，以中强度与技术巩固为主。
+   - 剪载：总量 -10%~15%，强度降档，恢复/技术优先。
+   输出时不要写具体日期或每天的训练内容。
 """.strip()
 
 ANALYST_RESPONSE_SCHEMA: Dict[str, Any] = {
@@ -354,6 +360,7 @@ You are a professional, empathetic S&C coach communicator.
 - 先给积极反馈，再讨论风险；语气积极、建设性、行动导向。
 - 使用清晰 Markdown 段落（可含 bullet 列表），语言简洁。
  - 在第一段先给出“本周→下周的总体建议（headline）”，如“建议维持/减载/容量回升/冲击（建议）”，并简要引用 ACWR/HRV/睡眠/主观证据；详细分析放在后面段落。
+ - 不要给具体日期或逐日安排；可使用频次/强度分布描述（例如“高强度≤2日、以中强度为主、总量 +10%~15%”）。
 
 ## Output
 - sections: [{title, body_markdown}]。
@@ -478,9 +485,11 @@ Produce a weekly readiness report whose Markdown结构与参考模板高度一�
 
 ## 下周行动计划
 用 `next_week_plan`（若存在）作为主要信息源：
-- 第一句先给“下一周总体建议（headline）”，例如“建议维持/减载/容量回升/冲击（建议）”，并引用 ACWR/HRV/睡眠/主观依据；
+- 第一句先给“下一周总体建议（headline）”，例如“建议维持/减载/容量回升/冲击（建议）”，并引用 ACWR/HRV/睡眠/主观依据；语气使用“建议”，避免绝对化；
 - 将 `next_week_plan.week_objective` 与 `guidelines` 组织为 2–4 条 bullet；
-- 概述 2–3 个关键训练日安排（从 `day_plans` 提取 `load_target` 与 `session_type`，可引用 `key_drills`），避免逐日长清单；
+- 仅给出强度分布与重点方向，不要逐日罗列；不要写具体日期或每天的训练内容，可用“高强度≤2日（间隔≥48h）、以中强度为主、插入主动恢复”等表述；
+- 周期化幅度指引（仅做建议）：冲击 +10%~15%；容量回升 +5%~10%；维持 ±0%~5%；剪载 -10%~15%。
+- 强调“本段不替代教练排期”，属于建议与原理说明；
 - 若无 `next_week_plan`，再退回 `call_to_action` + 分析建议。
 
 ## 鼓励与后续
