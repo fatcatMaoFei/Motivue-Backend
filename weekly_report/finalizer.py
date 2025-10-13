@@ -5,6 +5,7 @@ from datetime import date
 from typing import Iterable, List, Optional, Sequence
 
 from weekly_report.llm.provider import LLMCallError, LLMProvider, get_llm_provider
+from weekly_report.analysis import run_analysis
 from weekly_report.models import (
     CommunicatorReport,
     CommunicatorSection,
@@ -165,6 +166,8 @@ def _fallback_final_report(
                 if au_min is not None and au_max is not None and au_min != au_max
                 else f"- 本周记录 {len(history_sorted)} 天，训练量约 {au_min:.0f} AU。"
             )
+            if any(v is not None and v > 2000 for v in au_values):
+                summary_lines.append("- 检测到异常高的 AU 值（>2000），建议核查输入以避免分析失真。")
         else:
             summary_lines.append(
                 f"- 本周记录 {len(history_sorted)} 天，但缺少训练量 AU 数据。"
@@ -429,35 +432,83 @@ def _fallback_final_report(
 
     markdown_parts.append("\n## 相关性洞察")
     correlation_lines: List[str] = []
-    if readiness_numeric and sleep_numeric:
-        readiness_delta = readiness_numeric[-1] - readiness_numeric[0]
-        sleep_delta = (sleep_numeric[-1] - sleep_numeric[0]) if len(sleep_numeric) > 1 else 0.0
-        correlation_lines.append(
-            f"- 准备度从 {readiness_numeric[0]:.0f} 分变化到 {readiness_numeric[-1]:.0f} 分，同时睡眠时长变化 {sleep_delta:+.1f} 小时。"
-        )
-    if readiness_numeric and hrv_numeric:
-        readiness_delta = readiness_numeric[-1] - readiness_numeric[0]
-        hrv_delta = hrv_numeric[-1] - hrv_numeric[0] if len(hrv_numeric) > 1 else 0.0
-        correlation_lines.append(
-            f"- HRV 变化 {hrv_delta:+.1f} ms 与准备度变化 {readiness_delta:+.0f} 分形成联动，需保持恢复窗口。"
-        )
-    if acwr_latest is not None and readiness_numeric:
-        correlation_lines.append(
-            f"- 当前 ACWR {acwr_latest:.2f} 对应准备度 {readiness_numeric[-1]:.0f} 分，注意高 ACWR 时的恢复策略。"
-        )
+    try:
+        ana = run_analysis(history_sorted, state=state)
+    except Exception:
+        ana = None
+    if ana is not None:
+        li = ana.load_impact
+        si = ana.sleep_impact
+        rr = ana.recovery_response
+        ts = ana.trend_stability
+        if li.correlation_readiness is not None:
+            correlation_lines.append(
+                f"- 训练量↔准备度 相关系数 {li.correlation_readiness:+.2f}；高 ACWR 天数 {li.high_acwr_days}，连续高负荷段后 readiness 平均变化 {li.avg_readiness_drop_after_streak or 0:+.1f} 分。"
+            )
+        if li.correlation_hrv is not None:
+            correlation_lines.append(
+                f"- 训练量↔HRV 相关系数 {li.correlation_hrv:+.2f}；次日 HRV 平均变化 {li.avg_next_day_hrv_delta or 0:+.1f} ms。"
+            )
+        if si.correlation_readiness is not None:
+            correlation_lines.append(
+                f"- 睡眠时长↔准备度 相关系数 {si.correlation_readiness:+.2f}；低睡眠天数 {si.low_sleep_days}，次日 readiness 平均变化 {si.avg_readiness_drop or 0:+.1f} 分。"
+            )
+        if si.restorative_correlation_hrv is not None:
+            correlation_lines.append(
+                f"- 恢复性睡眠↔HRV 相关系数 {si.restorative_correlation_hrv:+.2f}；低恢复性天数 {si.low_restorative_days}，次日 HRV 平均变化 {si.avg_hrv_drop_after_low_rest or 0:+.1f} ms。"
+            )
+        if rr.average_recovery_ratio is not None:
+            correlation_lines.append(
+                f"- 恢复响应：休息/低负荷后平均恢复比 {rr.average_recovery_ratio:.2f}；readiness 回升 {rr.avg_readiness_rebound or 0:+.1f} 分。"
+            )
+        if ts.readiness_change is not None:
+            correlation_lines.append(
+                f"- 趋势：本周 readiness 净变化 {ts.readiness_change:+.0f} 分；HRV 相对基线 {ts.hrv_vs_baseline or 0:+.1f} ms；睡眠相对基线 {ts.sleep_vs_baseline or 0:+.1f} h。"
+            )
+        if ana.lifestyle_impacts:
+            imp = ana.lifestyle_impacts[0]
+            correlation_lines.append(
+                f"- 生活方式：{imp.event} 出现 {imp.occurrences} 次，次日 readiness/HRV/睡眠平均变化 {imp.avg_readiness_delta or 0:+.1f}/{imp.avg_hrv_delta or 0:+.1f}/{imp.avg_sleep_delta or 0:+.1f}。"
+            )
+    else:
+        if readiness_numeric and sleep_numeric:
+            readiness_delta = readiness_numeric[-1] - readiness_numeric[0]
+            sleep_delta = (sleep_numeric[-1] - sleep_numeric[0]) if len(sleep_numeric) > 1 else 0.0
+            correlation_lines.append(
+                f"- 准备度从 {readiness_numeric[0]:.0f} 到 {readiness_numeric[-1]:.0f}；睡眠变化 {sleep_delta:+.1f} 小时。"
+            )
+        if readiness_numeric and hrv_numeric:
+            correlation_lines.append("- 准备度与 HRV 同步变化，见‘准备度 vs HRV’图表。")
     if not correlation_lines:
         correlation_lines = [
             "- 数据不足以计算具体关联，请完善训练、睡眠与主观反馈。",
-            "- 维持黏性的记录习惯可帮助发现训练-恢复因果关系。",
-            "- 建议每周复盘 ACWR、HRV 与 Hooper 指数的同步程度。"
+            "- 建议每周复盘 ACWR、HRV 与 Hooper 指数的同步程度。",
         ]
-    markdown_parts.extend(correlation_lines[:3])
+    markdown_parts.extend(correlation_lines[:6])
 
     markdown_parts.append("\n## 下周行动计划")
-    # 若 Planner 已给出 next_week_plan，则优先渲染分日计划；否则回退到机会/行动提醒
+    # 若 Planner 已给出 next_week_plan，则摘要为“建议 + 强度分布 + 重点与阈值”，不逐日展开
     if getattr(state, "next_week_plan", None) and state.next_week_plan and state.next_week_plan.day_plans:
         plan = state.next_week_plan
-        markdown_parts.append(f"- 本周目标：{plan.week_objective}")
+        markdown_parts.append(f"- 下一周总体建议：{plan.week_objective}（建议）")
+        dps = plan.day_plans
+        cnt_low = sum(1 for dp in dps if dp.load_target == 'low')
+        cnt_mod = sum(1 for dp in dps if dp.load_target == 'moderate')
+        cnt_high = sum(1 for dp in dps if dp.load_target == 'high')
+        markdown_parts.append(f"- 训练频次：低/中/高 约 {cnt_low}/{cnt_mod}/{cnt_high} 天（高强度≤2天，间隔≥48h）。")
+        drills = []
+        for dp in dps:
+            drills.extend(dp.key_drills or [])
+        # 从指南提取类型覆盖建议
+        focus = []
+        for g in (plan.guidelines or [])[:3]:
+            if g.startswith("类型覆盖建议："):
+                focus = g.replace("类型覆盖建议：", "").split("；")
+                break
+        top = list(dict.fromkeys((drills + focus)))[:3]
+        if top:
+            markdown_parts.append("- 本周重点：" + "；".join(top))
+        # 监测阈值
         mt = plan.monitor_thresholds
         mt_text = []
         if mt.readiness_lt is not None:
@@ -468,15 +519,6 @@ def _fallback_final_report(
             mt_text.append(f"疲劳>{mt.hooper_fatigue_gt:.0f}")
         if mt_text:
             markdown_parts.append("- 监测阈值：" + "，".join(mt_text) + "（触发则当日降一档/改主动恢复）")
-        markdown_parts.append("- 分日安排：")
-        for dp in plan.day_plans:
-            label = dp.day_label or (dp.date.strftime("%m-%d") if dp.date else "D")
-            drills = f"；重点：{'、'.join(dp.key_drills)}" if dp.key_drills else ""
-            recs = f"；恢复：{'、'.join(dp.recovery_tasks)}" if dp.recovery_tasks else ""
-            rationale = f"；依据：{dp.rationale}" if dp.rationale else ""
-            markdown_parts.append(
-                f"  - {label}: {dp.load_target} / {dp.session_type}{drills}{recs}{rationale}"
-            )
     else:
         action_lines: List[str] = []
         seen_action_lines: set[str] = set()
