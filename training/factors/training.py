@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
@@ -70,4 +70,3 @@ def compute_training_consumption(
         })
     total = min(cap_training_total, total)
     return float(total), results
-

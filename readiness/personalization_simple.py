@@ -1,11 +1,11 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-绠€鍖栫殑涓€у寲EM瀛︿範绯荤粺
+简化的个性化 EM 学习脚本
 
-鍩轰簬鐜版湁鐨剆ervice.py鍜宑onstants.py锛屼娇鐢ㄧ畝鍖栫殑EM绠楁硶瀛︿範涓€у寲CPT琛?
-杈撳叆锛?0澶╀互涓婄殑鐢ㄦ埛鍘嗗彶鏁版嵁CSV
-杈撳嚭锛氫釜鎬у寲鐨凟MISSION_CPT JSON
+基于现有的 service.py 和 constants.py，使用简化的 EM 算法学习个性化 CPT 表。
+输入：≥30 天的用户历史数据 CSV
+输出：个性化的 EMISSION_CPT JSON
 """
 
 from __future__ import annotations
@@ -482,6 +482,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
 

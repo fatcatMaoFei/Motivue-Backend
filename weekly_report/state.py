@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional, Sequence
 
 from pydantic import BaseModel, Field
+from weekly_report.models import ChartSpec
 
 
 # -------- Raw input layer --------
@@ -217,18 +218,6 @@ class InsightItem(BaseModel):
 
 
 # -------- Report payload layer --------
-
-
-class ChartSpec(BaseModel):
-    chart_id: str
-    title: str
-    chart_type: str = Field(
-        ..., description="ECharts 类型：line、bar、radar 等。"
-    )
-    data: Dict[str, object] = Field(
-        default_factory=dict, description="直接可供前端渲染的 ECharts 配置。"
-    )
-    notes: Optional[str] = None
 
 
 class ReportSummary(BaseModel):

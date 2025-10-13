@@ -47,4 +47,14 @@ services:
 volumes:
   baseline_data:
 
-
+  weekly-report:
+    build:
+      context: .
+      dockerfile: Dockerfile.weekly_report
+    ports:
+      - "8003:8000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - READINESS_LLM_MODEL=${READINESS_LLM_MODEL:-gemini-2.5-flash}
+      - READINESS_LLM_FALLBACK_MODELS=${READINESS_LLM_FALLBACK_MODELS:-gemini-1.5-pro,gemini-1.5-flash}

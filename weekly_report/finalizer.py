@@ -548,66 +548,7 @@ def _fallback_final_report(
         call_to_action=call_to_action,
     )
 
-    # 主观反馈（Hooper）
-    markdown_parts.append("\n## 主观反馈（Hooper 指数）")
-    markdown_parts.append("| 日期 | 疲劳 | 酸痛 | 压力 | 睡眠质量 | 说明 |")
-    markdown_parts.append("| --- | --- | --- | --- | --- | --- |")
-    for entry in history:
-        hooper = entry.hooper or {}
-        lifestyle = ", ".join(entry.lifestyle_events) if entry.lifestyle_events else "-"
-        markdown_parts.append(
-            f"| {entry.date:%m-%d} | {hooper.get('fatigue', '-')} | "
-            f"{hooper.get('soreness', '-')} | {hooper.get('stress', '-')} | "
-            f"{hooper.get('sleep', '-')} | {lifestyle} |"
-        )
-    markdown_parts.append(
-        "- 疲劳 3→6、酸痛 3→5、压力 3→4、睡眠质量 4→5，与客观指标一致，显示恢复不足。"
-    )
-    markdown_parts.append(
-        "- 建议持续记录 Hooper；若主观疲劳提前升高，可预先调整训练防止透支。"
-    )
-
-    # 生活方式事件
-    markdown_parts.append("\n## 生活方式事件")
-    events = [
-        (entry.date.strftime("%m-%d"), entry.lifestyle_events)
-        for entry in history
-        if entry.lifestyle_events
-    ]
-    if events:
-        for date_str, tags in events:
-            markdown_parts.append(f"- {date_str}: {', '.join(tags)}")
-    else:
-        markdown_parts.append("- 本周无显著生活方式事件记录。")
-
-    # 自由备注与训练洞察
-    markdown_parts.append("\n## 自由备注与训练日志洞察")
-    if report_notes:
-        markdown_parts.append(f"- 自由备注：{report_notes}")
-    if training_sessions:
-        for sess in training_sessions:
-            if sess.notes:
-                markdown_parts.append(
-                    f"- {sess.label or '训练'}（RPE {sess.rpe or '-'}，{sess.duration_minutes or '-'} 分钟）：{sess.notes}"
-                )
-    markdown_parts.append(
-        "- 建议将训练排期、生活事件与恢复数据统一记录，形成高压日程前后的负荷调整机制。"
-    )
-
-    # 相关性洞察
-    markdown_parts.append("\n## 相关性洞察")
-    markdown_parts.append(
-        "- 高训练量 → 次日 HRV、睡眠下降（09-12、09-13 是典型案例）。"
-    )
-    markdown_parts.append(
-        "- 生活方式事件放大疲劳：出差、夜间工作、晚餐偏晚、睡前屏幕与 HRV/睡眠下降时间节点高度一致。"
-    )
-    markdown_parts.append(
-        "- 主观疲劳与客观指标吻合：Hooper 疲劳/酸痛爬升与准备度、HRV 下降同步，提示恢复不足。"
-    )
-    markdown_parts.append(
-        "- 建议设定 readiness <65、HRV Z-score < -0.5、Hooper 疲劳 >5 的阈值，触发后立刻调整训练。"
-    )
+    # （重复段落已移除）
 
     # 行动计划
     markdown_parts.append("\n## 下周行动计划")

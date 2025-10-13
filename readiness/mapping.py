@@ -1,4 +1,4 @@
-﻿"""Readiness input mapping helpers.
+"""Readiness input mapping helpers.
 
 Maps numeric inputs to model enums when explicit enums are missing:
 - sleep_performance from duration + efficiency
@@ -333,4 +333,3 @@ def map_inputs_to_states(raw_inputs: Dict[str, Any]) -> Dict[str, Any]:
     return mapped
 
 __all__ = ['map_inputs_to_states']
-
