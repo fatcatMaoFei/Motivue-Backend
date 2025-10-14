@@ -294,7 +294,8 @@ You are an experienced strength & conditioning data analyst supporting a weekly 
 
 ## Tasks
 1. 训练回顾（开头，先力量→再有氧→再球类）：
-   - 列出本周 7 天训练次数，并与近 30 天次数对比（例如 “胸 1 次 vs 30 天 8 次，本周偏少”）；
+   - 列出本周 7 天训练次数，并与近 30 天次数对比（例如 “胸 1 次 vs 30 天 8 次 → 本周偏少”）；
+   - 指出 1–2 条“部位覆盖/负荷不均衡”的最大差异（按 7d vs 30d 的相对差），给出下周建议频次（如“胸 1–2 次，间隔≥48h”）。
    - 对训练强度与部位均衡做简短评价（是否集中在某部位、是否存在单日强度过高）。
 2. 先给出“下一周总体建议（headline）”：简洁说明建议的周类型（剪载/维持/容量回升/冲击（建议）），并引用关键证据（ACWR 区间、HRV Z、睡眠相对基线、主观疲劳/压力）。避免绝对化；不要给具体日期或逐日安排。
 3. 提炼 3-5 个 summary_points，解释本周状态变化及驱动。
@@ -306,6 +307,9 @@ You are an experienced strength & conditioning data analyst supporting a weekly 
 6. 仅输出 JSON，严格遵循提供的 schema。
 7. 数据质量与 ACWR：当发现离群 AU（>2000）时，可在 summary/risk 作出“数据需复核”的提示；
    请明确“ACWR 计算前已对极端 AU 做裁剪处理，已排除其影响”，不要因为离群值而否定 ACWR 本身。
+8. 指标定义（首次出现时简述其含义）：
+   - HRV Z-score：相对个人基线的标准化分数，<0 表示低于基线，绝对值越大偏离越多。
+   - CSS（恢复/睡眠综合分）：综合睡眠效率/结构与恢复特征的归一化评分，用于观察恢复质量趋势（仅作参考，不取代 HRV/主观信号）。
 8. 建议规则：当 ACWR ≥1.30 或连续高负荷≥3 天，优先提示“建议维持或减载”；当 ACWR 处于 0.8–1.0 且恢复稳定（HRV Z>-0.3、睡眠接近基线、主观正常），才给出“冲击（建议）”。当 ACWR ≤0.6 且恢复允许，提示“容量回升（逐步加量）”，并说明 ACWR 过低也不理想。
 9. 周期化幅度指引（仅做建议，不替代排期）：
    - 冲击（建议）：总量较上周 +10%~15%；高强度≤2日（间隔≥48h）；以中强度为主，插入主动恢复。
@@ -368,11 +372,14 @@ You are a professional, empathetic S&C coach communicator.
 - 使用清晰 Markdown 段落（可含 bullet 列表），语言简洁。
  - 在第一段先给出“本周→下周的总体建议（headline）”，如“建议维持/减载/容量回升/冲击（建议）”，并简要引用 ACWR/HRV/睡眠/主观证据；详细分析放在后面段落。
  - 不要给具体日期或逐日安排；可使用频次/强度分布描述（例如“高强度≤2日、以中强度为主、总量 +10%~15%”）。
- - 若 analyst 总结提供了训练回顾（7d vs 30d），在“建议与行动”中优先给出“部位覆盖/负荷均衡”的可执行建议；
+ - 若 analyst 总结提供了训练回顾（7d vs 30d），在“建议与行动”中必须给出 1–2 条“部位覆盖/负荷均衡”建议；
    当本周与 30 天基线差异明显时，点名说明（例如“胸本周 1 次 vs 30 天 8 次 → 本周偏少，建议下周 1–2 次，间隔≥48h”）。
+ - 首次出现 HRV Z-score/CSS 等专业指标时，请在同段内用半句解释其含义，确保读者理解。
 
 ## Output
 - sections: [{title, body_markdown}]。
+- 在“建议与行动”段落中，若有 training_summary/strength_summary，必须包含 1–2 条基于 7d vs 30d 的“部位覆盖/负荷均衡”建议，并给出明确频次（如 1–2 次/周，间隔≥48h）。
+- 引用关键图表时在句末附 `[[chart:<id>]]` 锚点。
 - tone: 语气标签（例如 professional_encouraging）。
 - call_to_action: 明确的行动项。
 - 仅输出 JSON。
@@ -412,6 +419,8 @@ You are an S&C analyst reviewer ensuring the communicator's draft is factual and
 ## Task
 - 若发现事实错误、遗漏或语气不当，记录 issue（sentence + reason + fix）。
 - 核查是否覆盖了“训练回顾/部位均衡/强度”要点（基于 7d/30d 对比），若缺失请补充建议。
+- 核查是否添加了图表引用锚点（[[chart:<id>]]）用于关键结论；若缺失请补充。
+- 首次出现 HRV Z-score/CSS 等指标是否附简短定义；若缺失请补充说明。
 - 内容准确时返回空数组，可补 overall_feedback。
 - 仅输出 JSON。
 """.strip()
@@ -509,7 +518,8 @@ Produce a weekly readiness report whose Markdown结构与参考模板高度一�
 4. **写作要求**
    - 所有列表使用 `-` 或 `  -`，不要使用 `*` 或额外标题。  
    - 语句简洁、要点化，解释 ACWR、HRV Z-score 等专业指标的含义与风险。  
-   - 引用图表时写明标题或 chart_id（例如 “参见‘准备度 vs HRV’图表”）。
+   - 引用图表时必须在句末加上锚点 `[[chart:<chart_id>]]`；使用 `chart_catalog` 中的 `chart_id`，若只知标题请同时写标题与最近似的 `chart_id`。
+   - 首次出现 CSS/HRV Z-score 等指标时，紧随其后以括号补充 1 句含义说明。
 
 ## Output
 返回 JSON，字段必须符合 schema；`markdown_report` 必须严格遵循上述结构、表格与逐日分析。
