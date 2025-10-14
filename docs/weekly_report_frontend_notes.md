@@ -86,7 +86,7 @@
 
 ## 3. Weekly Report 微服务
 
-入口：`uvicorn weekly_report.api:app --reload`  
+入口：`uvicorn apps/weekly-report-api/main:app --reload`  
 接口签名沿用 readiness 微服务风格。
 
 ### `POST /weekly-report/run`

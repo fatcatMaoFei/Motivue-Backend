@@ -123,6 +123,7 @@ payload = {
     # ...其他字段
 }
 
+from libs.readiness_engine.service import compute_readiness_from_payload
 result = compute_readiness_from_payload(payload)
 print(f"准备度: {result['final_readiness_score']}")
 ```
@@ -161,12 +162,18 @@ python test_ios26_sleep_score.py
 
 ## 📚 示例文件
 
-我们提供了完整的iOS 26示例：
+我们提供了示例/样本数据（可用作本地验证）：
 
-- `readiness/examples/ios26_male_request.json` - 男性用户示例
-- `readiness/examples/ios26_female_request.json` - 女性用户示例 
-- `readiness/examples/ios26_fallback_request.json` - fallback场景示例
-- `readiness/examples/ios26_history_male_30days.csv` - 30天历史数据示例
+- `samples/original_payload_sample.json` – 周报示例 payload（包含 history）
+- `samples/readiness_state_report_sample.json` – ReadinessState 示例
+- `samples/*history*.csv` – 历史序列示例（如有）
+
+同时，也可直接起 API 服务本地验证：
+
+```bash
+uvicorn apps/readiness-api/main:app --reload
+# POST /healthkit/template  可获取一个模板示例
+```
 
 ---
 

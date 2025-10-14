@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from libs.weekly_report.workflow.graph import run_workflow
+from weekly_report.workflow.graph import run_workflow
 from libs.core_domain.models import WeeklyHistoryEntry, WeeklyReportPackage, WeeklyFinalReport
-from libs.weekly_report.pipeline import generate_weekly_report
-from libs.weekly_report.finalizer import generate_weekly_final_report
-from libs.weekly_report.llm.provider import get_llm_provider
+from weekly_report.pipeline import generate_weekly_report
+from weekly_report.finalizer import generate_weekly_final_report
+from weekly_report.llm.provider import get_llm_provider
 # TODO: Decouple from api/db and use a shared db infra module
 from libs.core_domain.db import init_db, get_session, WeeklyReportRecord
 
@@ -22,7 +22,7 @@ app = FastAPI(
 
 
 class WeeklyReportRequest(BaseModel):
-    """Input schema for the weekly report microservice."""
+    """Input schema for the weekly report microservice (LLM required)."""
 
     payload: Dict[str, Any] = Field(
         ...,
@@ -31,14 +31,10 @@ class WeeklyReportRequest(BaseModel):
             "需同时提供 recent_training_au 以计算 ACWR。payload 样例见 samples/original_payload_sample.json。"
         ),
     )
-    use_llm: bool = Field(
-        default=False,
-        description="是否调用 Gemini。False 时使用规则 fallback（用于快速调试或离线运行）。",
-    )
-    sleep_baseline_hours: Optional[float] = Field(
+    sleep_baseline_hours: float | None = Field(
         default=None, description="覆盖 payload 内的 sleep_baseline_hours（可选）。"
     )
-    hrv_baseline_mu: Optional[float] = Field(
+    hrv_baseline_mu: float | None = Field(
         default=None, description="覆盖 payload 内的 hrv_baseline_mu（可选）。"
     )
     persist: bool = Field(
@@ -72,7 +68,7 @@ async def run_weekly_report(request: WeeklyReportRequest) -> WeeklyReportRespons
     执行完整 Phase 1 → Phase 5 流程。
 
     - payload：今天的 raw_inputs（可选） + `history`（必需，近 7 天 `WeeklyHistoryEntry`）+ `recent_training_au`（建议 28 天）。
-    - use_llm=True 时，会尝试加载 Gemini；若本地未配置 API Key，会自动回退规则 fallback。
+    - 本服务强制走 LLM 路径；需配置 GOOGLE_API_KEY。
     """
 
     payload = request.payload
@@ -89,7 +85,8 @@ async def run_weekly_report(request: WeeklyReportRequest) -> WeeklyReportRespons
             status_code=422, detail=f"history 验证失败: {exc}"
         ) from exc
 
-    graph_state = run_workflow(payload, use_llm=request.use_llm)
+    # Always run LLM path inside workflow (ToT/Critique gates)
+    graph_state = run_workflow(payload, use_llm=True)
     state = graph_state.state
 
     sleep_baseline = (
@@ -103,9 +100,10 @@ async def run_weekly_report(request: WeeklyReportRequest) -> WeeklyReportRespons
         else payload.get("hrv_baseline_mu")
     )
 
-    provider = None
-    if request.use_llm:
-        provider = get_llm_provider()
+    # LLM provider is mandatory
+    provider = get_llm_provider()
+    if provider is None:
+        raise HTTPException(status_code=503, detail="LLM provider not configured; set GOOGLE_API_KEY")
 
     package = generate_weekly_report(
         state,
@@ -113,7 +111,7 @@ async def run_weekly_report(request: WeeklyReportRequest) -> WeeklyReportRespons
         sleep_baseline_hours=sleep_baseline,
         hrv_baseline=hrv_baseline,
         provider=provider,
-        use_llm=request.use_llm,
+        use_llm=True,
     )
 
     final_report = generate_weekly_final_report(
@@ -123,7 +121,7 @@ async def run_weekly_report(request: WeeklyReportRequest) -> WeeklyReportRespons
         report_notes=state.raw_inputs.report_notes,
         training_sessions=state.raw_inputs.training_sessions,
         provider=provider,
-        use_llm=request.use_llm,
+        use_llm=True,
     )
 
     persisted = False

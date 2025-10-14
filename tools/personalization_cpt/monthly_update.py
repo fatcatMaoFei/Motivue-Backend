@@ -27,7 +27,7 @@ ROOT = os.path.dirname(os.path.dirname(__file__))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from 个性化CPT.train_personalization import learn_personalized_cpt
+from readiness.personalization_cpt.train import learn_personalized_cpt  # type: ignore
 
 
 def list_csvs(input_dir: str) -> List[str]:
@@ -58,7 +58,7 @@ def main():
 
     ts = datetime.now()
     ym = ts.strftime('%Y%m')
-    out_dir = os.path.join(ROOT, '个性化CPT', 'artifacts', ym)
+    out_dir = os.path.join(ROOT, 'samples', 'data', 'personalization', ym)
     os.makedirs(out_dir, exist_ok=True)
     summary_rows = []
 

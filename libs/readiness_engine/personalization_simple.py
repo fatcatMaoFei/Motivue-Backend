@@ -66,7 +66,11 @@ def _normalize_history_df(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 def generate_sample_history_csv(user_id: str, days: int = 45, out_path: str = None) -> str:
-    """鐢熸垚鏍锋湰鍘嗗彶鏁版嵁CSV鏂囦欢锛岀敤浜庝釜鎬у寲瀛︿範"""
+    """Generate a demo history CSV for personalization testing.
+
+    Creates a synthetic daily history (Apple sleep score or traditional sleep fields,
+    Hooper, HRV trend, training load, lifestyle/journal) for the given number of days.
+    """
     
     if out_path is None:
         out_path = f"user_history_{user_id}_{days}d.csv"
@@ -175,29 +179,30 @@ def generate_sample_history_csv(user_id: str, days: int = 45, out_path: str = No
     df = pd.DataFrame(data)
     df.to_csv(out_path, index=False, encoding='utf-8')
     
-    print(f"鐢熸垚鏍锋湰鍘嗗彶鏁版嵁: {out_path}")
-    print(f"  澶╂暟: {days}")
-    print(f"  Apple璇勫垎鏁版嵁: {sum(1 for r in data if r['apple_sleep_score'] is not None)} 澶?)
-    print(f"  浼犵粺鐫＄湢鏁版嵁: {sum(1 for r in data if r['sleep_duration_hours'] is not None)} 澶?)
+    print(f"Saved demo history: {out_path}")
+    print(f"  Days: {days}")
+    print(f"  Apple sleep score days: {sum(1 for r in data if r['apple_sleep_score'] is not None)}")
+    print(f"  Traditional sleep days: {sum(1 for r in data if r['sleep_duration_hours'] is not None)}")
     
     return out_path
 
 
 def csv_row_to_payload(row: pd.Series, user_id: str) -> Dict[str, Any]:
-    """灏咰SV琛岃浆鎹负readiness payload鏍煎紡
-    鏀寔鍥哄畾鏍煎紡鐨凜SV锛屾墍鏈夊垪閮藉瓨鍦紝null鍊肩敤None/NaN琛ㄧず
+    """Convert one CSV row to a readiness payload dict.
+
+    Assumes a standardized CSV with all columns present; nulls may be None/NaN.
     """
     
     payload = {
         'user_id': user_id,
         'date': (row['date'].strftime('%Y-%m-%d') if hasattr(row['date'],'strftime') else row['date']),
-        'gender': str(row.get('gender', '鐢?)),  # 浠嶤SV璇诲彇鎬у埆锛岄粯璁ょ敺
+        'gender': str(row.get('gender', '男性')),
     }
     
     # 鎬у埆榛樿鍊间慨姝?    try:
         g = payload.get('gender')
         if g is None or str(g).strip().lower() in ['','none','null','nan']:
-            payload['gender'] = '鐢锋€?
+            payload['gender'] = '男性'
     except Exception:
         payload['gender'] = '鐢锋€?
 
@@ -482,4 +487,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

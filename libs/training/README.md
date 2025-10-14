@@ -44,7 +44,7 @@ Training Consumption（当日训练消耗分）
 
 示例（Python）
 ```python
-from training import calculate_consumption
+from libs.training import calculate_consumption
 
 payload = {
   "user_id": "u001",
@@ -67,4 +67,3 @@ res = calculate_consumption(payload)
 扩展
 - 预留 `journal` / `device_metrics` 字段，后续可接入 alcohol/steps 等新因子（当前未使用）。
 - 因子架构：在 `training/factors/` 下新增因子，并在 `consumption` 中聚合求和，再套当日总上限（未来可增加 `cap_day_total`）。
-

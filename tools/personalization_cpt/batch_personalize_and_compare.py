@@ -6,7 +6,8 @@ Batch personalize on 60/100/200 days by repeating a base CSV, then compare
 personalized CPTs against default readiness.constants.EMISSION_CPT.
 
 Usage:
-  python 个性化CPT/batch_personalize_and_compare.py --base 个性化CPT/history_gui_log_clean.csv --user user_001
+  python tools/personalization_cpt/batch_personalize_and_compare.py \
+    --base samples/data/personalization/history_gui_log_clean.csv --user user_001
 """
 
 from __future__ import annotations
@@ -23,7 +24,7 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 from readiness.constants import EMISSION_CPT as GLOBAL_CPT
-from 个性化CPT.train_personalization import learn_personalized_cpt
+from readiness.personalization_cpt.train import learn_personalized_cpt  # type: ignore
 
 
 STATES = ['Peak', 'Well-adapted', 'FOR', 'Acute Fatigue', 'NFOR', 'OTS']
@@ -67,11 +68,11 @@ def compare_and_print(tag: str, cpt: Dict[str, Any], top_k: int = 5) -> None:
         if var in GLOBAL_CPT:
             rows.append((var, avg_l1_var(GLOBAL_CPT, cpt, var)))
     rows.sort(key=lambda x: x[1], reverse=True)
-    print(f"\n=== {tag} 个性化效果（按变量的平均L1差异排序，Top {top_k}） ===")
+    print(f"\n=== {tag} personalization deltas (avg L1 per variable, Top {top_k}) ===")
     for var, score in rows[:top_k]:
         print(f"  {var:22s}  avg_L1_delta={score:.4f}")
     if not rows:
-        print("  无可比对变量（CPT为空或结构异常）")
+        print("  No comparable variables (empty or invalid CPT)")
 
 
 def main():
@@ -83,7 +84,7 @@ def main():
 
     df0 = pd.read_csv(args.base)
     targets = [60, 100, 200]
-    out_dir = os.path.join(ROOT, '个性化CPT', 'artifacts')
+    out_dir = os.path.join(ROOT, 'samples', 'data', 'personalization')
     os.makedirs(out_dir, exist_ok=True)
 
     for days in targets:

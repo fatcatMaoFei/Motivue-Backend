@@ -458,7 +458,7 @@ class ConsumptionRequest(BaseModel):
 @app.post("/readiness/consumption")
 async def post_readiness_consumption(req: ConsumptionRequest, session: Session = Depends(get_session)) -> Dict[str, Any]:
     from datetime import date as _date
-    from libs.training.consumption import calculate_consumption
+    from libs.training import calculate_consumption
 
     # Resolve date (default to today)
     d = (req.date or str(_date.today()))

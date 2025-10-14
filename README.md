@@ -26,13 +26,13 @@ contracts remain independent**:
 | **Weekly Report Pipeline** | Multi-agent LLM chain that turns a hydrated `ReadinessState` into chart packs and Markdown/HTML reports (Analyst → Communicator → Critique → Finaliser) with schema validation and fallbacks. | `weekly_report/trend_builder.py`, `weekly_report/pipeline.py`, `weekly_report/finalizer.py`, samples under `samples/weekly_*` | `Dockerfile.weekly_report` |
 | **Baseline Service** | Computes and maintains long-term personal baselines (sleep duration/efficiency, restorative ratio, HRV μ/σ) with questionnaire fallbacks and auto-upgrade logic.  Supplies thresholds to the readiness mapper. | `baseline/api.py`, `baseline/service.py`, `baseline/calculator.py`, `baseline/storage.py`, `baseline/auto_upgrade.py` | `Dockerfile.baseline` |
 | **Physiological Age** | Estimates physiological age from 30-day HRV/RHR history plus today’s sleep CSS using reference tables per gender. | `physio_age/api.py`, `physio_age/core.py`, `physio_age/css.py`, `physio_age/hrv_age_table*.csv` | `Dockerfile.physio_age` |
-| **Training Consumption** | Calculates daily “consumption” points from training sessions (RPE × minutes, AU caps) to display “remaining readiness = readiness − consumption”. | `training/consumption.py`, `training/factors/training.py`, `training/schemas.py` | – |
+| **Training Consumption** | Calculates daily “consumption” points from training sessions (RPE × minutes, AU caps) to display “remaining readiness = readiness − consumption”. | `libs/training/consumption.py`, `libs/training/factors/training.py`, `libs/training/schemas.py` | – |
 
 > Weekly report code now lives under the standalone `weekly_report/` package.  You can deploy it with the readiness image or create a dedicated container if needed.
 
 ### Weekly report microservice
 
-- 启动 API：`uvicorn weekly_report.api:app --reload`（依赖 `fastapi` 已包含在 `requirements.txt`）。
+- 启动 API：`uvicorn apps/weekly-report-api/main:app --reload`（依赖 `fastapi` 已包含在 `requirements.txt`；需要 `GOOGLE_API_KEY`）。
 - 调用示例：
   ```bash
   curl -X POST http://localhost:8000/weekly-report/run \
@@ -44,7 +44,7 @@ contracts remain independent**:
         }'
   ```
   - `payload`：Phase 1 原始数据（含今日 raw_inputs + `history` 的 7 条 `WeeklyHistoryEntry`）。样例见 `samples/original_payload_sample.json`。
-  - `use_llm=true`：调用 Gemini；通过环境变量 `GOOGLE_API_KEY`、`READINESS_LLM_MODEL`、`READINESS_LLM_FALLBACK_MODELS` 配置模型，留空时自动回退规则。
+  - LLM：服务端强制走 LLM 路径；需提供 `GOOGLE_API_KEY`（可选 `READINESS_LLM_MODEL`、`READINESS_LLM_FALLBACK_MODELS`）。
   - `persist=true`：调用结束后将 Phase 5 结果写入 `weekly_reports` 表（定义在 `api/db.py`，默认使用 `.env` 的 `DATABASE_URL`）。
 - 返回值同时包含 Phase 3 `ReadinessState` JSON、Phase 4 `WeeklyReportPackage`、Phase 5 `WeeklyFinalReport`（含 Markdown/HTML/图表 ID）。
 
@@ -82,8 +82,8 @@ contracts remain independent**:
 | `scripts/` | Operational helpers. | `scripts/db_check.py`. |
 | `training/` | Training consumption module (see above). | Example configs under `training/factors/`. |
 | `tmp/` | Scratch space (ignored by git). | – |
-| `个性化CPT/` | Experiments around personalised emission CPTs (batch scripts, artefacts). | `personalize_cpt.py`, `artifacts/`. |
-| `后端文档/` | Additional Chinese documentation (microservice integration, deployment, iOS26 migration, baseline plans). | `MICROSERVICES_INTEGRATION.md`, etc. |
+| `tools/personalization_cpt/` | Experiments around personalised emission CPTs (batch scripts, artefacts). | `personalize_cpt.py`, outputs under `samples/data/personalization/`. |
+| `docs/backend/` | Backend documentation (microservice integration, deployment, iOS26 migration, baseline plans). | `microservices_integration.md`, etc. |
 
 ## Notable documents & samples
 
@@ -158,7 +158,7 @@ python samples/generate_weekly_report_samples.py
 #### Journals & personalisation
 - Journal manager auto-clears yesterday’s short-term flags after use, but carries persistent status.
 - Personalised CPT overrides can be provided in payload (e.g., per user emission CPT).
-- `个性化CPT/` scripts support training and applying customised emission tables; integrate by passing `emission_cpt_override`.
+- Personalised CPT tools are under `tools/personalization_cpt/`; integrate by passing `emission_cpt_override`.
 
 ### Weekly report pipeline (multi-agent LLM)
 
@@ -201,6 +201,86 @@ python samples/generate_weekly_report_samples.py \
   --history samples/history_week.json
 ```
 Produces Phase 4 JSON (`weekly_report_sample.json`) and final markdown (`weekly_report_final_sample.md`).
+
+### Repository layout (monorepo)
+
+- `apps/` — FastAPI entrypoints: readiness-api, baseline-api, physio-age-api, weekly-report-api
+- `libs/` — shared libraries: readiness_engine, weekly_report, analytics, core_domain, physio
+- `weekly_report/` — top-level proxy package pointing to `libs/weekly_report` (absolute imports kept stable)
+- `readiness/` — top-level proxy package pointing to `libs/readiness_engine` (legacy imports remain valid)
+- `samples/` — runnable examples and generated outputs
+- `tools/personalization_cpt/` — CLI tools for personalized CPT training
+- `docs/backend/` — backend guides (migration, deployment, integration)
+- `docs/refs/` — design PDFs and business/reference notes
+
+See also: `docs/backend/architecture_overview.md` for service boundaries, contracts, and dependencies.
+
+### Directory Reference (what each module does)
+
+- `apps/`
+  - `apps/readiness-api/main.py`: HTTP API for daily readiness. Ingests HealthKit-like payload, merges baselines, calls readiness engine, writes `user_daily` and supports `POST /readiness/consumption` for training consumption updates.
+  - `apps/weekly-report-api/main.py`: HTTP API for weekly report generation (LLM required). Runs workflow (ToT/Critique), builds chart specs, Analyst/Communicator, Finalizer, and optionally persists `weekly_reports`.
+  - `apps/baseline-api/main.py`: HTTP API for baseline compute/update and retrieval; publishes MQ message `readiness.baseline_updated` so readiness can refresh personalization state.
+  - `apps/physio-age-api/main.py`: HTTP API for physiological age (uses SDNN/RHR + CSS).
+
+- `libs/`
+  - `libs/readiness_engine/`
+    - `engine.py`: ReadinessEngine core (Bayesian prior/posterior, journal manager).
+    - `mapping.py`: Maps raw numeric/enum inputs (sleep/HRV/Hooper/training) into engine evidence.
+    - `constants.py`: Global CPT tables and thresholds.
+    - `service.py`: Thin façade `compute_readiness_from_payload(...)` used by API and tools.
+    - `personalization_cpt/train.py`: Library entry to learn per-user EMISSION_CPT from CSV/history.
+    - `personalization_simple.py`: Simple personalization helpers (demo/data generation, load personalized CPT into constants).
+  - `libs/weekly_report/`
+    - `workflow/graph.py`: Orchestrates ingest → metrics → insights → complexity → ToT → Critique → Revision → Planner.
+    - `pipeline.py`: Builds charts + LLM outputs (Analyst/Communicator/Critique) with fallbacks.
+    - `finalizer.py`: Produces Markdown report + chart IDs + CTA.
+    - `llm/provider.py`: Gemini provider, prompts and JSON schema enforcement.
+    - `analysis/*`: Statistical summaries and correlations for history windows.
+    - `insights/*`: Rule-based insights and tags.
+    - `trend_builder.py`: Generates ChartSpec payloads for frontend.
+  - `libs/analytics/`
+    - `service.py`: Baseline service entrypoints and integration helpers.
+    - `storage.py`: Storage backends (in-memory/file/SQLAlchemy) for baselines.
+    - `daily_vs_baseline.py`: Comparisons for analytics dashboards.
+  - `libs/core_domain/`
+    - `models.py`: Shared Pydantic models (ChartSpec, WeeklyReportPackage, WeeklyFinalReport, etc.).
+    - `db.py`: SQLAlchemy models (`user_daily`, `user_baselines`, `weekly_reports`) and `init_db()`.
+    - `utils/sleep.py`: Sleep efficiency/restorative ratio helpers.
+  - `libs/physio/css.py`: Composite Sleep Score (CSS) computation.
+
+- `weekly_report/`: Top-level proxy package pointing to `libs/weekly_report` so absolute imports `weekly_report.*` remain stable.
+- `readiness/`: Top-level proxy package pointing to `libs/readiness_engine` so legacy imports remain valid.
+
+- `libs/training/`
+  - Purpose: A small domain library used by readiness API to compute daily training consumption and update "current_readiness_score" for display.
+  - Files: `consumption.py` (entry `calculate_consumption`), `factors/training.py` (piecewise curves), `schemas.py` (payload models), `__init__.py` (exports).
+
+- `tools/personalization_cpt/`
+  - `personalize_cpt.py`: Single-user CSV → CPT JSON.
+  - `monthly_update.py`: Batch per-user CPT updates over recent N days; outputs under `samples/data/personalization/YYYYMM/`.
+  - `batch_personalize_and_compare.py`: Generate 60/100/200d variants and compare deltas to global CPT.
+  - `clean_history.py`: Normalize GUI/Excel CSV into standard columns.
+  - `apply_cpt.py`: Load a CPT JSON into runtime (`constants.EMISSION_CPT`) for experimentation.
+
+- `samples/`
+  - Example payloads for readiness/weekly report and generated Phase 4/5 outputs (`weekly_report_final_sample.*`).
+  - `samples/data/personalization/`: CSV inputs and generated personalized CPT artefacts.
+
+- `docs/backend/`: Backend guides (migration, deployment, integration).  
+  `docs/refs/`: Design PDFs and reference TXT files (centralized).
+
+- `infra/compose/docker-compose.yml` and `infra/docker/*`: Container builds and local orchestration.
+
+- `tmp/`: Scratchpad folder for local experiments; ignored by services. Safe to clean.
+- `legacy_personalization/`: Temporary placeholder of the old Chinese-named folder; no code references it. Safe to remove once the team confirms migration is complete.
+
+### Housekeeping & migrations
+
+- Removed all Chinese-named folders in repo structure; moved prior `后端文档/` to `docs/backend/` with English file names.
+- Consolidated PDFs and TXT references under `docs/refs/`.
+- Normalized personalized CPT scripts under `tools/personalization_cpt/`; artefacts live in `samples/data/personalization/`.
+- Unified imports to use `weekly_report.*` in apps; compatibility proxies are preserved.
 
 ### Baseline service (personal thresholds)
 
@@ -268,16 +348,16 @@ Produces Phase 4 JSON (`weekly_report_sample.json`) and final markdown (`weekl
    - Same metrics & outputs as above.
 3. **Use cases**: heuristics for dashboards, triggers for insights or LLM context.
 
-### Personalised CPT experiments (`个性化CPT/`)
+### Personalised CPT experiments (`tools/personalization_cpt/`)
 
-- Scripts to fit custom emission CPTs from historical labelled data (`personalize_cpt.py`, `train_personalization.py`).
-- Supports cleaning history, batch personalisation, comparing deltas.
-- Integrate by storing artefacts under `个性化CPT/artifacts` and loading into readiness payloads (override `emission_cpt_override`).
+- Scripts to fit custom emission CPTs from historical labelled data (`personalize_cpt.py`, `monthly_update.py`, `batch_personalize_and_compare.py`).
+- Artefacts stored under `samples/data/personalization/`.
+- Inject via readiness payload (`emission_cpt_override`).
 
 ### Multi-service integration
 
-- `docker-compose.yml` links readiness ↔ baseline ↔ physio age, enabling readiness service to call baseline/physio age APIs.
-- `后端文档/MICROSERVICES_INTEGRATION.md` details service discovery, MQ topics, and data contracts.
+- `infra/compose/docker-compose.yml` links readiness ↔ baseline ↔ physio age, enabling readiness service to call baseline/physio age APIs.
+- `docs/backend/microservices_integration.md` details service discovery, MQ topics, and data contracts.
 - `API/main.py` offers a simple aggregate service for demos (ingest data, call readiness, store results).
 
 </details>
@@ -329,8 +409,8 @@ Motivue 的后端由多套微服务组成，每个服务解决一个独立的运
 | `scripts/` | 运维脚本。 | `scripts/db_check.py`。 |
 | `training/` | 训练消耗计算模块。 | `training/README.md` + 因子实现。 |
 | `tmp/` | 临时文件目录。 | – |
-| `个性化CPT/` | 证据 CPT 个性化实验脚本与成果。 | `personalize_cpt.py`、`artifacts/`。 |
-| `后端文档/` | 中文文档合集（微服务集成、部署、iOS26 迁移、基线计划等）。 | `MICROSERVICES_INTEGRATION.md` 等。 |
+| `tools/personalization_cpt/` | 证据 CPT 个性化实验脚本与成果。 | `personalize_cpt.py`；产物在 `samples/data/personalization/`。 |
+| `docs/backend/` | 文档合集（微服务集成、部署、iOS26 迁移、基线计划等）。 | `microservices_integration.md` 等。 |
 | `docs/weekly_report_frontend_notes.md` | 周报前端对接说明（接口、字段、渲染提示）。 | – |
 
 ## 关键文档与样例
@@ -395,7 +475,7 @@ python samples/generate_weekly_report_samples.py
 - **睡眠阈值**：基于 `sleep_baseline_hours` 和 `sleep_baseline_eff` 个性化，支持开关 `PERSONALIZE_SLEEP_EFFICIENCY`。
 - **HRV 映射**：优先使用 `(today - μ) / σ`，备选 3 vs 7 日增幅。
 - **Hooper**：数值与枚举共存，保障后验可同时使用连续与离散证据。
-- **个人化 CPT**：可通过 payload 的 `emission_cpt_override` 注入，或使用 `个性化CPT/` 工具训练产生。
+- **个人化 CPT**：可通过 payload 的 `emission_cpt_override` 注入，或使用 `tools/personalization_cpt/` 工具训练产生。
 
 ### 周报流水线（多智能体 LLM）
 
@@ -436,7 +516,7 @@ python samples/generate_weekly_report_samples.py
 
 ### 训练消耗
 
-1. 使用 `training.calculate_consumption` 传入训练组。AU 优先级：显式 AU → RPE×分钟 → 标签兜底（无/低/中/高/极高 → {0,200,350,500,700}）。
+1. 使用 `libs.training.calculate_consumption` 传入训练组。AU 优先级：显式 AU → RPE×分钟 → 标签兜底（无/低/中/高/极高 → {0,200,350,500,700}）。
 2. 曲线：AU ≤150 → 0-5，150-300 → 5-12，300-500 → 12-25，>500 → 25-40（约 900 饱和）；每次训练受 `cap_session` 限制。
 3. 当日总消耗受 `cap_training_total` 控制，输出总消耗、剩余准备度（若提供 base）、分项及审计信息。
 4. 可通过 `params_override` 调整上限或添加新因子（未来可加入 Journal/设备指标）。
@@ -449,13 +529,13 @@ python samples/generate_weekly_report_samples.py
 
 ### 个性化 CPT 实验
 
-- `个性化CPT/` 包含历史数据清洗、批量个性化、差异对比等脚本，可生成用户级 emission CPT。
+- `tools/personalization_cpt/` 包含历史数据清洗、批量个性化、差异对比等脚本，可生成用户级 emission CPT，产物在 `samples/data/personalization/`。
 - 训练后的 CPT 可通过 readiness payload (`emission_cpt_override`) 注入，引擎会使用自定义似然。
 
 ### 多服务集成
 
 - `docker-compose.yml` 将 readiness ↔ baseline ↔ physio age 容器互通，便于整体测试。
-- `后端文档/MICROSERVICES_INTEGRATION.md` 描述服务发现、消息通道、数据契约。
+- `docs/backend/microservices_integration.md` 描述服务发现、消息通道、数据契约。
 - `api/main.py` 提供聚合接口示例，可用于内测或 Demo 展示。
 
 </details>

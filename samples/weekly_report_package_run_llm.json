@@ -1,5 +1,5 @@
 {
-  "generated_at": "2025-10-14T03:34:25.408643",
+  "generated_at": "2025-10-14T06:01:49.790314",
   "charts": [
     {
       "chart_id": "readiness_trend",
@@ -23,11 +23,11 @@
             "data": [
               72.0,
               70.0,
-              68.0,
               66.0,
+              62.0,
               65.0,
-              64.0,
-              64.0
+              68.0,
+              70.0
             ]
           }
         ],
@@ -36,7 +36,7 @@
           100
         ]
       },
-      "notes": "最新准备度 64（band: Acute Fatigue）。"
+      "notes": "最新准备度 70（band: Well-adapted）。"
     },
     {
       "chart_id": "readiness_vs_hrv",
@@ -61,11 +61,11 @@
             "data": [
               72.0,
               70.0,
-              68.0,
               66.0,
+              62.0,
               65.0,
-              64.0,
-              64.0
+              68.0,
+              70.0
             ]
           },
           {
@@ -76,11 +76,11 @@
             "data": [
               64.0,
               63.0,
-              62.0,
               61.0,
+              59.0,
               60.0,
-              58.0,
-              57.0
+              62.0,
+              63.0
             ]
           }
         ],
@@ -121,17 +121,17 @@
             "data": [
               64.0,
               63.0,
-              62.0,
               61.0,
+              59.0,
               60.0,
-              58.0,
-              57.0
+              62.0,
+              63.0
             ]
           }
         ],
-        "baseline": 63.0
+        "baseline": 63
       },
-      "notes": "最新 HRV 57 ms，Z-score -0.85，趋势判断：下降。"
+      "notes": "最新 HRV 63 ms，Z-score +0.00，趋势判断：稳定。"
     },
     {
       "chart_id": "sleep_duration",
@@ -155,17 +155,17 @@
             "data": [
               7.6,
               7.4,
+              6.0,
               7.2,
-              7.1,
-              7.0,
-              6.8,
-              6.7
+              7.8,
+              8.0,
+              7.6
             ]
           }
         ],
         "baseline": 7.6
       },
-      "notes": "最近一日睡眠 6.7 小时，相较基线 -0.9 小时。"
+      "notes": "最近一日睡眠 7.6 小时，相较基线 +0.0 小时。"
     },
     {
       "chart_id": "sleep_structure",
@@ -189,11 +189,11 @@
             "data": [
               1.83,
               1.75,
-              1.67,
-              1.63,
+              1.33,
               1.58,
-              1.5,
-              1.47
+              1.67,
+              1.75,
+              1.83
             ]
           },
           {
@@ -203,11 +203,11 @@
             "data": [
               1.58,
               1.53,
+              1.25,
+              1.42,
               1.5,
-              1.47,
-              1.4,
-              1.33,
-              1.3
+              1.58,
+              1.53
             ]
           },
           {
@@ -217,11 +217,11 @@
             "data": [
               4.18,
               4.12,
-              4.03,
-              4.0,
-              4.02,
-              3.97,
-              3.93
+              3.42,
+              4.2,
+              4.63,
+              4.67,
+              4.23
             ]
           }
         ]
@@ -247,18 +247,18 @@
             "name": "训练量 (AU)",
             "type": "bar",
             "data": [
-              320.0,
-              360.0,
-              420.0,
-              500.0,
-              560.0,
-              520.0,
-              510.0
+              null,
+              350.0,
+              450.0,
+              0.0,
+              0.0,
+              0.0,
+              350.0
             ]
           }
         ]
       },
-      "notes": "最近 ACWR ≈ 1.45。若 ≥1.3 需警惕疲劳，≤0.6 留意去适应。 "
+      "notes": "已过滤超过 2000 AU 的异常值，以避免图表失真。"
     },
     {
       "chart_id": "hooper_radar",
@@ -293,10 +293,10 @@
             "type": "radar",
             "data": [
               [
-                6.0,
-                5.0,
-                4.0,
-                5.0
+                3.0,
+                3.0,
+                3.0,
+                7.0
               ]
             ]
           }
@@ -311,29 +311,35 @@
       "data": {
         "events": [
           {
+            "date": "09-09",
+            "tags": [
+              "sport:tennis"
+            ]
+          },
+          {
+            "date": "09-10",
+            "tags": [
+              "sport:tennis"
+            ]
+          },
+          {
+            "date": "09-11",
+            "tags": [
+              "sport:tennis",
+              "strength:legs",
+              "late_night"
+            ]
+          },
+          {
             "date": "09-12",
             "tags": [
-              "late_meal"
-            ]
-          },
-          {
-            "date": "09-13",
-            "tags": [
-              "travel"
-            ]
-          },
-          {
-            "date": "09-14",
-            "tags": [
-              "late_meal",
-              "screen_before_bed"
+              "fatigue_day"
             ]
           },
           {
             "date": "09-15",
             "tags": [
-              "travel",
-              "work_stress"
+              "sport:tennis"
             ]
           }
         ]
@@ -343,39 +349,45 @@
   ],
   "analyst": {
     "summary_points": [
-      "2025-09-14 准备度低值驱动",
-      "2025-09-15 准备度低值驱动",
-      "2025-09-13 准备度低值驱动"
+      "HRV 下降",
+      "疲劳压力升高",
+      "肌肉酸痛偏高"
     ],
     "risks": [
       {
-        "metric": "analysis_load_correlation",
+        "metric": "hrv_decline",
         "value": null,
-        "reason": "训练负荷与准备度/HRV 的关联分析提示高负荷对恢复的影响，需要调整训练与恢复节奏。",
+        "reason": "HRV Z-score 为 -0.86，低于个性化阈值，提示自律神经恢复不足。",
         "severity": "medium"
       },
       {
-        "metric": "analysis_sleep_correlation",
+        "metric": "lifestyle_trend_overlap",
         "value": null,
-        "reason": "睡眠时长/效率与准备度、HRV 之间存在显著关联，建议强化睡眠卫生管理。",
+        "reason": "生活方式标签（sport:tennis）与恢复指标下滑重叠，建议关注旅行/工作等因素对恢复的影响。",
+        "severity": "medium"
+      },
+      {
+        "metric": "training_load_outlier",
+        "value": null,
+        "reason": "本周检测到 1 天训练量 AU 超过合理阈值（2000），最高值出现在 2025-09-09：AU 10000。建议核对当日训练记录或更正输入。",
         "severity": "medium"
       }
     ],
     "opportunities": [
       {
-        "area": "analysis",
-        "recommendation": "针对驱动因素制定纠正计划（例如调整训练或优化睡眠）。",
-        "reason": "2025-09-14 准备度低值驱动"
+        "area": "recovery",
+        "recommendation": "增加恢复手段（充足睡眠、营养、主动恢复），短期内避免高强度模式。",
+        "reason": "HRV 下降"
       },
       {
-        "area": "analysis",
-        "recommendation": "针对驱动因素制定纠正计划（例如调整训练或优化睡眠）。",
-        "reason": "2025-09-15 准备度低值驱动"
+        "area": "recovery",
+        "recommendation": "记录具体感受与诱因，安排主动恢复或减量训练。",
+        "reason": "疲劳压力升高"
       },
       {
-        "area": "analysis",
-        "recommendation": "针对驱动因素制定纠正计划（例如调整训练或优化睡眠）。",
-        "reason": "2025-09-13 准备度低值驱动"
+        "area": "recovery",
+        "recommendation": "记录具体感受与诱因，安排主动恢复或减量训练。",
+        "reason": "肌肉酸痛偏高"
       }
     ],
     "chart_ids": [
@@ -389,20 +401,20 @@
     "sections": [
       {
         "title": "本周亮点",
-        "body_markdown": "- 2025-09-14 准备度低值驱动\n- 2025-09-15 准备度低值驱动\n- 2025-09-13 准备度低值驱动"
+        "body_markdown": "- HRV 下降\n- 疲劳压力升高\n- 肌肉酸痛偏高"
       },
       {
         "title": "风险观察",
-        "body_markdown": "- analysis_load_correlation: 训练负荷与准备度/HRV 的关联分析提示高负荷对恢复的影响，需要调整训练与恢复节奏。\n- analysis_sleep_correlation: 睡眠时长/效率与准备度、HRV 之间存在显著关联，建议强化睡眠卫生管理。"
+        "body_markdown": "- hrv_decline: HRV Z-score 为 -0.86，低于个性化阈值，提示自律神经恢复不足。\n- lifestyle_trend_overlap: 生活方式标签（sport:tennis）与恢复指标下滑重叠，建议关注旅行/工作等因素对恢复的影响。\n- training_load_outlier: 本周检测到 1 天训练量 AU 超过合理阈值（2000），最高值出现在 2025-09-09：AU 10000。建议核对当日训练记录或更正输入。"
       },
       {
         "title": "建议与行动",
-        "body_markdown": "- analysis: 针对驱动因素制定纠正计划（例如调整训练或优化睡眠）。\n- analysis: 针对驱动因素制定纠正计划（例如调整训练或优化睡眠）。\n- analysis: 针对驱动因素制定纠正计划（例如调整训练或优化睡眠）。"
+        "body_markdown": "- recovery: 增加恢复手段（充足睡眠、营养、主动恢复），短期内避免高强度模式。\n- recovery: 记录具体感受与诱因，安排主动恢复或减量训练。\n- recovery: 记录具体感受与诱因，安排主动恢复或减量训练。"
       }
     ],
     "tone": "professional_encouraging",
     "call_to_action": [
-      "针对驱动因素制定纠正计划（例如调整训练或优化睡眠）。"
+      "增加恢复手段（充足睡眠、营养、主动恢复），短期内避免高强度模式。"
     ]
   },
   "critique": null

@@ -16,6 +16,8 @@
 | 09-13 | 560 | 65 / Acute Fatigue | travel |
 | 09-14 | 520 | 64 / Acute Fatigue | late_meal, screen_before_bed |
 | 09-15 | 510 | 64 / Acute Fatigue | travel, work_stress |
+[[chart:training_load]]
+[[chart:readiness_trend]]
 - 每日重点
   - 09-09: AU 320，准备度 72 / Well-adapted，事件：无
   - 09-10: AU 360，准备度 70 / Well-adapted，事件：无
@@ -37,6 +39,8 @@
 | 09-13 | 60 | -0.40 | AU 560, travel |
 | 09-14 | 58 | -0.60 | AU 520, late_meal, screen_before_bed |
 | 09-15 | 57 | -0.85 | AU 510, travel, work_stress |
+[[chart:hrv_trend]]
+[[chart:readiness_vs_hrv]]
 - HRV 均值 60.7 ms，较周初变化 -7.0 ms。
 - 最新 HRV Z-score -0.85，结合准备度判断当前恢复水平。
 | 日期 | 睡眠时长 (h) | 深睡 (min) | REM (min) | 事件 |
@@ -48,6 +52,8 @@
 | 09-13 | 7.0 | 95.0 | 84.0 | travel |
 | 09-14 | 6.8 | 90.0 | 80.0 | late_meal, screen_before_bed |
 | 09-15 | 6.7 | 88.0 | 78.0 | travel, work_stress |
+[[chart:sleep_duration]]
+[[chart:sleep_structure]]
 - 平均睡眠 7.1 小时，较周初变化 -0.9 小时。
 - 与基线 7.6 小时相比，最新一夜差异 -0.9 小时。
 
@@ -61,6 +67,7 @@
 | 09-13 | 6.0 | 4.0 | 4.0 | 6.0 | travel |
 | 09-14 | 6.0 | 4.0 | 4.0 | 6.0 | late_meal, screen_before_bed |
 | 09-15 | 6.0 | 5.0 | 4.0 | 5.0 | travel, work_stress |
+[[chart:hooper_radar]]
 - Hooper 疲劳均值 4.7 分，请与准备度对照评估过度疲劳。
 - 本周重点关注：针对驱动因素制定纠正计划（例如调整训练或优化睡眠）。
 
@@ -69,15 +76,19 @@
 - 09-13: travel
 - 09-14: late_meal，screen_before_bed
 - 09-15: travel，work_stress
+[[chart:lifestyle_timeline]]
 
 ## 自由备注与训练日志洞察
 - 教练/运动员备注：本周有一次出差和夜间加班，主观疲劳偏高。
 - 训练日志：高，70 分钟，AU 560，力量训练-背部
 
 ## 相关性洞察
-- 准备度从 72 分变化到 64 分，同时睡眠时长变化 -0.9 小时。
-- HRV 变化 -7.0 ms 与准备度变化 -8 分形成联动，需保持恢复窗口。
-- 当前 ACWR 1.45 对应准备度 64 分，注意高 ACWR 时的恢复策略。
+- 训练量↔准备度 相关系数 -0.96；高 ACWR 天数 3，连续高负荷段后 readiness 平均变化 -0.5 分。
+- 训练量↔HRV 相关系数 -0.83；次日 HRV 平均变化 -1.5 ms。
+- 睡眠时长↔准备度 相关系数 +0.98；低睡眠天数 3，次日 readiness 平均变化 -0.5 分。
+- 恢复性睡眠↔HRV 相关系数 +0.99；低恢复性天数 0，次日 HRV 平均变化 +0.0 ms。
+- 趋势：本周 readiness 净变化 -8 分；HRV 相对基线 -6.0 ms；睡眠相对基线 -0.9 h。
+- 生活方式：late_meal 出现 2 次，次日 readiness/HRV/睡眠平均变化 -0.5/-1.0/-0.1。
 
 ## 下周行动计划
 - 洞察修正：针对驱动因素制定纠正计划（例如调整训练或优化睡眠）。（依据：2025-09-14 准备度低值驱动）

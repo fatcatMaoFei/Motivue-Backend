@@ -3,8 +3,8 @@ from __future__ import annotations
 from statistics import mean
 from typing import Any, Dict, Iterable, Optional, Sequence
 
-from backend.utils.sleep_metrics import compute_sleep_metrics
-from physio_age.css import compute_css
+from libs.core_domain.utils.sleep import compute_sleep_metrics
+from libs.physio.css import compute_css
 
 from readiness.constants import TRAINING_LOAD_AU
 from weekly_report.state import ReadinessState

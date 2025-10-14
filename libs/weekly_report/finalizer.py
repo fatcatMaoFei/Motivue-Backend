@@ -214,6 +214,8 @@ def _fallback_final_report(
     markdown_parts.extend(summary_lines)
 
     markdown_parts.append("\n## 训练负荷与表现")
+    # Ensure a blank line before tables for better Markdown/PDF renderer compatibility
+    markdown_parts.append("")
     # 图表占位工具与可用集（仅为存在的图表注入锚点）
     try:
         _available_chart_ids = {c.chart_id for c in weekly_package.charts}
@@ -272,6 +274,7 @@ def _fallback_final_report(
     markdown_parts.extend(load_notes[:2])
 
     markdown_parts.append("\n## 恢复与生理信号")
+    markdown_parts.append("")
     markdown_parts.append("| 日期 | HRV (RMSSD) | Z-score | 训练 / 事件备注 |")
     markdown_parts.append("| --- | --- | --- | --- |")
     for entry in history_sorted:
@@ -315,6 +318,8 @@ def _fallback_final_report(
         ]
     markdown_parts.extend(hrv_lines[:2])
 
+    # Extra blank line before the sleep table to avoid renderer edge-cases
+    markdown_parts.append("")
     markdown_parts.append("| 日期 | 睡眠时长 (h) | 深睡 (min) | REM (min) | 事件 |")
     markdown_parts.append("| --- | --- | --- | --- | --- |")
     for entry in history_sorted:

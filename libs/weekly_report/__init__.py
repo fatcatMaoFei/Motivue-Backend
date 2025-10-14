@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from .models import (
+# libs.weekly_report is the canonical weekly report package.
+# Export public models + top-level functions for convenience.
+
+from libs.core_domain.models import (
     AnalystOpportunity,
     AnalystReport,
     AnalystRisk,

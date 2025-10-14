@@ -2,9 +2,9 @@
 import sys, os, json
 import pandas as pd
 
-# Use existing readiness package in the repo
+# Use readiness library from this monorepo (proxy to libs/readiness-engine)
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-from 个性化CPT.train_personalization import learn_personalized_cpt
+from readiness.personalization_cpt.train import learn_personalized_cpt  # type: ignore
 
 def main():
     import argparse
@@ -28,4 +28,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

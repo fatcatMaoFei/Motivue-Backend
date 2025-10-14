@@ -4,7 +4,9 @@
 Quick cleaner for GUI-exported or Excel-edited CSVs to our standard format.
 
 Usage:
-  python 个性化CPT/clean_history.py --in "C:/Users/Lenovo/Desktop/2025-09-11T08-07_export.csv" --out 个性化CPT/history_gui_log_clean.csv
+  python tools/personalization_cpt/clean_history.py \
+    --in "C:/Users/Lenovo/Desktop/2025-09-11T08-07_export.csv" \
+    --out samples/data/personalization/history_gui_log_clean.csv
 """
 
 import argparse

@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional
 
 try:
     # Prefer backend implementation to keep one source of truth
-    from backend.utils.sleep_metrics import compute_sleep_metrics as _backend_sleep_metrics  # type: ignore
+    from libs.core_domain.utils.sleep import compute_sleep_metrics as _backend_sleep_metrics  # type: ignore
 except Exception:  # pragma: no cover
     _backend_sleep_metrics = None  # fallback to local logic
 

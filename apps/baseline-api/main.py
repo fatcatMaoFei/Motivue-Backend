@@ -14,7 +14,7 @@ from libs.analytics.service import (
 )
 from libs.analytics.storage import get_default_storage, SQLAlchemyBaselineStorage
 from libs.analytics.daily_vs_baseline import compare_today_vs_baseline
-from backend.utils.sleep_metrics import compute_sleep_metrics
+from libs.core_domain.utils.sleep import compute_sleep_metrics
 # TODO: Decouple from api/db and use a shared db infra module
 from libs.core_domain.db import get_session, UserDaily
 
@@ -218,5 +218,4 @@ async def post_today_vs_baseline(req: TodayVsBaselineRequest) -> Dict[str, Any]:
         "comparison_window_days": int(req.window_days),
         "analytics": analytics,
     }
-
 

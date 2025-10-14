@@ -18,7 +18,7 @@ from readiness.service import compute_readiness_from_payload
 from readiness.constants import TRAINING_LOAD_AU
 
 
-CSV_DEFAULT = os.path.join(ROOT, '个性化CPT', 'history_gui_log.csv')
+CSV_DEFAULT = os.path.join(ROOT, 'samples', 'data', 'personalization', 'history_gui_log.csv')
 
 
 STATES = ['Peak', 'Well-adapted', 'FOR', 'Acute Fatigue', 'NFOR', 'OTS']
@@ -108,7 +108,7 @@ def build_payload(today_inputs: Dict[str, Any]) -> Dict[str, Any]:
     payload['journal_today'] = journal_today
 
     # Female cycle (optional): affect today posterior
-    if today_inputs.get('gender') == '濂虫€?:
+    if today_inputs.get('gender') == '女性':
         day = today_inputs.get('cycle_day')
         length = today_inputs.get('cycle_length')
         if day is not None and length is not None and day > 0 and length > 0:
