@@ -11,7 +11,13 @@ from weekly_report.pipeline import generate_weekly_report
 from weekly_report.finalizer import generate_weekly_final_report
 from weekly_report.llm.provider import get_llm_provider
 # TODO: Decouple from api/db and use a shared db infra module
-from libs.core_domain.db import init_db, get_session, WeeklyReportRecord
+from libs.core_domain.db import (
+    init_db,
+    get_session,
+    WeeklyReportRecord,
+    UserTrainingSession,
+    UserStrengthRecord,
+)
 
 
 app = FastAPI(
@@ -71,7 +77,7 @@ async def run_weekly_report(request: WeeklyReportRequest) -> WeeklyReportRespons
     - 本服务强制走 LLM 路径；需配置 GOOGLE_API_KEY。
     """
 
-    payload = request.payload
+    payload = dict(request.payload)
     history_payload = payload.get("history")
     if not history_payload:
         raise HTTPException(status_code=400, detail="payload.history 缺失或为空。")
@@ -86,6 +92,13 @@ async def run_weekly_report(request: WeeklyReportRequest) -> WeeklyReportRespons
         ) from exc
 
     # Always run LLM path inside workflow (ToT/Critique gates)
+    # Enrich payload with training summaries (7d/30d) and strength snapshots when possible
+    try:
+        _enrich_payload_with_training(payload)
+    except Exception:
+        # Enrichment失败不阻断主流程
+        pass
+
     graph_state = run_workflow(payload, use_llm=True)
     state = graph_state.state
 
@@ -104,6 +117,17 @@ async def run_weekly_report(request: WeeklyReportRequest) -> WeeklyReportRespons
     provider = get_llm_provider()
     if provider is None:
         raise HTTPException(status_code=503, detail="LLM provider not configured; set GOOGLE_API_KEY")
+    # Pass optional extra context (training/stength summaries) to provider if supported
+    try:
+        if hasattr(provider, "set_extra_context"):
+            provider.set_extra_context(
+                {
+                    "training_tag_counts": payload.get("training_tag_counts"),
+                    "strength_levels": payload.get("strength_levels"),
+                }
+            )
+    except Exception:
+        pass
 
     package = generate_weekly_report(
         state,
@@ -150,6 +174,120 @@ async def run_weekly_report(request: WeeklyReportRequest) -> WeeklyReportRespons
         final_report=final_report,
         persisted=persisted,
     )
+
+
+# ---------- Helpers: enrich payload with training/strength summaries ---------- #
+
+def _enrich_payload_with_training(payload: Dict[str, Any]) -> None:
+    """Populate `training_tag_counts` (7d/30d) and `strength_levels` (latest/baseline_30d)
+    into the payload when `user_id` is present. No-op on failure.
+    """
+    from datetime import date as _date, timedelta as _td
+
+    user_id = payload.get("user_id")
+    if not user_id:
+        return
+
+    today = _date.today()
+    start7 = today - _td(days=7)
+    start30 = today - _td(days=30)
+
+    # 7/30 日训练次数（按标签聚合）
+    counts_7: Dict[str, int] = {}
+    counts_30: Dict[str, int] = {}
+    try:
+        with get_session() as s:
+            rows = (
+                s.query(UserTrainingSession)
+                .filter(UserTrainingSession.user_id == user_id)
+                .filter(UserTrainingSession.date >= start30)
+                .all()
+            )
+        for r in rows:
+            tags = []
+            try:
+                if isinstance(r.type_tags, list):
+                    tags = [str(t) for t in r.type_tags if t]
+                elif isinstance(r.type_tags, dict):
+                    # allow {"tags":[...]}
+                    inner = r.type_tags.get("tags") if isinstance(r.type_tags, dict) else None
+                    if isinstance(inner, list):
+                        tags = [str(t) for t in inner if t]
+            except Exception:
+                tags = []
+            if not tags:
+                continue
+            for tag in tags:
+                counts_30[tag] = counts_30.get(tag, 0) + 1
+                if r.date >= start7:
+                    counts_7[tag] = counts_7.get(tag, 0) + 1
+    except Exception:
+        counts_7, counts_30 = {}, {}
+
+    if counts_7 or counts_30:
+        merged: Dict[str, Dict[str, int]] = {}
+        for tag in set(list(counts_7.keys()) + list(counts_30.keys())):
+            merged[tag] = {"7d": int(counts_7.get(tag, 0)), "30d": int(counts_30.get(tag, 0))}
+        payload["training_tag_counts"] = merged
+
+    # 力量水平（latest 与 baseline_30d）
+    try:
+        with get_session() as s:
+            # 最新记录：每个动作取最新一条
+            latest_rows = (
+                s.query(UserStrengthRecord)
+                .filter(UserStrengthRecord.user_id == user_id)
+                .order_by(
+                    UserStrengthRecord.exercise_name.asc(),
+                    UserStrengthRecord.record_date.desc(),
+                    UserStrengthRecord.created_at.desc(),
+                )
+                .all()
+            )
+            latest_map: Dict[str, Any] = {}
+            seen: set[str] = set()
+            for r in latest_rows:
+                ex = r.exercise_name
+                if ex in seen:
+                    continue
+                latest_map[ex] = {
+                    "date": str(r.record_date),
+                    "weight_kg": r.weight_kg,
+                    "reps": r.reps,
+                    "one_rm_est": r.one_rm_est,
+                }
+                seen.add(ex)
+
+            # 30 天基准：选取 record_date <= start30 的最近一条
+            baseline_map: Dict[str, Any] = {}
+            for ex in latest_map.keys():
+                r = (
+                    s.query(UserStrengthRecord)
+                    .filter(UserStrengthRecord.user_id == user_id)
+                    .filter(UserStrengthRecord.exercise_name == ex)
+                    .filter(UserStrengthRecord.record_date <= start30)
+                    .order_by(UserStrengthRecord.record_date.desc(), UserStrengthRecord.created_at.desc())
+                    .first()
+                )
+                if r:
+                    baseline_map[ex] = {
+                        "date": str(r.record_date),
+                        "weight_kg": r.weight_kg,
+                        "reps": r.reps,
+                        "one_rm_est": r.one_rm_est,
+                    }
+
+        if latest_map:
+            levels: Dict[str, Any] = {}
+            for ex, lat in latest_map.items():
+                entry = {"latest": lat}
+                if ex in baseline_map:
+                    entry["baseline_30d"] = baseline_map[ex]
+                levels[ex] = entry
+            payload["strength_levels"] = levels
+    except Exception:
+        # ignore failures
+        pass
 
 
 @app.get("/health")
