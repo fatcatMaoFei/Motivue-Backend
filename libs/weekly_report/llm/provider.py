@@ -18,7 +18,6 @@ from weekly_report.models import (
     WeeklyReportPackage,
 )
 from weekly_report.state import InsightItem, ReadinessState, TrainingSessionInput
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +50,7 @@ class LLMProvider:
         charts: Sequence[ChartSpec],
         *,
         report_notes: Optional[str] = None,
+        extra: Optional[Dict[str, Any]] = None,
     ) -> AnalystReport:
         raise NotImplementedError
 
@@ -61,6 +61,7 @@ class LLMProvider:
         charts: Sequence[ChartSpec],
         *,
         report_notes: Optional[str] = None,
+        extra: Optional[Dict[str, Any]] = None,
     ) -> CommunicatorReport:
         raise NotImplementedError
 
@@ -897,13 +898,6 @@ class GeminiLLMProvider(LLMProvider):
         self._models = list(models)
         self._temperature = temperature
         genai.configure(api_key=api_key)
-        self._extra_context: Dict[str, Any] = {}
-
-    def set_extra_context(self, context: Optional[Dict[str, Any]]) -> None:
-        try:
-            self._extra_context = dict(context or {})
-        except Exception:
-            self._extra_context = {}
 
     def _invoke(
         self,
@@ -988,8 +982,9 @@ class GeminiLLMProvider(LLMProvider):
         charts: Sequence[ChartSpec],
         *,
         report_notes: Optional[str] = None,
+        extra: Optional[Dict[str, Any]] = None,
     ) -> AnalystReport:
-        payload = _build_weekly_analyst_payload(state, charts, report_notes, extra=self._extra_context)
+        payload = _build_weekly_analyst_payload(state, charts, report_notes, extra=extra)
         raw = self._invoke(
             self._models,
             system_prompt=ANALYST_SYSTEM_PROMPT,
@@ -1008,9 +1003,10 @@ class GeminiLLMProvider(LLMProvider):
         charts: Sequence[ChartSpec],
         *,
         report_notes: Optional[str] = None,
+        extra: Optional[Dict[str, Any]] = None,
     ) -> CommunicatorReport:
         payload = _build_weekly_communicator_payload(
-            state, analyst_report, charts, report_notes, extra=self._extra_context
+            state, analyst_report, charts, report_notes, extra=extra
         )
         raw = self._invoke(
             self._models,

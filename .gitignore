@@ -17,6 +17,8 @@ Thumbs.db
 
 # Local environment
 .env
+local.db
+baseline.db
 
 # VSCode workspace settings
 .vscode/settings.json

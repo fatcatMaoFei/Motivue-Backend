@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
+import logging
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
@@ -25,6 +26,8 @@ app = FastAPI(
     version="0.1.0",
     description="Generate analyst/communicator/final weekly reports from readiness payloads.",
 )
+
+logger = logging.getLogger(__name__)
 
 
 class WeeklyReportRequest(BaseModel):
@@ -95,9 +98,9 @@ async def run_weekly_report(request: WeeklyReportRequest) -> WeeklyReportRespons
     # Enrich payload with training summaries (7d/30d) and strength snapshots when possible
     try:
         _enrich_payload_with_training(payload)
-    except Exception:
+    except Exception as exc:
         # Enrichment失败不阻断主流程
-        pass
+        logger.warning("weekly-report enrichment failed: %s", exc, exc_info=True)
 
     graph_state = run_workflow(payload, use_llm=True)
     state = graph_state.state
@@ -117,17 +120,11 @@ async def run_weekly_report(request: WeeklyReportRequest) -> WeeklyReportRespons
     provider = get_llm_provider()
     if provider is None:
         raise HTTPException(status_code=503, detail="LLM provider not configured; set GOOGLE_API_KEY")
-    # Pass optional extra context (training/stength summaries) to provider if supported
-    try:
-        if hasattr(provider, "set_extra_context"):
-            provider.set_extra_context(
-                {
-                    "training_tag_counts": payload.get("training_tag_counts"),
-                    "strength_levels": payload.get("strength_levels"),
-                }
-            )
-    except Exception:
-        pass
+    # Prepare optional extra context (training/strength summaries) for provider
+    extra_ctx = {
+        "training_tag_counts": payload.get("training_tag_counts"),
+        "strength_levels": payload.get("strength_levels"),
+    }
 
     package = generate_weekly_report(
         state,
@@ -136,6 +133,7 @@ async def run_weekly_report(request: WeeklyReportRequest) -> WeeklyReportRespons
         hrv_baseline=hrv_baseline,
         provider=provider,
         use_llm=True,
+        extra=extra_ctx,
     )
 
     final_report = generate_weekly_final_report(
@@ -201,6 +199,7 @@ def _enrich_payload_with_training(payload: Dict[str, Any]) -> None:
                 s.query(UserTrainingSession)
                 .filter(UserTrainingSession.user_id == user_id)
                 .filter(UserTrainingSession.date >= start30)
+                .filter(UserTrainingSession.date <= today)
                 .all()
             )
         for r in rows:
@@ -217,11 +216,12 @@ def _enrich_payload_with_training(payload: Dict[str, Any]) -> None:
                 tags = []
             if not tags:
                 continue
-            for tag in tags:
+            for tag in set(tags):
                 counts_30[tag] = counts_30.get(tag, 0) + 1
                 if r.date >= start7:
                     counts_7[tag] = counts_7.get(tag, 0) + 1
-    except Exception:
+    except Exception as exc:
+        logger.warning("training counts enrichment failed: %s", exc, exc_info=True)
         counts_7, counts_30 = {}, {}
 
     if counts_7 or counts_30:
@@ -285,9 +285,9 @@ def _enrich_payload_with_training(payload: Dict[str, Any]) -> None:
                     entry["baseline_30d"] = baseline_map[ex]
                 levels[ex] = entry
             payload["strength_levels"] = levels
-    except Exception:
-        # ignore failures
-        pass
+    except Exception as exc:
+        # ignore failures but record
+        logger.warning("strength levels enrichment failed: %s", exc, exc_info=True)
 
 
 @app.get("/health")

@@ -31,6 +31,7 @@ def generate_weekly_report(
     hrv_baseline: Optional[float] = None,
     provider: Optional[LLMProvider] = None,
     use_llm: bool = True,
+    extra: Optional[dict] = None,
 ) -> WeeklyReportPackage:
     """Generate charts + LLM summary + communicator draft for Phase 4."""
 
@@ -59,7 +60,7 @@ def generate_weekly_report(
     else:
         try:
             analyst = llm.generate_weekly_analyst(
-                state, charts, report_notes=report_notes
+                state, charts, report_notes=report_notes, extra=extra
             )
         except LLMCallError as exc:
             logger.warning("Weekly analyst LLM failed, fallback to heuristic: %s", exc)
@@ -72,6 +73,7 @@ def generate_weekly_report(
                     analyst,
                     charts,
                     report_notes=report_notes,
+                    extra=extra,
                 )
             except LLMCallError as exc:
                 logger.warning(
