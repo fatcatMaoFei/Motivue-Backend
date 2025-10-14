@@ -391,42 +391,43 @@ See also: `docs/backend/architecture_overview.md` for service boundaries, contra
 
 | 路径 | 作用 | 重点文件 |
 | --- | --- | --- |
-| `api/` | 旧版 FastAPI 聚合层（用于内部 Demo）。 | `api/main.py`。 |
-| `backend/` | 通用工具，目前主要提供睡眠指标计算。 | `backend/utils/sleep_metrics.py`：计算睡眠效率与恢复性。 |
-| `baseline/` | 个体基线服务，含接口、算法、存储与部署文档。 | `baseline/README.md`、`baseline/API_REFERENCE.md`。 |
-| `baseline_analytics/` | 独立的窗口对比工具（今日 vs 基线、近期 vs 往期）。 | `compare_today_vs_baseline`、`compare_recent_vs_previous`。 |
-| `docs/` | 设计方案与集成笔记（如周报后端说明、提示词规划等）。 | `weekly_report_backend_notes.md`、各类 PDF。 |
-| `gui/` | 原型界面与演示资源。 | – |
-| `physio_age/` | 生理年龄引擎（见上）。 | 示例脚本与参考表。 |
-| `readiness/` | 准备度核心模块、规则洞察、映射与 Hooper/ACWR 工具。 | `state.py`、`insights/rules.py`、`metrics_extractors.py`。 |
-| `weekly_report/` | 周报服务（趋势图、工作流、多智能体、Finalizer）。 | `weekly_report/models.py`、`weekly_report/trend_builder.py`、`weekly_report/pipeline.py`、`weekly_report/workflow/graph.py`、`weekly_report/finalizer.py`。 |
-| `samples/` | 回归样例与输出结果。 | `weekly_report_sample.json`、`weekly_report_final_sample.md`、`readiness_state_report_sample.json`。 |
-| `scripts/` | 运维脚本。 | `scripts/db_check.py`。 |
-| `libs/training/` | 训练消耗计算模块（供 readiness API 使用）。 | `consumption.py` + 因子实现。 |
-| `tmp/` | 临时文件目录。 | – |
-| `tools/personalization_cpt/` | 证据 CPT 个性化实验脚本与成果。 | `personalize_cpt.py`；产物在 `samples/data/personalization/`。 |
-| `docs/backend/` | 文档合集（微服务集成、部署、iOS26 迁移、基线计划等）。 | `microservices_integration.md` 等。 |
-| `docs/weekly_report_frontend_notes.md` | 周报前端对接说明（接口、字段、渲染提示）。 | – |
+| `apps/` | 微服务入口（FastAPI）。 | `apps/readiness-api/main.py`、`apps/weekly-report-api/main.py`、`apps/baseline-api/main.py`、`apps/physio-age-api/main.py` |
+| `libs/readiness_engine/` | 准备度引擎（先验/后验/映射/常量）+ 个性化 CPT 训练库。 | `engine.py`、`service.py`、`mapping.py`、`constants.py`、`personalization_cpt/train.py` |
+| `libs/weekly_report/` | 周报工作流、LLM 代理、分析/洞察、Finalizer、图表。 | `workflow/graph.py`、`pipeline.py`、`finalizer.py`、`llm/provider.py`、`trend_builder.py` |
+| `libs/training/` | 训练消耗计算模块（供 readiness API 使用）。 | `consumption.py`、`factors/training.py`、`schemas.py` |
+| `libs/analytics/` | 基线计算/存储/分析。 | `service.py`、`storage.py`、`daily_vs_baseline.py` |
+| `libs/core_domain/` | 共享 Pydantic/SQLAlchemy 模型与通用工具。 | `models.py`、`db.py`、`utils/sleep.py` |
+| `libs/physio/` | CSS 与生理年龄相关实现。 | `css.py`、`core.py` |
+| `weekly_report/` | 代理包，指向 `libs/weekly_report`（兼容历史绝对导入）。 | `weekly_report/__init__.py` |
+| `readiness/` | 代理包，指向 `libs/readiness_engine`（兼容历史绝对导入）。 | `readiness/__init__.py` |
+| `tools/personalization_cpt/` | 个性化 CPT CLI 工具与脚本。 | `personalize_cpt.py`、`monthly_update.py`、`clean_history.py` |
+| `samples/` | 样例与生成产物（含个性化数据）。 | `samples/weekly_report_final_*`、`samples/data/personalization/` |
+| `docs/backend/` | 后端文档（集成/部署/迁移/基线计划等）。 | `ios26_migration_guide.md`、`microservices_integration.md` |
+| `docs/refs/` | 设计 PDF/TXT 资料（集中索引）。 | `docs/refs/INDEX.md` |
+| `infra/compose/` | Compose 编排。 | `infra/compose/docker-compose.yml` |
+| `infra/docker/` | 各服务 Dockerfile。 | `infra/docker/Dockerfile.*` |
+| `tmp/` | 临时目录（不参与服务）。 | – |
 
 ## 关键文档与样例
 
-- `docs/weekly_report_backend_notes.md`：周报 Phase 4/5 后端集成指南。  
-- `readiness_state_plan.txt`：五阶段准备度规划。  
+- `docs/backend/weekly_report_backend_notes.md`：周报 Phase 4/5 后端集成指南。  
+- `docs/backend/architecture_overview.md`：服务边界/契约/依赖图与环境说明。  
 - `samples/weekly_report_final_sample.*`：Finalizer 生成的 Markdown/JSON。  
-- `AI_prompt_doc.txt`、`S&C周报LLM流程优化.pdf`、`运动科学数据洞察生成.pdf`：提示词与研究资料。
+- `docs/refs/`：提示词与研究资料的 PDF/TXT 汇总（见 `docs/refs/INDEX.md`）。
 
 ## 服务运行方式
 
+### 本地（单服务）
 ```bash
-# 构建核心服务镜像
-docker build -f Dockerfile.readiness -t motivue-readiness .
-docker build -f Dockerfile.baseline   -t motivue-baseline .
-docker build -f Dockerfile.physio_age -t motivue-physio-age .
+pip install -r requirements.txt
+export GOOGLE_API_KEY=你的Key
+uvicorn apps/weekly-report-api/main:app --reload
+```
 
-# 示例脚本
-python readiness/examples/simulate_days_via_service.py
-python physio_age/examples/series_usage.py
-python samples/generate_weekly_report_samples.py
+### Docker Compose（多服务）
+```bash
+# 在 .env 中设置 DATABASE_URL 与 GOOGLE_API_KEY（参考 .env.example）
+docker compose -f infra/compose/docker-compose.yml up -d
 ```
 
 ## 使用方法与实现细节
@@ -446,7 +447,7 @@ python samples/generate_weekly_report_samples.py
 - 状态集合：`['Peak','Well-adapted','FOR','Acute Fatigue','NFOR','OTS']`。
 - 主要字段：`previous_state_probs`、`training_load`、`recent_training_loads`/`recent_training_au`、Hooper 四项、客观证据（`sleep_*` / `hrv_*` / `nutrition` / `gi_symptoms` / `fatigue_3day_state`）、`journal`、`cycle`、`report_notes`。
 
-#### 先验计算（详见 `readiness/engine.py`）
+#### 先验计算（详见 `libs/readiness_engine/engine.py`）
 1. **状态转移**：`BASELINE_TRANSITION_CPT` 计算昨日→今日的基础概率。
 2. **训练负荷**：`TRAINING_LOAD_CPT` × `CAUSAL_FACTOR_WEIGHTS['training_load']` 调整先验。
 3. **连续高强惩罚**：最近 4/8 天高强度次数触发概率向 `NFOR` 偏移（0.5 或 0.6）。
@@ -457,7 +458,7 @@ python samples/generate_weekly_report_samples.py
    - DOMS + Energy 与 AU 归一指标构成疲劳得分，控制 `Acute Fatigue`。
 5. **昨天 Journal**：酒精、晚咖、屏幕、晚餐使用对应 CPT 乘权；生病/受伤继承到今日的 evidence pool，但不影响先验。
 
-#### 后验更新
+#### 后验更新（详见 `libs/readiness_engine/*`）
 1. **证据映射**：`mapping.map_inputs_to_states` 将原始数据转换为枚举或连续打分，处理苹果睡眠评分、HRV z 分数等。
 2. **Hooper 连续似然**：`hooper.hooper_to_state_likelihood` 根据分数选定锚点并按 α 指数放大（1..7 对应不同 α），再乘以权重。
 3. **离散证据**：`EMISSION_CPT[var][value]` × `EVIDENCE_WEIGHTS_FITNESS[var]` 更新后验。
