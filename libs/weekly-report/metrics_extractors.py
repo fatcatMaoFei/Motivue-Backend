@@ -15,6 +15,29 @@ def _model_copy(model, updates: Dict[str, Any]):
         return model
     return model.model_copy(update=updates)
 
+_AU_OUTLIER_ABS_THRESHOLD = 2000.0  # AU values above this will be clipped for ACWR/metrics
+
+
+def _clip_au_outliers(values: Sequence[float], *, abs_threshold: float) -> list[float]:
+    """Clip extreme AU values to a reasonable absolute threshold to stabilize ACWR.
+
+    - Negative values are floored at 0
+    - Values greater than `abs_threshold` are clipped to `abs_threshold`
+    """
+    clipped: list[float] = []
+    thr = float(abs_threshold)
+    for v in values:
+        try:
+            f = float(v)
+        except Exception:
+            f = 0.0
+        if f < 0:
+            f = 0.0
+        if f > thr:
+            f = thr
+        clipped.append(f)
+    return clipped
+
 
 def _labels_to_au(labels: Sequence[str]) -> list[float]:
     res: list[float] = []
@@ -118,6 +141,10 @@ def populate_training_metrics(
     loads = list(recent_training_au or [])
     if not loads and recent_training_loads:
         loads = _labels_to_au(recent_training_loads)
+    # Clip extreme AU values to avoid ACWR distortion (e.g., accidental 10000 AU entries)
+    if loads:
+        abs_thr = (personalized_thresholds or {}).get("au_outlier_abs", _AU_OUTLIER_ABS_THRESHOLD)
+        loads = _clip_au_outliers(loads, abs_threshold=abs_thr)
     training_updates: Dict[str, Any] = {}
     if loads:
         training_updates["daily_au_28d"] = list(loads[-28:])
