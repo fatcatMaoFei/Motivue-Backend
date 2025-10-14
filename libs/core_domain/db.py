@@ -5,7 +5,7 @@ from datetime import date
 from typing import Optional
 
 from dotenv import load_dotenv
-from sqlalchemy import JSON, Date, Integer, String, Column, create_engine, DateTime, Float, func, Text
+from sqlalchemy import JSON, Date, Integer, String, Column, create_engine, DateTime, Float, func, Text, Index
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
 
@@ -86,6 +86,50 @@ class WeeklyReportRecord(Base):
     report_payload: dict = Column(JSON, nullable=False)
     markdown_report: str = Column(Text, nullable=False)
     created_at: DateTime = Column(DateTime, nullable=False, server_default=func.now())
+
+
+# ---------------- New training/strength tables ---------------- #
+
+
+class UserTrainingSession(Base):
+    __tablename__ = "user_training_sessions"
+
+    id: int = Column(Integer, primary_key=True, autoincrement=True)
+    user_id: str = Column(String, nullable=False, index=True)
+    date: date = Column(Date, nullable=False, index=True)
+    # Array of machine-readable tags, e.g., ["strength:chest", "strength:push"],
+    # ["cardio:rower"], ["sport:tennis"]. Stored as JSON array for portability.
+    type_tags: Optional[dict] | Optional[list] = Column(JSON, nullable=True)
+    rpe: Optional[int] = Column(Integer, nullable=True)
+    duration_minutes: Optional[int] = Column(Integer, nullable=True)
+    au: Optional[float] = Column(Float, nullable=True)
+    notes: Optional[str] = Column(Text, nullable=True)
+    created_at: DateTime = Column(DateTime, nullable=False, server_default=func.now())
+
+
+Index("ix_user_training_sessions_user_date", UserTrainingSession.user_id, UserTrainingSession.date)
+
+
+class UserStrengthRecord(Base):
+    __tablename__ = "user_strength_records"
+
+    id: int = Column(Integer, primary_key=True, autoincrement=True)
+    user_id: str = Column(String, nullable=False, index=True)
+    exercise_name: str = Column(String, nullable=False, index=True)
+    record_date: date = Column(Date, nullable=False, index=True)
+    weight_kg: float = Column(Float, nullable=False)
+    reps: int = Column(Integer, nullable=False)
+    one_rm_est: Optional[float] = Column(Float, nullable=True)
+    notes: Optional[str] = Column(Text, nullable=True)
+    created_at: DateTime = Column(DateTime, nullable=False, server_default=func.now())
+
+
+Index(
+    "ix_user_strength_latest",
+    UserStrengthRecord.user_id,
+    UserStrengthRecord.exercise_name,
+    UserStrengthRecord.record_date,
+)
 
 
 def init_db() -> None:

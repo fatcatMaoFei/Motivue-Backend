@@ -12,7 +12,15 @@ import json
 
 from libs.readiness_engine.service import compute_readiness_from_payload
 from libs.readiness_engine.mapping import map_inputs_to_states
-from libs.core_domain.db import init_db, get_session, UserDaily, UserModel, UserBaseline
+from libs.core_domain.db import (
+    init_db,
+    get_session,
+    UserDaily,
+    UserModel,
+    UserBaseline,
+    UserTrainingSession,
+    UserStrengthRecord,
+)
 
 app = FastAPI(title="Readiness API", version="0.3.0")
 
@@ -485,3 +493,171 @@ async def post_readiness_consumption(req: ConsumptionRequest, session: Session =
         # 不中断响应，仅记录失败
         pass
     return result
+
+
+# ---------------- New training/strength endpoints ---------------- #
+
+class TrainingSessionCreate(BaseModel):
+    user_id: str
+    date: str  # YYYY-MM-DD
+    type_tags: list[str] = Field(default_factory=list)
+    rpe: Optional[int] = Field(None, ge=1, le=10)
+    duration_minutes: Optional[int] = Field(None, ge=0)
+    au: Optional[float] = Field(None, ge=0)
+    notes: Optional[str] = None
+
+
+@app.post("/training/session")
+async def post_training_session(req: TrainingSessionCreate) -> Dict[str, Any]:
+    from datetime import date as _date
+
+    try:
+        d = _date.fromisoformat(req.date)
+    except Exception:
+        raise HTTPException(status_code=422, detail="invalid date format (YYYY-MM-DD)")
+
+    row = UserTrainingSession(
+        user_id=req.user_id,
+        date=d,
+        type_tags=list(req.type_tags or []),
+        rpe=req.rpe,
+        duration_minutes=req.duration_minutes,
+        au=req.au,
+        notes=req.notes,
+    )
+    with get_session() as s:
+        s.add(row)
+        s.commit()
+        s.refresh(row)
+    return {"status": "ok", "id": row.id}
+
+
+class StrengthRecordCreate(BaseModel):
+    user_id: str
+    exercise_name: str
+    record_date: str  # YYYY-MM-DD
+    weight_kg: float = Field(..., gt=0)
+    reps: int = Field(..., ge=1)
+    notes: Optional[str] = None
+
+
+def _epley_one_rm(weight: float, reps: int) -> float:
+    # Epley formula
+    return float(weight) * (1.0 + float(reps) / 30.0)
+
+
+@app.post("/strength/record")
+async def post_strength_record(req: StrengthRecordCreate) -> Dict[str, Any]:
+    from datetime import date as _date
+
+    try:
+        d = _date.fromisoformat(req.record_date)
+    except Exception:
+        raise HTTPException(status_code=422, detail="invalid record_date (YYYY-MM-DD)")
+
+    one_rm = _epley_one_rm(req.weight_kg, req.reps)
+    row = UserStrengthRecord(
+        user_id=req.user_id,
+        exercise_name=req.exercise_name,
+        record_date=d,
+        weight_kg=float(req.weight_kg),
+        reps=int(req.reps),
+        one_rm_est=one_rm,
+        notes=req.notes,
+    )
+    with get_session() as s:
+        s.add(row)
+        s.commit()
+        s.refresh(row)
+    return {"status": "ok", "id": row.id, "one_rm_est": round(one_rm, 2)}
+
+
+@app.get("/training/counts")
+async def get_training_counts(user_id: str, tag: Optional[str] = None, days: Optional[int] = None) -> Dict[str, Any]:
+    from datetime import date as _date, timedelta as _td
+    today = _date.today()
+    with get_session() as s:
+        q = s.query(UserTrainingSession).filter(UserTrainingSession.user_id == user_id)
+        if days and days > 0:
+            q = q.filter(UserTrainingSession.date >= (today - _td(days=int(days))))
+        if tag:
+            # JSON array contains `tag`
+            try:
+                q = q.filter(UserTrainingSession.type_tags.contains([tag]))
+            except Exception:
+                # Fallback for dialects lacking JSON contains
+                rows = [r for r in q]
+                cnt = sum(1 for r in rows if isinstance(r.type_tags, list) and tag in r.type_tags)
+                return {"user_id": user_id, "tag": tag, "days": days, "count": int(cnt)}
+        count = q.count()
+    return {"user_id": user_id, "tag": tag, "days": days, "count": int(count)}
+
+
+@app.get("/strength/latest")
+async def get_strength_latest(user_id: str, exercise: Optional[str] = None) -> Dict[str, Any]:
+    from collections import defaultdict
+    with get_session() as s:
+        if exercise:
+            row = (
+                s.query(UserStrengthRecord)
+                .filter(UserStrengthRecord.user_id == user_id)
+                .filter(UserStrengthRecord.exercise_name == exercise)
+                .order_by(UserStrengthRecord.record_date.desc(), UserStrengthRecord.created_at.desc())
+                .first()
+            )
+            if not row:
+                return {"user_id": user_id, "latest": {}}
+            return {
+                "user_id": user_id,
+                "latest": {
+                    exercise: {
+                        "record_date": str(row.record_date),
+                        "weight_kg": row.weight_kg,
+                        "reps": row.reps,
+                        "one_rm_est": row.one_rm_est,
+                    }
+                },
+            }
+        # All exercises: pick latest per exercise
+        rows = (
+            s.query(UserStrengthRecord)
+            .filter(UserStrengthRecord.user_id == user_id)
+            .order_by(UserStrengthRecord.exercise_name.asc(), UserStrengthRecord.record_date.desc(), UserStrengthRecord.created_at.desc())
+            .all()
+        )
+        latest: Dict[str, Any] = {}
+        seen: set[str] = set()
+        for r in rows:
+            if r.exercise_name in seen:
+                continue
+            latest[r.exercise_name] = {
+                "record_date": str(r.record_date),
+                "weight_kg": r.weight_kg,
+                "reps": r.reps,
+                "one_rm_est": r.one_rm_est,
+            }
+            seen.add(r.exercise_name)
+        return {"user_id": user_id, "latest": latest}
+
+
+@app.get("/strength/history")
+async def get_strength_history(user_id: str, exercise: str, days: Optional[int] = 60) -> Dict[str, Any]:
+    from datetime import date as _date, timedelta as _td
+    start = None
+    if days and days > 0:
+        start = _date.today() - _td(days=int(days))
+    with get_session() as s:
+        q = s.query(UserStrengthRecord).filter(UserStrengthRecord.user_id == user_id).filter(UserStrengthRecord.exercise_name == exercise)
+        if start is not None:
+            q = q.filter(UserStrengthRecord.record_date >= start)
+        rows = q.order_by(UserStrengthRecord.record_date.asc(), UserStrengthRecord.created_at.asc()).all()
+        out = [
+            {
+                "record_date": str(r.record_date),
+                "weight_kg": r.weight_kg,
+                "reps": r.reps,
+                "one_rm_est": r.one_rm_est,
+            }
+            for r in rows
+        ]
+    return {"user_id": user_id, "exercise": exercise, "days": days, "history": out}
