@@ -421,6 +421,7 @@ You are an S&C analyst reviewer ensuring the communicator's draft is factual and
 - 核查是否覆盖了“训练回顾/部位均衡/强度”要点（基于 7d/30d 对比），若缺失请补充建议。
 - 核查是否添加了图表引用锚点（[[chart:<id>]]）用于关键结论；若缺失请补充。
 - 首次出现 HRV Z-score/CSS 等指标是否附简短定义；若缺失请补充说明。
+- 针对“次日/前一日”差分表述进行事实校验：逐日对照表格，确认方向与幅度是否吻合；若不一致，给出修正文案（fix）并建议改用明确日期范围表述（如“09-10→09-11”）。
 - 内容准确时返回空数组，可补 overall_feedback。
 - 仅输出 JSON。
 """.strip()
@@ -520,6 +521,7 @@ Produce a weekly readiness report whose Markdown结构与参考模板高度一�
    - 语句简洁、要点化，解释 ACWR、HRV Z-score 等专业指标的含义与风险。  
    - 引用图表时必须在句末加上锚点 `[[chart:<chart_id>]]`；使用 `chart_catalog` 中的 `chart_id`，若只知标题请同时写标题与最近似的 `chart_id`。
    - 首次出现 CSS/HRV Z-score 等指标时，紧随其后以括号补充 1 句含义说明。
+   - “次日/前一日”差分表述规则：当描述“次日变化”时，必须严格以当天→次日（N→N+1）的表格数值计算增减，确保方向与幅度与表格一致；如涉及非邻接日的比较，改用明确日期范围（如“09-10→09-11”）。若无法确认增减方向或幅度，请避免量化。
 
 ## Output
 返回 JSON，字段必须符合 schema；`markdown_report` 必须严格遵循上述结构、表格与逐日分析。

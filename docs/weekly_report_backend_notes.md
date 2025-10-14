@@ -158,6 +158,15 @@
 - `weekly_report/pipeline.generate_weekly_report` 调用 Gemini 构建 Analyst / Communicator / Critique 输出，未配置 LLM 时自动回退 heuristic。
 - 新增脚本 `samples/generate_weekly_report_samples.py` 可生成周报样例（输出存储在 `samples/weekly_report_sample.json`）。
 
+## LLM 提示词与数据富集（当前版本）
+- 服务端（`apps/weekly-report-api`）在 `user_id` 存在时，会自动富集两类可选输入：
+  - `training_tag_counts`：近 7d/30d 的训练标签计数（按 `strength:*` / `cardio:*` / `sport:*` 前缀聚合）。
+  - `strength_levels`：力量动作的 `latest` 与 `baseline_30d`（含 `{date, weight_kg, reps, one_rm_est}`）。
+- Provider（`libs/weekly_report/llm/provider.py`）将上述富集透传为 `training_summary` 与 `strength_summary` 供 LLM 参考；并在提示词中要求：
+  - 在“建议与行动”中给出 1–2 条基于 7d vs 30d 的“部位覆盖/负荷均衡”建议（点名差异与频次，如“胸 1–2 次/周，间隔≥48h”）。
+  - 首次出现 HRV Z-score/CSS 时给出半句定义说明；关键结论句末附 `[[chart:<id>]]` 锚点。
+  - 对“次日/前一日”差分表述执行事实校验：严格以相邻日（N→N+1）表格数值计算，必要时改用“09-10→09-11”明确日期范围。
+
 ## Phase 5（Finalizer 已上线）
 - `weekly_report/finalizer.generate_weekly_final_report` 调用 Gemini（若失败则使用模板 fallback），把 Phase 4 结果 + 准备度历史 + 训练/自由备注整合为最终 Markdown/HTML。
 - 最终输出模型 `WeeklyFinalReport`：
