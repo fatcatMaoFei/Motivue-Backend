@@ -37,6 +37,23 @@
       "mood_slider": 3
     }
   },
+  "training_tag_counts": {
+    "strength:chest": {"7d": 1, "30d": 8},
+    "strength:back": {"7d": 2, "30d": 6},
+    "strength:legs": {"7d": 1, "30d": 5},
+    "cardio:run": {"7d": 2, "30d": 7},
+    "sport:tennis": {"7d": 3, "30d": 6}
+  },
+  "strength_levels": {
+    "bench_press": {
+      "latest": {"date": "2025-09-14", "weight_kg": 100, "reps": 3, "one_rm_est": 110.0},
+      "baseline_30d": {"date": "2025-08-15", "weight_kg": 90, "reps": 3, "one_rm_est": 99.0}
+    },
+    "back_squat": {
+      "latest": {"date": "2025-09-13", "weight_kg": 140, "reps": 2, "one_rm_est": 149.3},
+      "baseline_30d": {"date": "2025-08-13", "weight_kg": 130, "reps": 2, "one_rm_est": 138.7}
+    }
+  },
   "history": [
     {
       "date": "2025-09-09",

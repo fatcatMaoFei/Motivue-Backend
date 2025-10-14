@@ -56,6 +56,29 @@ Execution and data contracts stay independent:
 - **Recent training AU（近 28 天）**：`recent_training_au` 用于 ACWR（EWMA7/EWMA28）；缺失时 ACWR 即返回 `None`。
 - **No training_sessions required**：日训练细项不是必填；如需为后续洞察/Planner 提供“训练类型/部位”，可在 `journal.lifestyle_tags[]` 或未来的 `training_sessions.type_tags[]` 中使用 `sport:` / `strength:` 前缀，聚合时透传到 `history[].lifestyle_events[]`。
 
+#### Payload v2 (optional training fields / 可选训练字段)
+- Purpose 目的：无需图表也能让 LLM 写出“训练内容回顾”。未提供时，服务端会基于 `user_id` 自动从 DB 聚合补全。
+- Fields 字段：
+  - `training_tag_counts`: 按标签聚合的 7 天与 30 天次数（例如 `strength:chest`、`cardio:rower`、`sport:tennis`）。
+  - `strength_levels`: 按动作提供两点（`latest` 与 `baseline_30d`），包含 `{date, weight_kg, reps, one_rm_est}`，便于对比进步/停滞。
+
+Example 示例：
+```jsonc
+{
+  "training_tag_counts": {
+    "strength:chest": {"7d": 1, "30d": 8},
+    "cardio:rower": {"7d": 1, "30d": 4},
+    "sport:tennis": {"7d": 0, "30d": 3}
+  },
+  "strength_levels": {
+    "bench_press": {
+      "latest": {"date":"2025-10-14","weight_kg":100,"reps":3,"one_rm_est":110.0},
+      "baseline_30d": {"date":"2025-09-14","weight_kg":90,"reps":3,"one_rm_est":99.0}
+    }
+  }
+}
+```
+
 #### Weekly report output quick reference
 
 - Phase 3：`phase3_state`（包含 `metrics`、`insights`、`next_week_plan`）。
