@@ -3,32 +3,33 @@
 
 # Motivue Backend – Service Map
 
-Motivue’s backend is a set of microservices that each tackle a specific piece of
-the coaching workflow.  Each top-level service directory (e.g. `readiness/`,
-`weekly_report/`, `baseline/`, `physio_age/`, `training/`) can be deployed as a
-standalone microservice; they share core Pydantic models (notably
-`ReadinessState`) and utilities inside this monorepo, but **execution and data
-contracts remain independent**:
+Motivue’s backend is organised as microservice entrypoints under `apps/*` and
+domain libraries under `libs/*`. Each service in `apps/` can be deployed on its
+own while sharing the same core Pydantic models and utilities in `libs/`.
+Execution and data contracts stay independent:
 
-- `readiness/` focuses on the daily readiness score (our primary engine).
-- `weekly_report/` turns the same readiness data model + history into a Phase 5
-  report (Markdown/HTML).  It does not call the readiness engine – both services
-  read from / write to the database separately.
-- Every service follows the same pattern: **read from database → compute → write
-  results back / expose via API**.  Other consumers (front-end, analytics jobs)
-  can read the stored JSON/Markdown directly without chaining the services.
+- `apps/readiness-api` computes the daily readiness score (primary engine).
+- `apps/weekly-report-api` generates Phase 5 weekly reports (Markdown/HTML) from
+  the same readiness model + history; it does not call the readiness engine and
+  writes its own outputs to DB.
+- Common pattern for all services: **read from database → compute → write back /
+  expose via API**. Other consumers (front-end, analytics jobs) can read stored
+  JSON/Markdown without chaining services.
 
 ## Core services
 
 | Service | What it does | Key modules | Dockerfile |
 | --- | --- | --- | --- |
-| **Readiness Engine** | Daily readiness score via a Bayesian prior/posterior engine that fuses training load, objective biomarkers, subjective Hooper scores, journals, menstrual cycle and interaction terms.  Exposes a simple REST façade for per-day scoring. | `readiness/service.py`, `readiness/engine.py`, `readiness/mapping.py`, `readiness/constants.py` | `Dockerfile.readiness` |
-| **Weekly Report Pipeline** | Multi-agent LLM chain that turns a hydrated `ReadinessState` into chart packs and Markdown/HTML reports (Analyst → Communicator → Critique → Finaliser) with schema validation and fallbacks. | `weekly_report/trend_builder.py`, `weekly_report/pipeline.py`, `weekly_report/finalizer.py`, samples under `samples/weekly_*` | `Dockerfile.weekly_report` |
-| **Baseline Service** | Computes and maintains long-term personal baselines (sleep duration/efficiency, restorative ratio, HRV μ/σ) with questionnaire fallbacks and auto-upgrade logic.  Supplies thresholds to the readiness mapper. | `baseline/api.py`, `baseline/service.py`, `baseline/calculator.py`, `baseline/storage.py`, `baseline/auto_upgrade.py` | `Dockerfile.baseline` |
-| **Physiological Age** | Estimates physiological age from 30-day HRV/RHR history plus today’s sleep CSS using reference tables per gender. | `physio_age/api.py`, `physio_age/core.py`, `physio_age/css.py`, `physio_age/hrv_age_table*.csv` | `Dockerfile.physio_age` |
-| **Training Consumption** | Calculates daily “consumption” points from training sessions (RPE × minutes, AU caps) to display “remaining readiness = readiness − consumption”. | `libs/training/consumption.py`, `libs/training/factors/training.py`, `libs/training/schemas.py` | – |
+| Service | What it does | Key modules | Dockerfile |
+| --- | --- | --- | --- |
+| **Readiness API** | Daily readiness score via a Bayesian prior/posterior engine that fuses training load, objective biomarkers, subjective Hooper scores, journals, menstrual cycle and interaction terms. | `apps/readiness-api/main.py`, libs: `libs/readiness_engine/{engine.py,service.py,mapping.py,constants.py}` | `Dockerfile.readiness` |
+| **Weekly Report API** | Multi-agent LLM chain that turns a hydrated `ReadinessState` into chart packs and Markdown/HTML reports (Analyst → Communicator → Critique → Finaliser) with schema validation. | `apps/weekly-report-api/main.py`, libs: `libs/weekly_report/{trend_builder.py,pipeline.py,finalizer.py}` | `Dockerfile.weekly_report` |
+| **Baseline Service** | Computes and maintains long-term personal baselines (sleep duration/efficiency, restorative ratio, HRV μ/σ) with questionnaire fallbacks and auto-upgrade logic. | `apps/baseline-api/main.py`, libs: `libs/analytics/{service.py,calculator.py,storage.py,auto_upgrade.py}` | `Dockerfile.baseline` |
+| **Physiological Age** | Estimates physiological age from 30-day HRV/RHR history plus today’s sleep CSS. | `apps/physio-age-api/main.py`, libs: `libs/physio/{core.py,css.py}` | `Dockerfile.physio_age` |
+| **Training Consumption** | Calculates daily “consumption” points from training sessions (RPE × minutes, AU caps) to display “remaining readiness = readiness − consumption”. | libs: `libs/training/{consumption.py,factors/training.py,schemas.py}` | – |
 
-> Weekly report code now lives under the standalone `weekly_report/` package.  You can deploy it with the readiness image or create a dedicated container if needed.
+> Weekly report logic lives under `libs/weekly_report`. The top-level package
+> `weekly_report/` is a proxy to keep absolute imports stable.
 
 ### Weekly report microservice
 
@@ -367,30 +368,24 @@ See also: `docs/backend/architecture_overview.md` for service boundaries, contra
 
 # Motivue 后端服务总览
 
-Motivue 的后端由多套微服务组成，每个服务解决一个独立的运动科学场景。
-各模块在同一个代码库内共享数据模型与工具，但可以独立部署：日常准备度、
-周报生成、个性化基线、生理年龄、训练消耗等服务互相解耦。顶层模块映射到
-微服务（`readiness/`、`weekly_report/`、`baseline/`、`physio_age/`、`training/`），
-它们共用同一套 `ReadinessState` 等 Pydantic 模型，但 **运行流程、接口、落库
-策略完全独立**：
+整体结构采用“应用入口 apps/* + 领域库 libs/*”的企业化分层：
+- apps/*：每个子目录是一个可独立部署的微服务入口（FastAPI）。
+- libs/*：可复用的领域逻辑与模型（评分引擎、周报流水线、训练消耗、基线、通用模型等）。
 
-- `readiness/` 计算每日准备度，是核心评分引擎；
-- `weekly_report/` 仅读取数据库里的准备度/历史数据生成 Phase 5 周报，不调用
-  readiness 引擎；
-- 任一服务都是“从数据库取数 → 计算 → 把结果（JSON/Markdown 等）写回数据库或通过 API 返回”，
-  前端与其他后台只需按需读取存储结果，无需串联多个微服务。
+各服务共享同一套 Pydantic 模型与工具，但 **运行流程、接口、落库策略互相解耦**。
+通用模式为：**从数据库取数 → 计算 → 写回数据库 / 暴露 API**。前端与其他后台只需读取已落库的 JSON/Markdown，无需串联多个服务。
 
 ## 核心服务
 
 | 服务 | 功能概述 | 关键模块 | Dockerfile |
 | --- | --- | --- | --- |
-| **准备度引擎** | 采用贝叶斯先验/后验模型，融合训练负荷、客观生理信号、Hooper 主观评分、Journal 事件、月经周期以及交互项生成每日准备度，并通过 REST 接口对外提供日度评分。 | `readiness/service.py`, `readiness/engine.py`, `readiness/mapping.py`, `readiness/constants.py` | `Dockerfile.readiness` |
-| **周报流水线** | 基于多智能体 LLM 的周报生成链路（分析师 → 教练沟通 → 批注 → Finalizer），自动生成图表配置和 Markdown/HTML 报告，内置 Schema 校验与失败回退。 | `weekly_report/trend_builder.py`, `weekly_report/pipeline.py`, `weekly_report/finalizer.py`, `samples/weekly_*` | 可与 readiness 同容器或独立部署 |
-| **基线服务** | 计算并维护长期个性化基线（睡眠时长/效率、恢复性、HRV 均值与波动），支持问卷兜底与自动升级，为准备度映射层提供阈值。 | `baseline/api.py`, `baseline/service.py`, `baseline/calculator.py`, `baseline/storage.py`, `baseline/auto_upgrade.py` | `Dockerfile.baseline` |
-| **生理年龄服务** | 基于近 30 天 HRV/RHR 历史与当日睡眠 CSS，结合性别参考表估算生理年龄（整数 + 加权小数）。 | `physio_age/api.py`, `physio_age/core.py`, `physio_age/css.py`, `physio_age/hrv_age_table*.csv` | `Dockerfile.physio_age` |
-| **训练消耗** | 计算训练“消耗分”，用于显示“剩余准备度 = 准备度 − 当日消耗”，不影响准备度后验。 | `training/consumption.py`, `training/factors/training.py`, `training/schemas.py` | – |
+| **准备度 API** | 采用贝叶斯先验/后验模型，融合训练负荷、客观生理信号、Hooper 主观评分、Journal、月经周期，生成每日准备度。 | `apps/readiness-api/main.py`；libs：`libs/readiness_engine/{engine.py,service.py,mapping.py,constants.py}` | `Dockerfile.readiness` |
+| **周报 API** | 多智能体 LLM 的周报生成链路（Analyst → Communicator → Critique → Finalizer），生成图表配置与 Markdown/HTML（强制 LLM）。 | `apps/weekly-report-api/main.py`；libs：`libs/weekly_report/{trend_builder.py,pipeline.py,finalizer.py}` | `Dockerfile.weekly_report` |
+| **基线服务** | 计算/维护个性化基线（睡眠/HRV），支持问卷兜底与自动升级。 | `apps/baseline-api/main.py`；libs：`libs/analytics/{service.py,calculator.py,storage.py,auto_upgrade.py}` | `Dockerfile.baseline` |
+| **生理年龄服务** | 基于 30 天 HRV/RHR 与当日 CSS 的生理年龄估计。 | `apps/physio-age-api/main.py`；libs：`libs/physio/{core.py,css.py}` | `Dockerfile.physio_age` |
+| **训练消耗** | 计算“当日训练消耗分”，用于展示“当前剩余准备度”。 | libs：`libs/training/{consumption.py,factors/training.py,schemas.py}` | – |
 
-> 周报代码已迁移到独立的 `weekly_report/` 包，可单独构建镜像或与 readiness 共用部署。
+> 周报核心逻辑位于 `libs/weekly_report`；顶层 `weekly_report/` 包是代理，仅用于保持绝对导入稳定。
 
 ## 目录速览
 
@@ -407,7 +402,7 @@ Motivue 的后端由多套微服务组成，每个服务解决一个独立的运
 | `weekly_report/` | 周报服务（趋势图、工作流、多智能体、Finalizer）。 | `weekly_report/models.py`、`weekly_report/trend_builder.py`、`weekly_report/pipeline.py`、`weekly_report/workflow/graph.py`、`weekly_report/finalizer.py`。 |
 | `samples/` | 回归样例与输出结果。 | `weekly_report_sample.json`、`weekly_report_final_sample.md`、`readiness_state_report_sample.json`。 |
 | `scripts/` | 运维脚本。 | `scripts/db_check.py`。 |
-| `training/` | 训练消耗计算模块。 | `training/README.md` + 因子实现。 |
+| `libs/training/` | 训练消耗计算模块（供 readiness API 使用）。 | `consumption.py` + 因子实现。 |
 | `tmp/` | 临时文件目录。 | – |
 | `tools/personalization_cpt/` | 证据 CPT 个性化实验脚本与成果。 | `personalize_cpt.py`；产物在 `samples/data/personalization/`。 |
 | `docs/backend/` | 文档合集（微服务集成、部署、iOS26 迁移、基线计划等）。 | `microservices_integration.md` 等。 |
