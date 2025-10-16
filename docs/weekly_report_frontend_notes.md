@@ -8,6 +8,19 @@
 
 所有服务遵循统一流程：**客户端提交原始打卡 → 后端写库/计算 → 对外返回结构化 JSON 或 Markdown**。前端只需保证原始数据完整、按需调用接口即可。
 
+## 0. 账号与登录（新增）
+
+为便于在 iOS 客户端统一鉴权，本仓库提供最小登录服务（JWT）：
+
+- `POST /auth/signup` → 创建账号（email + password），返回 `access_token` + `refresh_token`
+- `POST /auth/login` → 登录，返回 `access_token` + `refresh_token`
+- `POST /auth/refresh` → 用 `refresh_token` 换新 `access_token`
+- `GET /me` → 读取当前用户信息（需 `Authorization: Bearer <access_token>`）
+
+使用要求：
+- iOS 端在调用 readiness/weekly-report 等业务接口时，带 `Authorization: Bearer <access_token>` 头；后续可按需在服务路由中开启强制校验。
+- `access_token` 过期（默认 60 分钟）后，调用 `/auth/refresh` 获取新 token；`refresh_token` 默认有效期 14 天。
+
 ---
 
 ## 1. 数据责任分工

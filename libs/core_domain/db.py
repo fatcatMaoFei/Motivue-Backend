@@ -28,6 +28,34 @@ SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False, futu
 Base = declarative_base()
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    user_id: str = Column(String, primary_key=True)
+    email: str = Column(String, unique=True, nullable=False, index=True)
+    password_hash: str = Column(String, nullable=False)
+    display_name: Optional[str] = Column(String, nullable=True)
+    gender: Optional[str] = Column(String, nullable=True)
+    auth_provider: Optional[str] = Column(String, nullable=True)  # local/google/apple
+    oauth_sub: Optional[str] = Column(String, nullable=True)
+    metadata_json: Optional[dict] = Column(JSON, nullable=True)
+    created_at: DateTime = Column(DateTime, nullable=False, server_default=func.now())
+    updated_at: DateTime = Column(DateTime, nullable=False, server_default=func.now())
+
+
+class RefreshToken(Base):
+    __tablename__ = "refresh_tokens"
+
+    id: int = Column(Integer, primary_key=True, autoincrement=True)
+    user_id: str = Column(String, nullable=False, index=True)
+    token_hash: str = Column(String, nullable=False, index=True)
+    expires_at: DateTime = Column(DateTime, nullable=False)
+    revoked: bool = Column(Integer, nullable=False, default=0)
+    created_at: DateTime = Column(DateTime, nullable=False, server_default=func.now())
+
+Index("ix_refresh_user_token", RefreshToken.user_id, RefreshToken.token_hash)
+
+
 class UserDaily(Base):
     __tablename__ = "user_daily"
 
