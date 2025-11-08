@@ -2,13 +2,20 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
+import json
+import os
+import threading
+import sys
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
-import threading
-import os
-import json
+
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from libs.readiness_engine.service import compute_readiness_from_payload
 from libs.readiness_engine.mapping import map_inputs_to_states

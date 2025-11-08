@@ -3,8 +3,14 @@ from __future__ import annotations
 from typing import Any, Dict
 
 import logging
+import sys
+from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
+
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from weekly_report.workflow.graph import run_workflow
 from libs.core_domain.models import WeeklyHistoryEntry, WeeklyReportPackage, WeeklyFinalReport

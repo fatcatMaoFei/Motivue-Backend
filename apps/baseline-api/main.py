@@ -4,9 +4,15 @@ from typing import Any, Dict, Optional, List
 from datetime import date as _date, timedelta
 import json
 import os
+import sys
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
+
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from libs.analytics.service import (
     update_baseline_smart,
@@ -218,4 +224,3 @@ async def post_today_vs_baseline(req: TodayVsBaselineRequest) -> Dict[str, Any]:
         "comparison_window_days": int(req.window_days),
         "analytics": analytics,
     }
-

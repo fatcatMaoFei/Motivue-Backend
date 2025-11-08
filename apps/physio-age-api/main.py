@@ -2,9 +2,15 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 from datetime import date as _date
+import sys
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
+
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from libs.physio.core import compute_physiological_age
 # TODO: Decouple from api/db and use a shared db infra module
@@ -64,5 +70,4 @@ async def post_physio_age(req: PhysioAgeRequest) -> Dict[str, Any]:
     if res.get("status") != "ok":
         raise HTTPException(status_code=400, detail=res.get("message", "physio-age compute failed"))
     return {"user_id": req.user_id, "date": str(d), **res}
-
 

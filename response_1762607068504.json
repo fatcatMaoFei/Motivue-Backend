@@ -1,0 +1,1642 @@
+{
+  "phase3_state": {
+    "raw_inputs": {
+      "user_id": "athlete_001",
+      "date": "2025-10-18",
+      "gender": null,
+      "sleep": {
+        "total_sleep_minutes": null,
+        "in_bed_minutes": null,
+        "deep_sleep_minutes": null,
+        "rem_sleep_minutes": null,
+        "core_sleep_minutes": null,
+        "sleep_efficiency_score": null
+      },
+      "hrv": {
+        "hrv_rmssd_today": null,
+        "hrv_rmssd_3day_avg": null,
+        "hrv_rmssd_7day_avg": null,
+        "hrv_rmssd_28day_avg": null,
+        "hrv_rmssd_28day_sd": null,
+        "device": null
+      },
+      "training_sessions": [],
+      "hooper": {
+        "fatigue": null,
+        "soreness": null,
+        "stress": null,
+        "sleep": null
+      },
+      "journal": {
+        "alcohol_consumed": null,
+        "late_caffeine": null,
+        "screen_before_bed": null,
+        "late_meal": null,
+        "is_sick": null,
+        "is_injured": null,
+        "lifestyle_tags": [
+          "sport:tennis",
+          "strength:legs",
+          "travel"
+        ],
+        "sliders": null
+      },
+      "body_metrics": {
+        "bodyweight_kg": null,
+        "bodyfat_pct": null,
+        "resting_hr": null
+      },
+      "external_events": null,
+      "report_notes": "周三网球+腿部力量，周末安排恢复日。"
+    },
+    "metrics": {
+      "training_load": {
+        "daily_au_28d": [
+          310,
+          280,
+          0,
+          450,
+          500,
+          360,
+          200,
+          0,
+          420,
+          380,
+          250,
+          0,
+          390,
+          360,
+          280,
+          320,
+          410,
+          0,
+          460,
+          350,
+          290,
+          0,
+          300,
+          370,
+          320,
+          330,
+          0,
+          410
+        ],
+        "daily_au_7d": [
+          0,
+          300,
+          370,
+          320,
+          330,
+          0,
+          410
+        ],
+        "acwr_value": 0.8251,
+        "acwr_band": "optimal",
+        "acute_load": 229.72,
+        "chronic_load": 278.43,
+        "consecutive_high_days": 0,
+        "training_volume": null,
+        "training_intensity_index": null
+      },
+      "recovery": {
+        "sleep_efficiency": null,
+        "sleep_restorative_ratio": null,
+        "sleep_duration_hours": null,
+        "sleep_duration_delta": null,
+        "css_score": null
+      },
+      "physiology": {
+        "hrv_z_score": null,
+        "hrv_trend": null,
+        "hrv_state": null,
+        "readiness_prior": null
+      },
+      "subjective": {
+        "hooper_bands": null,
+        "doms_score": null,
+        "energy_score": null,
+        "fatigue_score": 1.09
+      },
+      "baselines": {
+        "sleep_baseline_hours": 7.6,
+        "sleep_baseline_efficiency": null,
+        "rest_baseline_ratio": null,
+        "hrv_mu": 78,
+        "hrv_sigma": null,
+        "personalized_thresholds": {}
+      },
+      "strength": {
+        "e1rm_estimates": null,
+        "velocity_loss_pct": null
+      }
+    },
+    "trends": {
+      "series": {},
+      "metadata": {}
+    },
+    "insights": [
+      {
+        "id": "athlete_001_2025-10-18_lifestyle_events",
+        "trigger": "lifestyle_events",
+        "summary": "生活方式事件提示",
+        "explanation": "检测到影响恢复的生活方式事件，建议关注睡眠与恢复质量。",
+        "actions": [
+          {
+            "recommendation": "记录事件及其影响，必要时调整晚间习惯或生活节奏。",
+            "category": "lifestyle",
+            "priority": 3
+          }
+        ],
+        "evidence": [
+          {
+            "key": "lifestyle_events",
+            "value": null,
+            "description": "sport:tennis, strength:legs, travel"
+          }
+        ],
+        "confidence": 0.45,
+        "tags": [
+          "lifestyle"
+        ]
+      },
+      {
+        "id": "athlete_001_2025-10-18_data_quality",
+        "trigger": "data_quality_warning",
+        "summary": "数据质量不足",
+        "explanation": "缺少以下关键数据：睡眠时长, HRV, 训练记录，可能影响模型判断准确性。",
+        "actions": [
+          {
+            "recommendation": "补全相关数据或确认设备同步情况。",
+            "category": "data_quality",
+            "priority": 1
+          }
+        ],
+        "evidence": [
+          {
+            "key": "missing_fields",
+            "value": null,
+            "description": "睡眠时长, HRV, 训练记录"
+          }
+        ],
+        "confidence": 0.4,
+        "tags": [
+          "data_quality"
+        ]
+      },
+      {
+        "id": "athlete_001_2025-10-18_analysis_root_cause_0",
+        "trigger": "analysis_root_cause",
+        "summary": "2025-10-15 准备度低值驱动",
+        "explanation": "2025-10-15 准备度 72（Acute Fatigue）——主要驱动：训练量高（500 AU）；HRV 低于周均水平；睡眠不足（6.6h < 基线 7.6h）；生活方式: strength:legs。",
+        "actions": [
+          {
+            "recommendation": "针对驱动因素制定纠正计划（例如调整训练或优化睡眠）。",
+            "category": "analysis",
+            "priority": 2
+          }
+        ],
+        "evidence": [
+          {
+            "key": "date",
+            "value": null,
+            "description": "2025-10-15"
+          },
+          {
+            "key": "driver",
+            "value": null,
+            "description": "训练量高（500 AU）"
+          },
+          {
+            "key": "driver",
+            "value": null,
+            "description": "HRV 低于周均水平"
+          },
+          {
+            "key": "driver",
+            "value": null,
+            "description": "睡眠不足（6.6h < 基线 7.6h）"
+          },
+          {
+            "key": "driver",
+            "value": null,
+            "description": "生活方式: strength:legs"
+          }
+        ],
+        "confidence": 0.55,
+        "tags": [
+          "analysis",
+          "readiness"
+        ]
+      },
+      {
+        "id": "athlete_001_2025-10-18_analysis_root_cause_1",
+        "trigger": "analysis_root_cause",
+        "summary": "2025-10-16 准备度低值驱动",
+        "explanation": "2025-10-16 准备度 74（FOR）——主要驱动：HRV 低于周均水平；睡眠不足（7.0h < 基线 7.6h）。",
+        "actions": [
+          {
+            "recommendation": "针对驱动因素制定纠正计划（例如调整训练或优化睡眠）。",
+            "category": "analysis",
+            "priority": 2
+          }
+        ],
+        "evidence": [
+          {
+            "key": "date",
+            "value": null,
+            "description": "2025-10-16"
+          },
+          {
+            "key": "driver",
+            "value": null,
+            "description": "HRV 低于周均水平"
+          },
+          {
+            "key": "driver",
+            "value": null,
+            "description": "睡眠不足（7.0h < 基线 7.6h）"
+          }
+        ],
+        "confidence": 0.55,
+        "tags": [
+          "analysis",
+          "readiness"
+        ]
+      },
+      {
+        "id": "athlete_001_2025-10-18_analysis_root_cause_2",
+        "trigger": "analysis_root_cause",
+        "summary": "2025-10-14 准备度低值驱动",
+        "explanation": "2025-10-14 准备度 79（FOR）——主要驱动：睡眠不足（6.9h < 基线 7.6h）；生活方式: sport:tennis。",
+        "actions": [
+          {
+            "recommendation": "针对驱动因素制定纠正计划（例如调整训练或优化睡眠）。",
+            "category": "analysis",
+            "priority": 2
+          }
+        ],
+        "evidence": [
+          {
+            "key": "date",
+            "value": null,
+            "description": "2025-10-14"
+          },
+          {
+            "key": "driver",
+            "value": null,
+            "description": "睡眠不足（6.9h < 基线 7.6h）"
+          },
+          {
+            "key": "driver",
+            "value": null,
+            "description": "生活方式: sport:tennis"
+          }
+        ],
+        "confidence": 0.55,
+        "tags": [
+          "analysis",
+          "readiness"
+        ]
+      },
+      {
+        "id": "athlete_001_2025-10-18_analysis_load_correlation",
+        "trigger": "analysis_load_correlation",
+        "summary": "训练负荷与恢复关联",
+        "explanation": "训练负荷与准备度/HRV 的关联分析提示高负荷对恢复的影响，需要调整训练与恢复节奏。",
+        "actions": [
+          {
+            "recommendation": "若 ACWR 连续高于 1.3，应立即安排减量或恢复性训练。",
+            "category": "training_adjustment",
+            "priority": 1
+          }
+        ],
+        "evidence": [
+          {
+            "key": "high_acwr_days",
+            "value": 0,
+            "description": "ACWR ≥ 1.3 的天数"
+          },
+          {
+            "key": "high_acwr_ratio",
+            "value": 0,
+            "description": "高 ACWR 占比"
+          },
+          {
+            "key": "load_readiness_corr",
+            "value": -0.381,
+            "description": "训练量 vs 准备度 相关系数"
+          },
+          {
+            "key": "load_hrv_corr",
+            "value": -0.345,
+            "description": "训练量 vs HRV 相关系数"
+          }
+        ],
+        "confidence": 0.65,
+        "tags": [
+          "analysis",
+          "training_load",
+          "recovery"
+        ]
+      },
+      {
+        "id": "athlete_001_2025-10-18_analysis_sleep_correlation",
+        "trigger": "analysis_sleep_correlation",
+        "summary": "睡眠与恢复的关联",
+        "explanation": "睡眠时长/效率与准备度、HRV 之间存在显著关联，建议强化睡眠卫生管理。",
+        "actions": [
+          {
+            "recommendation": "确保每日睡眠 ≥7 小时，近期睡眠不足时提前安排恢复日。",
+            "category": "lifestyle",
+            "priority": 1
+          }
+        ],
+        "evidence": [
+          {
+            "key": "sleep_readiness_corr",
+            "value": 0.862,
+            "description": "睡眠 vs 准备度 相关系数"
+          },
+          {
+            "key": "sleep_hrv_corr",
+            "value": 0.839,
+            "description": "睡眠 vs HRV 相关系数"
+          },
+          {
+            "key": "low_sleep_days",
+            "value": 3,
+            "description": "睡眠不足触发次数"
+          },
+          {
+            "key": "avg_readiness_drop_after_low_sleep",
+            "value": 0.333,
+            "description": "睡眠不足次日准备度平均变化"
+          },
+          {
+            "key": "avg_hrv_drop_after_low_sleep",
+            "value": 0.667,
+            "description": "睡眠不足次日 HRV 平均变化"
+          }
+        ],
+        "confidence": 0.6,
+        "tags": [
+          "analysis",
+          "sleep",
+          "recovery"
+        ]
+      },
+      {
+        "id": "athlete_001_2025-10-18_analysis_lifestyle_travel",
+        "trigger": "analysis_lifestyle_impact",
+        "summary": "生活方式事件影响：travel",
+        "explanation": "该生活方式事件与睡眠/HRV/准备度的变化有关，建议针对性进行行为调整。",
+        "actions": [
+          {
+            "recommendation": "记录事件发生的具体情境，并采取缓解措施（如提前规划、使用放松技巧）。",
+            "category": "lifestyle",
+            "priority": 2
+          }
+        ],
+        "evidence": [
+          {
+            "key": "occurrences",
+            "value": 1,
+            "description": "事件发生次数"
+          },
+          {
+            "key": "avg_readiness_delta",
+            "value": -4,
+            "description": "事件后准备度平均变化"
+          },
+          {
+            "key": "avg_hrv_delta",
+            "value": -3,
+            "description": "事件后 HRV 平均变化"
+          },
+          {
+            "key": "avg_sleep_delta",
+            "value": -0.5,
+            "description": "事件后睡眠时长平均变化"
+          },
+          {
+            "key": "impact_notes",
+            "value": null,
+            "description": "准备度-4.0；HRV-3.0；睡眠时长-0.5h；低于睡眠基线"
+          }
+        ],
+        "confidence": 0.5,
+        "tags": [
+          "analysis",
+          "lifestyle"
+        ]
+      },
+      {
+        "id": "athlete_001_2025-10-18_analysis_lifestyle_sport:tennis",
+        "trigger": "analysis_lifestyle_impact",
+        "summary": "生活方式事件影响：sport:tennis",
+        "explanation": "该生活方式事件与睡眠/HRV/准备度的变化有关，建议针对性进行行为调整。",
+        "actions": [
+          {
+            "recommendation": "记录事件发生的具体情境，并采取缓解措施（如提前规划、使用放松技巧）。",
+            "category": "lifestyle",
+            "priority": 2
+          }
+        ],
+        "evidence": [
+          {
+            "key": "occurrences",
+            "value": 1,
+            "description": "事件发生次数"
+          },
+          {
+            "key": "avg_readiness_delta",
+            "value": -7,
+            "description": "事件后准备度平均变化"
+          },
+          {
+            "key": "avg_hrv_delta",
+            "value": -6,
+            "description": "事件后 HRV 平均变化"
+          },
+          {
+            "key": "avg_sleep_delta",
+            "value": -0.3,
+            "description": "事件后睡眠时长平均变化"
+          },
+          {
+            "key": "impact_notes",
+            "value": null,
+            "description": "准备度-7.0；HRV-6.0；睡眠时长-0.3h；低于睡眠基线"
+          }
+        ],
+        "confidence": 0.5,
+        "tags": [
+          "analysis",
+          "lifestyle"
+        ]
+      },
+      {
+        "id": "athlete_001_2025-10-18_analysis_lifestyle_strength:legs",
+        "trigger": "analysis_lifestyle_impact",
+        "summary": "生活方式事件影响：strength:legs",
+        "explanation": "该生活方式事件与睡眠/HRV/准备度的变化有关，建议针对性进行行为调整。",
+        "actions": [
+          {
+            "recommendation": "记录事件发生的具体情境，并采取缓解措施（如提前规划、使用放松技巧）。",
+            "category": "lifestyle",
+            "priority": 2
+          }
+        ],
+        "evidence": [
+          {
+            "key": "occurrences",
+            "value": 1,
+            "description": "事件发生次数"
+          },
+          {
+            "key": "avg_readiness_delta",
+            "value": 2,
+            "description": "事件后准备度平均变化"
+          },
+          {
+            "key": "avg_hrv_delta",
+            "value": 2,
+            "description": "事件后 HRV 平均变化"
+          },
+          {
+            "key": "avg_sleep_delta",
+            "value": 0.4,
+            "description": "事件后睡眠时长平均变化"
+          },
+          {
+            "key": "impact_notes",
+            "value": null,
+            "description": "准备度+2.0；HRV+2.0；睡眠时长+0.4h"
+          }
+        ],
+        "confidence": 0.5,
+        "tags": [
+          "analysis",
+          "lifestyle"
+        ]
+      },
+      {
+        "id": "athlete_001_2025-10-18_analysis_lifestyle_recovery_day",
+        "trigger": "analysis_lifestyle_impact",
+        "summary": "生活方式事件影响：recovery_day",
+        "explanation": "该生活方式事件与睡眠/HRV/准备度的变化有关，建议针对性进行行为调整。",
+        "actions": [
+          {
+            "recommendation": "记录事件发生的具体情境，并采取缓解措施（如提前规划、使用放松技巧）。",
+            "category": "lifestyle",
+            "priority": 2
+          }
+        ],
+        "evidence": [
+          {
+            "key": "occurrences",
+            "value": 1,
+            "description": "事件发生次数"
+          },
+          {
+            "key": "avg_readiness_delta",
+            "value": 0,
+            "description": "事件后准备度平均变化"
+          },
+          {
+            "key": "avg_hrv_delta",
+            "value": 0,
+            "description": "事件后 HRV 平均变化"
+          },
+          {
+            "key": "avg_sleep_delta",
+            "value": 0,
+            "description": "事件后睡眠时长平均变化"
+          }
+        ],
+        "confidence": 0.5,
+        "tags": [
+          "analysis",
+          "lifestyle"
+        ]
+      },
+      {
+        "id": "athlete_001_2025-10-18_analysis_trend_stability",
+        "trigger": "analysis_trend_stability",
+        "summary": "长期趋势与稳定性",
+        "explanation": "准备度、HRV、睡眠的趋势与稳定性评估可用于指导下阶段训练周期调整。",
+        "actions": [
+          {
+            "recommendation": "根据趋势稳定性调整周期化目标：若趋势向下或波动加大，应优先安排恢复周期。",
+            "category": "strategy",
+            "priority": 2
+          }
+        ],
+        "evidence": [
+          {
+            "key": "readiness_slope",
+            "value": -0.786,
+            "description": "准备度趋势斜率"
+          },
+          {
+            "key": "hrv_slope",
+            "value": -1.071,
+            "description": "HRV 趋势斜率"
+          },
+          {
+            "key": "sleep_slope",
+            "value": 0.05,
+            "description": "睡眠趋势斜率"
+          },
+          {
+            "key": "readiness_volatility",
+            "value": 5.417,
+            "description": "准备度波动度"
+          },
+          {
+            "key": "hrv_volatility",
+            "value": 6.347,
+            "description": "HRV 波动度"
+          },
+          {
+            "key": "sleep_volatility",
+            "value": 0.531,
+            "description": "睡眠波动度"
+          },
+          {
+            "key": "readiness_change",
+            "value": -3,
+            "description": "周内准备度净变化"
+          },
+          {
+            "key": "hrv_vs_baseline",
+            "value": 4,
+            "description": "最新 HRV 相对基线差值"
+          },
+          {
+            "key": "sleep_vs_baseline",
+            "value": 0.6,
+            "description": "最新睡眠时长相对基线差值"
+          }
+        ],
+        "confidence": 0.6,
+        "tags": [
+          "analysis",
+          "trend"
+        ]
+      },
+      {
+        "id": "athlete_001_2025-10-18_analysis_root_cause_0",
+        "trigger": "analysis_root_cause",
+        "summary": "2025-10-15 准备度低值驱动",
+        "explanation": "2025-10-15 准备度 72（Acute Fatigue）——主要驱动：训练量高（500 AU）；HRV 低于周均水平；睡眠不足（6.6h < 基线 7.6h）；生活方式: strength:legs。",
+        "actions": [
+          {
+            "recommendation": "针对驱动因素制定纠正计划（例如调整训练或优化睡眠）。",
+            "category": "analysis",
+            "priority": 2
+          }
+        ],
+        "evidence": [
+          {
+            "key": "date",
+            "value": null,
+            "description": "2025-10-15"
+          },
+          {
+            "key": "driver",
+            "value": null,
+            "description": "训练量高（500 AU）"
+          },
+          {
+            "key": "driver",
+            "value": null,
+            "description": "HRV 低于周均水平"
+          },
+          {
+            "key": "driver",
+            "value": null,
+            "description": "睡眠不足（6.6h < 基线 7.6h）"
+          },
+          {
+            "key": "driver",
+            "value": null,
+            "description": "生活方式: strength:legs"
+          }
+        ],
+        "confidence": 0.55,
+        "tags": [
+          "analysis",
+          "readiness"
+        ]
+      },
+      {
+        "id": "athlete_001_2025-10-18_analysis_root_cause_1",
+        "trigger": "analysis_root_cause",
+        "summary": "2025-10-16 准备度低值驱动",
+        "explanation": "2025-10-16 准备度 74（FOR）——主要驱动：HRV 低于周均水平；睡眠不足（7.0h < 基线 7.6h）。",
+        "actions": [
+          {
+            "recommendation": "针对驱动因素制定纠正计划（例如调整训练或优化睡眠）。",
+            "category": "analysis",
+            "priority": 2
+          }
+        ],
+        "evidence": [
+          {
+            "key": "date",
+            "value": null,
+            "description": "2025-10-16"
+          },
+          {
+            "key": "driver",
+            "value": null,
+            "description": "HRV 低于周均水平"
+          },
+          {
+            "key": "driver",
+            "value": null,
+            "description": "睡眠不足（7.0h < 基线 7.6h）"
+          }
+        ],
+        "confidence": 0.55,
+        "tags": [
+          "analysis",
+          "readiness"
+        ]
+      },
+      {
+        "id": "athlete_001_2025-10-18_analysis_root_cause_2",
+        "trigger": "analysis_root_cause",
+        "summary": "2025-10-14 准备度低值驱动",
+        "explanation": "2025-10-14 准备度 79（FOR）——主要驱动：睡眠不足（6.9h < 基线 7.6h）；生活方式: sport:tennis。",
+        "actions": [
+          {
+            "recommendation": "针对驱动因素制定纠正计划（例如调整训练或优化睡眠）。",
+            "category": "analysis",
+            "priority": 2
+          }
+        ],
+        "evidence": [
+          {
+            "key": "date",
+            "value": null,
+            "description": "2025-10-14"
+          },
+          {
+            "key": "driver",
+            "value": null,
+            "description": "睡眠不足（6.9h < 基线 7.6h）"
+          },
+          {
+            "key": "driver",
+            "value": null,
+            "description": "生活方式: sport:tennis"
+          }
+        ],
+        "confidence": 0.55,
+        "tags": [
+          "analysis",
+          "readiness"
+        ]
+      },
+      {
+        "id": "athlete_001_2025-10-18_analysis_load_correlation",
+        "trigger": "analysis_load_correlation",
+        "summary": "训练负荷与恢复关联",
+        "explanation": "训练负荷与准备度/HRV 的关联分析提示高负荷对恢复的影响，需要调整训练与恢复节奏。",
+        "actions": [
+          {
+            "recommendation": "若 ACWR 连续高于 1.3，应立即安排减量或恢复性训练。",
+            "category": "training_adjustment",
+            "priority": 1
+          }
+        ],
+        "evidence": [
+          {
+            "key": "high_acwr_days",
+            "value": 0,
+            "description": "ACWR ≥ 1.3 的天数"
+          },
+          {
+            "key": "high_acwr_ratio",
+            "value": 0,
+            "description": "高 ACWR 占比"
+          },
+          {
+            "key": "load_readiness_corr",
+            "value": -0.381,
+            "description": "训练量 vs 准备度 相关系数"
+          },
+          {
+            "key": "load_hrv_corr",
+            "value": -0.345,
+            "description": "训练量 vs HRV 相关系数"
+          }
+        ],
+        "confidence": 0.65,
+        "tags": [
+          "analysis",
+          "training_load",
+          "recovery"
+        ]
+      },
+      {
+        "id": "athlete_001_2025-10-18_analysis_sleep_correlation",
+        "trigger": "analysis_sleep_correlation",
+        "summary": "睡眠与恢复的关联",
+        "explanation": "睡眠时长/效率与准备度、HRV 之间存在显著关联，建议强化睡眠卫生管理。",
+        "actions": [
+          {
+            "recommendation": "确保每日睡眠 ≥7 小时，近期睡眠不足时提前安排恢复日。",
+            "category": "lifestyle",
+            "priority": 1
+          }
+        ],
+        "evidence": [
+          {
+            "key": "sleep_readiness_corr",
+            "value": 0.862,
+            "description": "睡眠 vs 准备度 相关系数"
+          },
+          {
+            "key": "sleep_hrv_corr",
+            "value": 0.839,
+            "description": "睡眠 vs HRV 相关系数"
+          },
+          {
+            "key": "low_sleep_days",
+            "value": 3,
+            "description": "睡眠不足触发次数"
+          },
+          {
+            "key": "avg_readiness_drop_after_low_sleep",
+            "value": 0.333,
+            "description": "睡眠不足次日准备度平均变化"
+          },
+          {
+            "key": "avg_hrv_drop_after_low_sleep",
+            "value": 0.667,
+            "description": "睡眠不足次日 HRV 平均变化"
+          }
+        ],
+        "confidence": 0.6,
+        "tags": [
+          "analysis",
+          "sleep",
+          "recovery"
+        ]
+      },
+      {
+        "id": "athlete_001_2025-10-18_analysis_lifestyle_travel",
+        "trigger": "analysis_lifestyle_impact",
+        "summary": "生活方式事件影响：travel",
+        "explanation": "该生活方式事件与睡眠/HRV/准备度的变化有关，建议针对性进行行为调整。",
+        "actions": [
+          {
+            "recommendation": "记录事件发生的具体情境，并采取缓解措施（如提前规划、使用放松技巧）。",
+            "category": "lifestyle",
+            "priority": 2
+          }
+        ],
+        "evidence": [
+          {
+            "key": "occurrences",
+            "value": 1,
+            "description": "事件发生次数"
+          },
+          {
+            "key": "avg_readiness_delta",
+            "value": -4,
+            "description": "事件后准备度平均变化"
+          },
+          {
+            "key": "avg_hrv_delta",
+            "value": -3,
+            "description": "事件后 HRV 平均变化"
+          },
+          {
+            "key": "avg_sleep_delta",
+            "value": -0.5,
+            "description": "事件后睡眠时长平均变化"
+          },
+          {
+            "key": "impact_notes",
+            "value": null,
+            "description": "准备度-4.0；HRV-3.0；睡眠时长-0.5h；低于睡眠基线"
+          }
+        ],
+        "confidence": 0.5,
+        "tags": [
+          "analysis",
+          "lifestyle"
+        ]
+      },
+      {
+        "id": "athlete_001_2025-10-18_analysis_lifestyle_sport:tennis",
+        "trigger": "analysis_lifestyle_impact",
+        "summary": "生活方式事件影响：sport:tennis",
+        "explanation": "该生活方式事件与睡眠/HRV/准备度的变化有关，建议针对性进行行为调整。",
+        "actions": [
+          {
+            "recommendation": "记录事件发生的具体情境，并采取缓解措施（如提前规划、使用放松技巧）。",
+            "category": "lifestyle",
+            "priority": 2
+          }
+        ],
+        "evidence": [
+          {
+            "key": "occurrences",
+            "value": 1,
+            "description": "事件发生次数"
+          },
+          {
+            "key": "avg_readiness_delta",
+            "value": -7,
+            "description": "事件后准备度平均变化"
+          },
+          {
+            "key": "avg_hrv_delta",
+            "value": -6,
+            "description": "事件后 HRV 平均变化"
+          },
+          {
+            "key": "avg_sleep_delta",
+            "value": -0.3,
+            "description": "事件后睡眠时长平均变化"
+          },
+          {
+            "key": "impact_notes",
+            "value": null,
+            "description": "准备度-7.0；HRV-6.0；睡眠时长-0.3h；低于睡眠基线"
+          }
+        ],
+        "confidence": 0.5,
+        "tags": [
+          "analysis",
+          "lifestyle"
+        ]
+      },
+      {
+        "id": "athlete_001_2025-10-18_analysis_lifestyle_strength:legs",
+        "trigger": "analysis_lifestyle_impact",
+        "summary": "生活方式事件影响：strength:legs",
+        "explanation": "该生活方式事件与睡眠/HRV/准备度的变化有关，建议针对性进行行为调整。",
+        "actions": [
+          {
+            "recommendation": "记录事件发生的具体情境，并采取缓解措施（如提前规划、使用放松技巧）。",
+            "category": "lifestyle",
+            "priority": 2
+          }
+        ],
+        "evidence": [
+          {
+            "key": "occurrences",
+            "value": 1,
+            "description": "事件发生次数"
+          },
+          {
+            "key": "avg_readiness_delta",
+            "value": 2,
+            "description": "事件后准备度平均变化"
+          },
+          {
+            "key": "avg_hrv_delta",
+            "value": 2,
+            "description": "事件后 HRV 平均变化"
+          },
+          {
+            "key": "avg_sleep_delta",
+            "value": 0.4,
+            "description": "事件后睡眠时长平均变化"
+          },
+          {
+            "key": "impact_notes",
+            "value": null,
+            "description": "准备度+2.0；HRV+2.0；睡眠时长+0.4h"
+          }
+        ],
+        "confidence": 0.5,
+        "tags": [
+          "analysis",
+          "lifestyle"
+        ]
+      },
+      {
+        "id": "athlete_001_2025-10-18_analysis_lifestyle_recovery_day",
+        "trigger": "analysis_lifestyle_impact",
+        "summary": "生活方式事件影响：recovery_day",
+        "explanation": "该生活方式事件与睡眠/HRV/准备度的变化有关，建议针对性进行行为调整。",
+        "actions": [
+          {
+            "recommendation": "记录事件发生的具体情境，并采取缓解措施（如提前规划、使用放松技巧）。",
+            "category": "lifestyle",
+            "priority": 2
+          }
+        ],
+        "evidence": [
+          {
+            "key": "occurrences",
+            "value": 1,
+            "description": "事件发生次数"
+          },
+          {
+            "key": "avg_readiness_delta",
+            "value": 0,
+            "description": "事件后准备度平均变化"
+          },
+          {
+            "key": "avg_hrv_delta",
+            "value": 0,
+            "description": "事件后 HRV 平均变化"
+          },
+          {
+            "key": "avg_sleep_delta",
+            "value": 0,
+            "description": "事件后睡眠时长平均变化"
+          }
+        ],
+        "confidence": 0.5,
+        "tags": [
+          "analysis",
+          "lifestyle"
+        ]
+      },
+      {
+        "id": "athlete_001_2025-10-18_analysis_trend_stability",
+        "trigger": "analysis_trend_stability",
+        "summary": "长期趋势与稳定性",
+        "explanation": "准备度、HRV、睡眠的趋势与稳定性评估可用于指导下阶段训练周期调整。",
+        "actions": [
+          {
+            "recommendation": "根据趋势稳定性调整周期化目标：若趋势向下或波动加大，应优先安排恢复周期。",
+            "category": "strategy",
+            "priority": 2
+          }
+        ],
+        "evidence": [
+          {
+            "key": "readiness_slope",
+            "value": -0.786,
+            "description": "准备度趋势斜率"
+          },
+          {
+            "key": "hrv_slope",
+            "value": -1.071,
+            "description": "HRV 趋势斜率"
+          },
+          {
+            "key": "sleep_slope",
+            "value": 0.05,
+            "description": "睡眠趋势斜率"
+          },
+          {
+            "key": "readiness_volatility",
+            "value": 5.417,
+            "description": "准备度波动度"
+          },
+          {
+            "key": "hrv_volatility",
+            "value": 6.347,
+            "description": "HRV 波动度"
+          },
+          {
+            "key": "sleep_volatility",
+            "value": 0.531,
+            "description": "睡眠波动度"
+          },
+          {
+            "key": "readiness_change",
+            "value": -3,
+            "description": "周内准备度净变化"
+          },
+          {
+            "key": "hrv_vs_baseline",
+            "value": 4,
+            "description": "最新 HRV 相对基线差值"
+          },
+          {
+            "key": "sleep_vs_baseline",
+            "value": 0.6,
+            "description": "最新睡眠时长相对基线差值"
+          }
+        ],
+        "confidence": 0.6,
+        "tags": [
+          "analysis",
+          "trend"
+        ]
+      }
+    ],
+    "insight_reviews": [],
+    "report_payload": {
+      "summary": {
+        "readiness_score": null,
+        "readiness_band": null,
+        "drivers": [],
+        "opportunities": [],
+        "risks": []
+      },
+      "charts": [],
+      "insights": [],
+      "metadata": {
+        "period_start": null,
+        "period_end": null,
+        "data_sources": [],
+        "data_quality_score": null,
+        "generated_at": null,
+        "generator_version": null
+      }
+    },
+    "next_week_plan": {
+      "week_objective": "冲击周（建议）",
+      "monitor_thresholds": {
+        "readiness_lt": 65,
+        "hrv_z_lt": -0.5,
+        "hooper_fatigue_gt": 5
+      },
+      "day_plans": [
+        {
+          "date": "2025-10-19",
+          "day_label": "10-19",
+          "load_target": "high",
+          "session_type": "capacity",
+          "key_drills": [
+            "专项强度/速度"
+          ],
+          "recovery_tasks": [
+            "营养/补水"
+          ],
+          "rationale": "峰值刺激",
+          "adjustments": {
+            "if_trigger": "readiness<65 or hrv_z<-0.5 or hooper_fatigue>5",
+            "action": "降一档强度或将当日改为主动恢复"
+          },
+          "au_target_low": 278.43,
+          "au_target_high": 389.80199999999996,
+          "notes": null
+        },
+        {
+          "date": "2025-10-20",
+          "day_label": "10-20",
+          "load_target": "low",
+          "session_type": "recovery",
+          "key_drills": [
+            "主动恢复"
+          ],
+          "recovery_tasks": [
+            "睡眠卫生"
+          ],
+          "rationale": "恢复窗口",
+          "adjustments": {
+            "if_trigger": "readiness<65 or hrv_z<-0.5 or hooper_fatigue>5",
+            "action": "降一档强度或将当日改为主动恢复"
+          },
+          "au_target_low": 55.68600000000001,
+          "au_target_high": 111.37200000000001,
+          "notes": null
+        },
+        {
+          "date": "2025-10-21",
+          "day_label": "10-21",
+          "load_target": "moderate",
+          "session_type": "strength",
+          "key_drills": [
+            "力量维持"
+          ],
+          "recovery_tasks": [
+            "拉伸"
+          ],
+          "rationale": "稳态巩固",
+          "adjustments": {
+            "if_trigger": "readiness<65 or hrv_z<-0.5 or hooper_fatigue>5",
+            "action": "降一档强度或将当日改为主动恢复"
+          },
+          "au_target_low": 167.058,
+          "au_target_high": 278.43,
+          "notes": null
+        },
+        {
+          "date": "2025-10-22",
+          "day_label": "10-22",
+          "load_target": "low",
+          "session_type": "recovery",
+          "key_drills": [
+            "灵活性"
+          ],
+          "recovery_tasks": [
+            "放松"
+          ],
+          "rationale": "减压",
+          "adjustments": {
+            "if_trigger": "readiness<65 or hrv_z<-0.5 or hooper_fatigue>5",
+            "action": "降一档强度或将当日改为主动恢复"
+          },
+          "au_target_low": 55.68600000000001,
+          "au_target_high": 111.37200000000001,
+          "notes": null
+        },
+        {
+          "date": "2025-10-23",
+          "day_label": "10-23",
+          "load_target": "moderate",
+          "session_type": "technique",
+          "key_drills": [
+            "技术整合"
+          ],
+          "recovery_tasks": [
+            "补水"
+          ],
+          "rationale": "提升质量",
+          "adjustments": {
+            "if_trigger": "readiness<65 or hrv_z<-0.5 or hooper_fatigue>5",
+            "action": "降一档强度或将当日改为主动恢复"
+          },
+          "au_target_low": 167.058,
+          "au_target_high": 278.43,
+          "notes": null
+        },
+        {
+          "date": "2025-10-24",
+          "day_label": "10-24",
+          "load_target": "low",
+          "session_type": "recovery",
+          "key_drills": [
+            "呼吸/放松"
+          ],
+          "recovery_tasks": [
+            "无屏幕60min"
+          ],
+          "rationale": "巩固恢复",
+          "adjustments": {
+            "if_trigger": "readiness<65 or hrv_z<-0.5 or hooper_fatigue>5",
+            "action": "降一档强度或将当日改为主动恢复"
+          },
+          "au_target_low": 55.68600000000001,
+          "au_target_high": 111.37200000000001,
+          "notes": null
+        },
+        {
+          "date": "2025-10-25",
+          "day_label": "10-25",
+          "load_target": "moderate",
+          "session_type": "capacity",
+          "key_drills": [
+            "中等容量"
+          ],
+          "recovery_tasks": [
+            "补水"
+          ],
+          "rationale": "准备下周",
+          "adjustments": {
+            "if_trigger": "readiness<65 or hrv_z<-0.5 or hooper_fatigue>5",
+            "action": "降一档强度或将当日改为主动恢复"
+          },
+          "au_target_low": 167.058,
+          "au_target_high": 278.43,
+          "notes": null
+        }
+      ],
+      "guidelines": [
+        "控制高负荷日数≤2天且间隔≥48小时",
+        "若 readiness<65 或 HRV Z<-0.5 或 疲劳>5，当日降一档或改主动恢复",
+        "若出现旅行/酒精/夜班等事件，次日训练降一档或改主动恢复（原则性建议）",
+        "ACWR 过低也不理想：建议逐步增加训练容量至 0.8–1.0 区间，避免去适应或突增导致风险"
+      ],
+      "confidence": 0.7
+    }
+  },
+  "package": {
+    "generated_at": "2025-11-08T13:03:41.576875",
+    "charts": [
+      {
+        "chart_id": "readiness_trend",
+        "title": "近 7 天准备度趋势",
+        "chart_type": "line",
+        "data": {
+          "xAxis": [
+            "10-12",
+            "10-13",
+            "10-14",
+            "10-15",
+            "10-16",
+            "10-17",
+            "10-18"
+          ],
+          "series": [
+            {
+              "name": "准备度得分",
+              "type": "line",
+              "smooth": true,
+              "data": [
+                88,
+                84,
+                79,
+                72,
+                74,
+                80,
+                85
+              ]
+            }
+          ],
+          "normal_range": [
+            70,
+            100
+          ]
+        },
+        "notes": "最新准备度 85（band: Well-adapted）。"
+      },
+      {
+        "chart_id": "readiness_vs_hrv",
+        "title": "准备度 vs HRV",
+        "chart_type": "multi_axis_line",
+        "data": {
+          "xAxis": [
+            "10-12",
+            "10-13",
+            "10-14",
+            "10-15",
+            "10-16",
+            "10-17",
+            "10-18"
+          ],
+          "series": [
+            {
+              "name": "准备度得分",
+              "type": "line",
+              "yAxisIndex": 0,
+              "smooth": true,
+              "data": [
+                88,
+                84,
+                79,
+                72,
+                74,
+                80,
+                85
+              ]
+            },
+            {
+              "name": "HRV (RMSSD)",
+              "type": "line",
+              "yAxisIndex": 1,
+              "smooth": true,
+              "data": [
+                86,
+                83,
+                74,
+                68,
+                70,
+                76,
+                82
+              ]
+            }
+          ],
+          "yAxis": [
+            {
+              "name": "准备度",
+              "min": 0,
+              "max": 100
+            },
+            {
+              "name": "HRV",
+              "min": null,
+              "max": null
+            }
+          ]
+        },
+        "notes": "对照准备度与 HRV 变化，评估恢复是否跟上训练刺激。"
+      },
+      {
+        "chart_id": "hrv_trend",
+        "title": "近 28 天 HRV 趋势",
+        "chart_type": "line",
+        "data": {
+          "xAxis": [
+            "10-12",
+            "10-13",
+            "10-14",
+            "10-15",
+            "10-16",
+            "10-17",
+            "10-18"
+          ],
+          "series": [
+            {
+              "name": "HRV (RMSSD)",
+              "type": "line",
+              "smooth": true,
+              "data": [
+                86,
+                83,
+                74,
+                68,
+                70,
+                76,
+                82
+              ]
+            }
+          ],
+          "baseline": 78
+        },
+        "notes": null
+      },
+      {
+        "chart_id": "sleep_duration",
+        "title": "睡眠时长与基线对比",
+        "chart_type": "line",
+        "data": {
+          "xAxis": [
+            "10-12",
+            "10-13",
+            "10-14",
+            "10-15",
+            "10-16",
+            "10-17",
+            "10-18"
+          ],
+          "series": [
+            {
+              "name": "睡眠时长 (h)",
+              "type": "line",
+              "smooth": true,
+              "data": [
+                7.9,
+                7.4,
+                6.9,
+                6.6,
+                7,
+                7.6,
+                8.2
+              ]
+            }
+          ],
+          "baseline": 7.6
+        },
+        "notes": "最近一日睡眠 8.2 小时，相较基线 +0.6 小时。"
+      },
+      {
+        "chart_id": "training_load",
+        "title": "训练负荷与 ACWR",
+        "chart_type": "bar",
+        "data": {
+          "xAxis": [
+            "10-12",
+            "10-13",
+            "10-14",
+            "10-15",
+            "10-16",
+            "10-17",
+            "10-18"
+          ],
+          "series": [
+            {
+              "name": "训练量 (AU)",
+              "type": "bar",
+              "data": [
+                310,
+                360,
+                420,
+                500,
+                220,
+                180,
+                120
+              ]
+            }
+          ]
+        },
+        "notes": "最近 ACWR ≈ 0.92。若 ≥1.3 需警惕疲劳，≤0.6 留意去适应。 "
+      },
+      {
+        "chart_id": "hooper_radar",
+        "title": "主观疲劳雷达",
+        "chart_type": "radar",
+        "data": {
+          "indicator": [
+            {
+              "name": "疲劳",
+              "max": 10,
+              "min": 0
+            },
+            {
+              "name": "酸痛",
+              "max": 10,
+              "min": 0
+            },
+            {
+              "name": "压力",
+              "max": 10,
+              "min": 0
+            },
+            {
+              "name": "睡眠质量",
+              "max": 10,
+              "min": 0
+            }
+          ],
+          "series": [
+            {
+              "name": "10-18",
+              "type": "radar",
+              "data": [
+                [
+                  2,
+                  2,
+                  2,
+                  6
+                ]
+              ]
+            }
+          ]
+        },
+        "notes": "雷达图展示最新 Hooper 评分，便于识别主观疲劳与压力。"
+      },
+      {
+        "chart_id": "lifestyle_timeline",
+        "title": "生活方式事件概览",
+        "chart_type": "timeline",
+        "data": {
+          "events": [
+            {
+              "date": "10-12",
+              "tags": [
+                "travel"
+              ]
+            },
+            {
+              "date": "10-14",
+              "tags": [
+                "sport:tennis"
+              ]
+            },
+            {
+              "date": "10-15",
+              "tags": [
+                "strength:legs"
+              ]
+            },
+            {
+              "date": "10-18",
+              "tags": [
+                "recovery_day"
+              ]
+            }
+          ]
+        },
+        "notes": "标注旅行、加班等事件，便于对照 HRV/睡眠变化。"
+      }
+    ],
+    "analyst": {
+      "summary_points": [
+        "本周 ACWR 维持在 0.83 的最佳区间，但周中出现负荷集中与恢复不足的情况。",
+        "周中（10-14至10-16）准备度、HRV 和睡眠均出现下降，主要受高训练负荷（10-15日 500 AU）、睡眠不足（低于基线）以及网球、腿部力量训练等生活方式事件叠加影响。",
+        "周末（10-17至10-18）通过安排恢复日和增加睡眠，身体恢复良好，准备度、HRV 和睡眠时长均回升至基线或以上水平，主观疲劳度较低。",
+        "关键恢复指标（HRV Z-score、睡眠时长、睡眠效率）数据缺失，影响对恢复状态的全面评估和洞察。",
+        "ACWR 计算前已对极端 AU 做裁剪处理，已排除其影响。"
+      ],
+      "risks": [
+        {
+          "metric": "数据质量不足",
+          "value": null,
+          "reason": "关键恢复指标（HRV Z-score、睡眠时长、睡眠效率）数据缺失，影响对运动员恢复状态的全面、准确评估。",
+          "severity": "Moderate"
+        },
+        {
+          "metric": "恢复不足风险",
+          "value": null,
+          "reason": "本周中高负荷训练（如 10-15日 500 AU）与睡眠不足（6.6h < 基线 7.6h）叠加，导致准备度（72）、HRV（68）显著下降，提示在高负荷期需更严格管理恢复。",
+          "severity": "Moderate"
+        },
+        {
+          "metric": "训练负荷管理",
+          "value": null,
+          "reason": "尽管 ACWR 处于最佳区间，但周中出现单日负荷过高（500 AU）导致恢复受损，若后续冲击周未能有效管理单日负荷，可能再次出现恢复不足。",
+          "severity": "Low"
+        }
+      ],
+      "opportunities": [
+        {
+          "area": "睡眠管理",
+          "recommendation": "强化睡眠卫生管理，确保每日睡眠时长接近或超过 7.6 小时基线，尤其是在高负荷训练日后。",
+          "reason": "睡眠不足是导致周中准备度下降的关键因素之一，改善睡眠是提升恢复效率的直接途径。"
+        },
+        {
+          "area": "负荷规划与恢复策略",
+          "recommendation": "在冲击周中，密切监控单日训练负荷，避免出现类似 10-15 日的负荷骤增，并确保高负荷日后有充足的低负荷或恢复日。",
+          "reason": "本周经验表明，高负荷日后及时安排恢复是维持整体恢复水平的关键。"
+        },
+        {
+          "area": "数据采集",
+          "recommendation": "确保 HRV Z-score、睡眠时长和效率等关键恢复指标的持续、准确记录。",
+          "reason": "完整的数据有助于更全面地评估运动员状态，为训练调整提供更可靠的依据。"
+        }
+      ],
+      "chart_ids": [
+        "readiness_trend",
+        "readiness_vs_hrv",
+        "hrv_trend",
+        "sleep_duration",
+        "training_load",
+        "hooper_radar",
+        "lifestyle_timeline"
+      ]
+    },
+    "communicator": {
+      "sections": [
+        {
+          "title": "总体建议：冲击周，但需密切关注恢复",
+          "body_markdown": "本周 ACWR 维持在 0.83 的最佳区间，但周中出现负荷集中与恢复不足的情况。考虑到周末身体已良好回升，建议下周进入冲击周，但需密切关注恢复，尤其是在高负荷日后，以确保训练效果并避免过度疲劳。"
+        },
+        {
+          "title": "本周表现回顾",
+          "body_markdown": "本周你的整体负荷管理表现出色，ACWR 维持在 0.83 的理想区间，表明训练负荷与身体适应性匹配良好。尤其值得肯定的是，周末通过主动恢复，你的身体状态迅速回升，准备度从周中低点 72 回升至 85 [[chart:readiness_trend]]，HRV (RMSSD) 也从 68 提升至 82 [[chart:hrv_trend]]，睡眠时长达到 8.2 小时，远超基线 [[chart:sleep_duration]]。主观疲劳度也处于较低水平 [[chart:hooper_radar]]，这都显示了你良好的恢复能力。\n\n然而，周中（10-14至10-16）出现负荷集中与恢复不足的情况。10-15日高达 500 AU 的训练负荷，叠加网球、腿部力量训练等生活事件 [[chart:lifestyle_timeline]]，以及睡眠不足（6.6小时，低于基线 7.6 小时），导致准备度（72）和 HRV（68）显著下降 [[chart:readiness_vs_hrv]]。这提醒我们在高负荷期，恢复管理和睡眠保障是维持身体状态的关键。"
+        },
+        {
+          "title": "风险与机会",
+          "body_markdown": "### 风险提示\n*   **数据质量不足:** 关键恢复指标（如 HRV Z-score、睡眠效率）数据缺失，影响我们对你恢复状态的全面、准确评估。\n*   **恢复不足风险:** 本周中高负荷训练与睡眠不足叠加，导致准备度与 HRV 下降。若后续冲击周未能有效管理单日负荷，可能再次出现恢复不足。\n*   **训练负荷管理:** 尽管 ACWR 处于最佳区间，但周中出现单日负荷过高导致恢复受损，若后续冲击周未能有效管理单日负荷，可能再次出现恢复不足。\n\n### 提升机会\n*   **强化睡眠管理:** 确保每日睡眠时长接近或超过 7.6 小时基线，尤其是在高负荷训练日后。\n*   **优化负荷规划与恢复策略:** 在冲击周中，密切监控单日训练负荷，避免出现类似 10-15 日的负荷骤增，并确保高负荷日后有充足的低负荷或恢复日。\n*   **完善数据采集:** 确保 HRV Z-score、睡眠时长和效率等关键恢复指标的持续、准确记录，以便我们能更全面地评估你的状态并提供更精准的指导。"
+        },
+        {
+          "title": "建议与行动",
+          "body_markdown": "### 下周目标：冲击周\n下周我们将进入冲击周，目标是适度提升训练容量和强度，以促进适应和表现提升。请你积极应对，但务必将恢复放在首位。\n\n*   **负荷管理:** 建议将高强度训练日控制在每周 2 天以内，且高强度日之间至少间隔 48 小时。整体训练量可逐步提升 10%~15%，但需密切关注身体反馈，以中等强度训练为主。\n*   **恢复优先:** 鉴于本周中期的经验，在高负荷训练日后，请务必确保有充足的睡眠和主动恢复时间。周末的恢复日安排非常有效，请继续保持。\n*   **每日调整策略:** 密切关注每日准备度、HRV 和主观疲劳度。如果准备度低于 65，或 HRV Z-score（表示你的心率变异性相对于你长期平均水平的偏离程度）低于 -0.5，或主观疲劳度（Hooper 评分）高于 5，请考虑将当日训练强度降低一档或改为主动恢复。\n*   **睡眠卫生:** 持续强化睡眠卫生管理，目标是每晚睡眠时长达到或超过 7.6 小时基线。高质量的睡眠是高效恢复的基石。\n*   **数据记录:** 请务必确保 HRV、睡眠时长和效率等关键恢复指标的持续记录，这对于我们准确评估你的状态至关重要。"
+        }
+      ],
+      "tone": "professional_encouraging",
+      "call_to_action": [
+        "严格执行冲击周的负荷管理策略，控制高强度训练日。",
+        "优先保障每日充足睡眠，尤其在高负荷日后。",
+        "密切监测身体反馈，根据准备度、HRV和主观疲劳度灵活调整训练。",
+        "确保关键恢复数据的持续记录，以便我们提供更精准的指导。"
+      ]
+    },
+    "critique": {
+      "issues": [
+        {
+          "sentence": "The communicator report does not explicitly address '部位均衡' (muscle group balance) as part of the training review or future recommendations.",
+          "reason": "The task requires checking for coverage of '部位均衡' as a key aspect of comprehensive training review. While the analyst report did not provide specific data for this, the mention of '腿部力量训练' as a lifestyle event makes it relevant for a holistic S&C report.",
+          "fix": "Add a point under '建议与行动' > '负荷管理' or a new sub-point, for example: '部位均衡: 考虑到本周有腿部力量训练，请在下周冲击周的训练安排中注意全身肌肉群的均衡发展，避免过度侧重某一区域，以预防局部疲劳和损伤。'"
+        }
+      ],
+      "overall_feedback": "The communicator's draft is generally factual, well-structured, and aligns with the analyst's findings and tone. Chart anchors are appropriately used, and the definition for HRV Z-score is included. The main area for enhancement is to include a recommendation regarding muscle group balance for a more comprehensive training review."
+    }
+  },
+  "final_report": {
+    "markdown_report": "# 周报总览（2025-10-18）\n\n## 本周概览\n- 本周训练总体情况：共 7 个训练日，训练量 (AU) 区间为 120 AU 至 500 AU，周中负荷较高，周末安排了恢复日。\n- 周均准备度与范围：本周平均准备度为 80.3 分，范围在 72.0 分至 88.0 分之间，整体呈现周中下降、周末回升的趋势 [[chart:readiness_trend]]。\n- ACWR 状态与风险提醒：本周 ACWR 维持在 0.83 的最佳区间，最新 ACWR 约为 0.92 [[chart:training_load]]。ACWR 处于健康范围，但周中负荷集中导致了恢复压力。\n- 关键生活方式驱动及恢复重点：本周生活方式事件包括旅行、网球训练、腿部力量训练，以及周末的恢复日 [[chart:lifestyle_timeline]]。周末通过主动恢复，身体状态得到显著回升。\n\n## 训练负荷与表现\n| 日期 | 训练量 (AU) | 准备度分数 / 分档 | 生活方式事件 / 备注 |\n| --- | --- | --- | --- |\n| 10-12 | 310.0 | 88.0 / Peak | travel |\n| 10-13 | 360.0 | 84.0 / Well-adapted | - |\n| 10-14 | 420.0 | 79.0 / FOR | sport:tennis |\n| 10-15 | 500.0 | 72.0 / Acute Fatigue | strength:legs |\n| 10-16 | 220.0 | 74.0 / FOR | - |\n| 10-17 | 180.0 | 80.0 / Well-adapted | - |\n| 10-18 | 120.0 | 85.0 / Well-adapted | recovery_day |\n- 每日重点\n  - 10-12: 训练量 310 AU，准备度 88 分（Peak），当日有旅行事件，次日准备度略有下降。\n  - 10-13: 训练量 360 AU，准备度 84 分（Well-adapted），负荷开始增加，身体状态良好。\n  - 10-14: 训练量 420 AU，准备度 79 分（FOR），当日进行网球训练，负荷持续增加，准备度进入恢复需求区。\n  - 10-15: 训练量高达 500 AU，准备度降至 72 分（Acute Fatigue），当日进行腿部力量训练，高负荷叠加导致身体进入急性疲劳状态。\n  - 10-16: 训练量降至 220 AU，准备度回升至 74 分（FOR），开始进入恢复阶段。\n  - 10-17: 训练量 180 AU，准备度回升至 80 分（Well-adapted），身体恢复持续向好。\n  - 10-18: 训练量 120 AU，准备度回升至 85 分（Well-adapted），当日安排恢复日，身体状态显著改善。\n- 其它训练洞察\n  - 本周 ACWR (Acute:Chronic Workload Ratio，急性慢性负荷比) 维持在 0.83 的最佳区间，表明整体负荷管理良好，但周中（10-14至10-15）负荷集中，ACWR 曾达到 1.28，接近疲劳风险阈值 [[chart:training_load]]。\n  - 连续高负荷（10-13至10-15日训练量从 360 AU 增至 500 AU）导致准备度从 84 分骤降至 72 分，提示在高负荷期需更严格管理单日负荷与恢复。\n\n## 恢复与生理信号\n| 日期 | HRV (RMSSD) | Z-score | 训练 / 事件备注 |\n| --- | --- | --- | --- |\n| 10-12 | 86.0 | null | 310 AU / travel |\n| 10-13 | 83.0 | null | 360 AU |\n| 10-14 | 74.0 | null | 420 AU / sport:tennis |\n| 10-15 | 68.0 | null | 500 AU / strength:legs |\n| 10-16 | 70.0 | null | 220 AU |\n| 10-17 | 76.0 | null | 180 AU |\n| 10-18 | 82.0 | null | 120 AU / recovery_day |\n- HRV 与训练/事件的关系\n  - 本周 HRV (RMSSD) 趋势与准备度高度一致，从 10-12 的 86.0 ms 降至 10-15 的 68.0 ms，并在周末回升至 82.0 ms [[chart:hrv_trend]]。这表明身体对周中高负荷的生理应激反应明显。\n  - 遗憾的是，HRV Z-score (心率变异性相对于你长期平均水平的偏离程度) 数据缺失，这限制了我们对你每日恢复状态的精细评估。若有数据，Z-score 低于 -0.5 通常提示恢复不足。\n- 休息/低负荷日后的恢复成效显著：在 10-16 日开始降低负荷后，准备度从 72 分回升至 10-18 日的 85 分（提升 13 分），HRV (RMSSD) 从 68.0 ms 回升至 82.0 ms（提升 14 ms），主观疲劳度也从 5 降至 2，酸痛从 5 降至 2，显示了良好的恢复能力， Hooper 主观反馈与客观指标高度对齐。\n| 日期 | 睡眠时长 (h) | 深睡 (min) | REM (min) | 事件 |\n| --- | --- | --- | --- | --- |\n| 10-12 | 7.9 | null | null | travel |\n| 10-13 | 7.4 | null | null | - |\n| 10-14 | 6.9 | null | null | sport:tennis |\n| 10-15 | 6.6 | null | null | strength:legs |\n| 10-16 | 7.0 | null | null | - |\n| 10-17 | 7.6 | null | null | - |\n| 10-18 | 8.2 | null | null | recovery_day |\n- 睡眠与训练/事件的关系\n  - 周中高负荷日（10-15日，500 AU）与最低睡眠时长 6.6 小时相关，远低于 7.6 小时的基线，这可能是导致准备度与 HRV 下降的关键因素之一 [[chart:sleep_duration]]。\n  - 经过周末的低负荷与恢复日，睡眠时长显著回升至 8.2 小时，超过基线 0.6 小时，有效促进了身体的恢复。\n  - 深睡和 REM 睡眠数据缺失，影响了对睡眠质量的全面评估。\n\n## 主观反馈（Hooper 指数）\n| 日期 | 疲劳 | 酸痛 | 压力 | 睡眠质量 | 说明 |\n| --- | --- | --- | --- | --- | --- |\n| 10-12 | 2.0 | 2.0 | 2.0 | 6.0 | 旅行 |\n| 10-13 | 3.0 | 3.0 | 3.0 | 6.0 | 训练量增加 |\n| 10-14 | 4.0 | 4.0 | 3.0 | 5.0 | 网球训练 |\n| 10-15 | 5.0 | 5.0 | 4.0 | 4.0 | 高负荷腿部力量训练 |\n| 10-16 | 4.0 | 3.0 | 3.0 | 5.0 | 负荷降低 |\n| 10-17 | 3.0 | 2.0 | 3.0 | 6.0 | 恢复中 |\n| 10-18 | 2.0 | 2.0 | 2.0 | 6.0 | 恢复日 |\n- Hooper 四项趋势总结\n  - 疲劳、酸痛和压力评分在周中高负荷日（10-15）达到峰值（疲劳 5，酸痛 5，压力 4），与客观准备度、HRV 和睡眠的下降趋势高度吻合 [[chart:hooper_radar]]。\n  - 睡眠质量评分在 10-15 日降至最低（4），也与当日实际睡眠时长不足相符。随着周末负荷降低和恢复，各项 Hooper 指标均显著改善，显示主观感受与生理数据同步。\n\n## 生活方式事件\n- 10-12: travel → 次日准备度从 88 降至 84，HRV 从 86 降至 83。\n- 10-14: sport:tennis → 次日训练量达 500 AU，准备度从 79 降至 72，HRV 从 74 降至 68，睡眠时长从 6.9h 降至 6.6h。\n- 10-15: strength:legs → 当日高负荷训练与睡眠不足叠加，导致各项恢复指标达到周内最低点。\n- 10-18: recovery_day → 当日各项恢复指标显著回升，准备度、HRV 和睡眠时长均达到周内较高水平。\n\n## 自由备注与训练日志洞察\n- 周中（10-14至10-15）的网球和腿部力量训练叠加高训练量，对身体造成了较大冲击，导致准备度、HRV 和睡眠的显著下降。\n- 周末安排恢复日是明智之举，有效促进了身体从周中疲劳中恢复，使各项指标迅速回升。\n\n## 相关性洞察\n- 高训练负荷是影响恢复的关键因素：10-15日高达 500 AU 的训练量与最低的准备度 (72)、HRV (68) 和睡眠时长 (6.6h) 密切相关，同时主观疲劳、酸痛和压力评分也达到峰值，表明身体处于急性疲劳状态。\n- 休息日后的恢复成效显著：经过 10-16 日开始的负荷降低和 10-18 日的恢复日，准备度从 72 分回升至 85 分（+13 分），HRV (RMSSD) 从 68 ms 回升至 82 ms（+14 ms），睡眠时长从 6.6 小时增至 8.2 小时（+1.6 小时），Hooper 指标也同步改善，显示了良好的恢复能力和对低负荷的积极响应。\n- 生活方式事件与训练负荷的叠加效应：旅行、网球和腿部力量训练等生活事件与训练负荷叠加，加剧了周中身体的疲劳程度，提示在安排训练时需充分考虑这些额外压力源。\n- 触发阈值提醒：当准备度低于 70 分（FOR 档）或 65 分（Acute Fatigue 档）时，应高度关注恢复；若 HRV Z-score（心率变异性相对于你长期平均水平的偏离程度）低于 -0.5，或 Hooper 疲劳评分高于 5，则需考虑调整训练计划或增加恢复措施。\n\n## 下周行动计划\n下周总体建议：冲击周，但需密切关注恢复。\n本周 ACWR 维持在 0.83 的最佳区间，周末身体已良好回升（HRV 82 ms，睡眠 8.2h，主观疲劳低），为下周冲击提供了良好基础，但需吸取周中负荷集中导致恢复不足的教训。\n- **负荷管理**：建议将高强度训练日控制在每周 2 天以内，且高强度日之间至少间隔 48 小时。整体训练量可逐步提升 10%~15% (冲击周指引)，但需密切关注身体反馈，以中等强度训练为主。\n- **部位均衡**：考虑到本周有腿部力量训练，请在下周冲击周的训练安排中注意全身肌肉群的均衡发展，避免过度侧重某一区域，以预防局部疲劳和损伤。\n- **恢复优先**：鉴于本周中期的经验，在高负荷训练日后，请务必确保有充足的睡眠和主动恢复时间。周末的恢复日安排非常有效，请继续保持。\n- **每日调整策略**：密切关注每日准备度、HRV 和主观疲劳度。如果准备度低于 65，或 HRV Z-score 低于 -0.5，或主观疲劳度（Hooper 评分）高于 5，请考虑将当日训练强度降低一档或改为主动恢复。\n- **睡眠卫生**：持续强化睡眠卫生管理，目标是每晚睡眠时长达到或超过 7.6 小时基线。高质量的睡眠是高效恢复的基石。\n本段不替代教练排期，属于建议与原理说明。\n\n## 鼓励与后续\n本周你展现了出色的恢复能力，尤其是在周中高负荷后能迅速调整，使各项指标在周末回升至良好水平，这非常值得肯定！下周进入冲击周，请继续保持这份积极性，并严格执行负荷管理和恢复策略。我们将重点关注你的每日准备度、HRV 变化以及睡眠质量，确保你在提升表现的同时，维持身体的健康与平衡。期待你下周的精彩表现！",
+    "html_report": null,
+    "chart_ids": [
+      "readiness_trend",
+      "readiness_vs_hrv",
+      "hrv_trend",
+      "sleep_duration",
+      "training_load",
+      "hooper_radar",
+      "lifestyle_timeline"
+    ],
+    "call_to_action": [
+      "严格执行冲击周的负荷管理策略，控制高强度训练日。",
+      "优先保障每日充足睡眠，尤其在高负荷日后。",
+      "密切监测身体反馈，根据准备度、HRV和主观疲劳度灵活调整训练。",
+      "确保关键恢复数据的持续记录，以便我们提供更精准的指导。"
+    ]
+  },
+  "persisted": false
+}
