@@ -1,0 +1,21 @@
+{
+  "issues": [
+    {
+      "statement": "Hypothesis 2: 'HRV Z-score -0.862 下降...'",
+      "reason": "The evidence states '低于个性化阈值' but does not explicitly provide the numerical value of this personalized threshold, which would enhance the quality and completeness of the data citation.",
+      "severity": "low"
+    },
+    {
+      "statement": "Hypothesis 3: 'HRV Z-score -0.862 呈下降趋势...'",
+      "reason": "Similar to Hypothesis 2, the personalized HRV Z-score threshold is referenced but not explicitly stated, which would improve the precision of the evidence.",
+      "severity": "low"
+    }
+  ],
+  "suggestions": [
+    {
+      "target_factor": "HRV Z-score",
+      "recommendation": "For hypotheses referencing HRV Z-score and its deviation from a personalized threshold, explicitly state the numerical value of the personalized threshold (e.g., '低于个性化阈值 -0.5') to improve evidence quality and clarity in future reports."
+    }
+  ],
+  "overall_confidence": 0.9
+}

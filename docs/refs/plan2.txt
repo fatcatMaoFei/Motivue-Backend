@@ -1,0 +1,67 @@
+Phase 3A Readiness LLM Roadmap (Plan v2)
+=======================================
+
+0. 当前进度
+-------------
+- 复杂度评分、ToT、Critique、Revision 节点已接好，并引入 Gemini JSON Mode（支持模型回退与 mock 兜底）。
+- 生成脚本 `samples/generate_phase3a_samples.py` 可产出 Phase 3A 的输入/中间/最终样例。
+- Prompt 仍在更新中；Pydantic Schema 尚未落地，当前通过 Python dict 传输。
+
+1. 立即任务（本轮迭代）
+-------------------------
+1.1 Prompt 升级
+    - 将 Phase 3A ToT/Critique Prompt 按四步诊断法（识别信号 → 关联压力源 → 主观背景 → 假设）重写。
+    - 在 Prompt 中显式要求引用客观指标（ACWR、HRV Z-score、睡眠、CMJ/VBT 等）与主观问卷（Hooper、生活方式事件）。
+    - 对 Critique Prompt 补充检查要点：体能 vs 疲劳是否兼顾、是否处理客观/主观冲突、是否给出可执行建议。
+    - 更新 `prompt_plan.txt`，成为所有 Prompt 的最新版本（含 Phase 4/5 桥接说明）。
+
+1.2 Schema 与校验（进行中）
+    - ✅ 新增 `weekly_report/llm/models.py`，落地 `TotHypothesis`, `TotResponse`, `CritiqueIssue`, `CritiqueResponse` Pydantic 模型。
+    - ✅ Gemini 调用改用模型 JSON Schema（自动清洗不兼容关键字）并在节点内执行 `model_validate()`；mock 路径同样输出 Pydantic 结构。
+    - ✅ `RawInputs` 增加 `report_notes` 自由文本字段，Phase 3A payload 透传至 LLM，供周报/后续阶段使用。
+    - ✅ 定义 Phase 4 周报模型：`ChartSpec`, `AnalystReport`, `CommunicatorReport`, `ReportCritique`, `WeeklyReportPackage` 等，并扩展 `WeeklyHistoryEntry` 支持准备度历史（`readiness_score`/`readiness_band`）。
+    - ▢ 为 Phase 4/5 预留 `WeeklyReportSection`, `RecommendationBundle` 等模型骨架（后续迭代）。
+
+1.3 测试与样例
+    - 使用真实复杂样例跑通 `generate_phase3a_samples.py`，校验 Gemini 回应＋JSON 模式。
+    - 扩展脚本：若 LLM 调用成功，输出验证通过的提示；如失败写回 mock。
+    - 准备最小单元测试（pytest）覆盖：LLM 可用、LLM 不可用、JSON 解析失败 → mock。
+
+2. Prompt & Payload 改造（详细）
+----------------------------------
+2.1 ToT 节点
+    - System Prompt：添加 S&C 四步诊断、客观 vs 主观冲突分析、生活方式事件引用、至少 3 个假设、每条证据需附具体数值。
+    - Payload：补充 `complexity_reasons`、`journal_summary`、`training_sessions`、`raw_inputs_snapshot`，并追加 `report_notes`（可为 None）。
+    - Schema：保持 `{hypotheses: [...]}`，后续由 Pydantic 管控。
+
+2.2 Critique 节点
+    - System Prompt：强调逻辑检查、指标引用、洞察覆盖范围；Severity 枚举 `low|medium|high`。
+    - Schema：`{issues: [], suggestions: [], overall_confidence: float}`，未来升级为 Pydantic。
+
+2.3 Prompt 管理
+    - `prompt_plan.txt` 中记录最新 Prompt 模板、Schema、Few-shot 要点。
+    - 对 Phase 4/5 的未开发节点，预留 Prompt 草案与所需字段，确保后续开发对齐。
+
+2.4 Phase 4 周报骨架
+    - ✅ 实现 `weekly_report/trend_builder.py`，生成 准备度/HRV/睡眠/训练/Hooper/生活方式等默认图表，并提供准备度 vs HRV 组合视图。
+    - ✅ 实现 `weekly_report/pipeline.generate_weekly_report`：调用 LLM（含 fallback）输出 Analyst/Communicator/Critique + 图表。
+    - ✅ 新增脚本 `samples/generate_weekly_report_samples.py` 与样例 JSON，便于端到端测试。
+
+3. 后续阶段（展望）
+---------------------
+3.1 Phase 4 报告生成
+    - 引入 Analyst / Communicator 双智能体 Prompt；产出 ChartSpec 与 Markdown 文案。
+    - 使用 Gemini 函数调用生成 ECharts 配置，延续 JSON 模式。
+
+3.2 Phase 5 最终周报渲染（已落地）
+    - `weekly_report/finalizer.generate_weekly_final_report` 将 Phase 4 JSON + 准备度历史、训练/自由备注整合为 Markdown/HTML；默认调用 Gemini，失败时回退模板。
+    - 输出模型 `WeeklyFinalReport`，样例脚本写出 `samples/weekly_report_final_sample.json/.md` 供前端验收。
+    - 保留原有“通知 / 跟进 / 反馈”方案作为未来扩展（对接 CRM/教练协同时再启用）。
+
+附：配置约定
+--------------
+- 默认开启 `READINESS_LLM_ENABLED=true`，模型优先级 `gemini-2.5-flash` → `gemini-1.5-flash` → `gemini-1.5-pro`。
+- 必须通过环境变量 `GOOGLE_API_KEY` 注入密钥；若缺失则自动退回 mock。
+- 日志记录调用失败原因，便于追踪。
+
+完成本计划后，Phase 3A 将具备可上线的稳定性，并为 Phase 4/5 打好 Schema 与 Prompt 基础。

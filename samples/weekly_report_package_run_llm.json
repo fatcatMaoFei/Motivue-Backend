@@ -1,0 +1,421 @@
+{
+  "generated_at": "2025-10-14T06:01:49.790314",
+  "charts": [
+    {
+      "chart_id": "readiness_trend",
+      "title": "近 7 天准备度趋势",
+      "chart_type": "line",
+      "data": {
+        "xAxis": [
+          "09-09",
+          "09-10",
+          "09-11",
+          "09-12",
+          "09-13",
+          "09-14",
+          "09-15"
+        ],
+        "series": [
+          {
+            "name": "准备度得分",
+            "type": "line",
+            "smooth": true,
+            "data": [
+              72.0,
+              70.0,
+              66.0,
+              62.0,
+              65.0,
+              68.0,
+              70.0
+            ]
+          }
+        ],
+        "normal_range": [
+          70,
+          100
+        ]
+      },
+      "notes": "最新准备度 70（band: Well-adapted）。"
+    },
+    {
+      "chart_id": "readiness_vs_hrv",
+      "title": "准备度 vs HRV",
+      "chart_type": "multi_axis_line",
+      "data": {
+        "xAxis": [
+          "09-09",
+          "09-10",
+          "09-11",
+          "09-12",
+          "09-13",
+          "09-14",
+          "09-15"
+        ],
+        "series": [
+          {
+            "name": "准备度得分",
+            "type": "line",
+            "yAxisIndex": 0,
+            "smooth": true,
+            "data": [
+              72.0,
+              70.0,
+              66.0,
+              62.0,
+              65.0,
+              68.0,
+              70.0
+            ]
+          },
+          {
+            "name": "HRV (RMSSD)",
+            "type": "line",
+            "yAxisIndex": 1,
+            "smooth": true,
+            "data": [
+              64.0,
+              63.0,
+              61.0,
+              59.0,
+              60.0,
+              62.0,
+              63.0
+            ]
+          }
+        ],
+        "yAxis": [
+          {
+            "name": "准备度",
+            "min": 0,
+            "max": 100
+          },
+          {
+            "name": "HRV",
+            "min": null,
+            "max": null
+          }
+        ]
+      },
+      "notes": "对照准备度与 HRV 变化，评估恢复是否跟上训练刺激。"
+    },
+    {
+      "chart_id": "hrv_trend",
+      "title": "近 28 天 HRV 趋势",
+      "chart_type": "line",
+      "data": {
+        "xAxis": [
+          "09-09",
+          "09-10",
+          "09-11",
+          "09-12",
+          "09-13",
+          "09-14",
+          "09-15"
+        ],
+        "series": [
+          {
+            "name": "HRV (RMSSD)",
+            "type": "line",
+            "smooth": true,
+            "data": [
+              64.0,
+              63.0,
+              61.0,
+              59.0,
+              60.0,
+              62.0,
+              63.0
+            ]
+          }
+        ],
+        "baseline": 63
+      },
+      "notes": "最新 HRV 63 ms，Z-score +0.00，趋势判断：稳定。"
+    },
+    {
+      "chart_id": "sleep_duration",
+      "title": "睡眠时长与基线对比",
+      "chart_type": "line",
+      "data": {
+        "xAxis": [
+          "09-09",
+          "09-10",
+          "09-11",
+          "09-12",
+          "09-13",
+          "09-14",
+          "09-15"
+        ],
+        "series": [
+          {
+            "name": "睡眠时长 (h)",
+            "type": "line",
+            "smooth": true,
+            "data": [
+              7.6,
+              7.4,
+              6.0,
+              7.2,
+              7.8,
+              8.0,
+              7.6
+            ]
+          }
+        ],
+        "baseline": 7.6
+      },
+      "notes": "最近一日睡眠 7.6 小时，相较基线 +0.0 小时。"
+    },
+    {
+      "chart_id": "sleep_structure",
+      "title": "睡眠结构堆叠图",
+      "chart_type": "stacked_bar",
+      "data": {
+        "xAxis": [
+          "09-09",
+          "09-10",
+          "09-11",
+          "09-12",
+          "09-13",
+          "09-14",
+          "09-15"
+        ],
+        "series": [
+          {
+            "name": "深睡 (h)",
+            "type": "bar",
+            "stack": "sleep",
+            "data": [
+              1.83,
+              1.75,
+              1.33,
+              1.58,
+              1.67,
+              1.75,
+              1.83
+            ]
+          },
+          {
+            "name": "REM (h)",
+            "type": "bar",
+            "stack": "sleep",
+            "data": [
+              1.58,
+              1.53,
+              1.25,
+              1.42,
+              1.5,
+              1.58,
+              1.53
+            ]
+          },
+          {
+            "name": "浅睡/其他 (h)",
+            "type": "bar",
+            "stack": "sleep",
+            "data": [
+              4.18,
+              4.12,
+              3.42,
+              4.2,
+              4.63,
+              4.67,
+              4.23
+            ]
+          }
+        ]
+      },
+      "notes": "展示近 7/28 天睡眠阶段占比，用于识别深睡或 REM 缺口。"
+    },
+    {
+      "chart_id": "training_load",
+      "title": "训练负荷与 ACWR",
+      "chart_type": "bar",
+      "data": {
+        "xAxis": [
+          "09-09",
+          "09-10",
+          "09-11",
+          "09-12",
+          "09-13",
+          "09-14",
+          "09-15"
+        ],
+        "series": [
+          {
+            "name": "训练量 (AU)",
+            "type": "bar",
+            "data": [
+              null,
+              350.0,
+              450.0,
+              0.0,
+              0.0,
+              0.0,
+              350.0
+            ]
+          }
+        ]
+      },
+      "notes": "已过滤超过 2000 AU 的异常值，以避免图表失真。"
+    },
+    {
+      "chart_id": "hooper_radar",
+      "title": "主观疲劳雷达",
+      "chart_type": "radar",
+      "data": {
+        "indicator": [
+          {
+            "name": "疲劳",
+            "max": 10,
+            "min": 0
+          },
+          {
+            "name": "酸痛",
+            "max": 10,
+            "min": 0
+          },
+          {
+            "name": "压力",
+            "max": 10,
+            "min": 0
+          },
+          {
+            "name": "睡眠质量",
+            "max": 10,
+            "min": 0
+          }
+        ],
+        "series": [
+          {
+            "name": "09-15",
+            "type": "radar",
+            "data": [
+              [
+                3.0,
+                3.0,
+                3.0,
+                7.0
+              ]
+            ]
+          }
+        ]
+      },
+      "notes": "雷达图展示最新 Hooper 评分，便于识别主观疲劳与压力。"
+    },
+    {
+      "chart_id": "lifestyle_timeline",
+      "title": "生活方式事件概览",
+      "chart_type": "timeline",
+      "data": {
+        "events": [
+          {
+            "date": "09-09",
+            "tags": [
+              "sport:tennis"
+            ]
+          },
+          {
+            "date": "09-10",
+            "tags": [
+              "sport:tennis"
+            ]
+          },
+          {
+            "date": "09-11",
+            "tags": [
+              "sport:tennis",
+              "strength:legs",
+              "late_night"
+            ]
+          },
+          {
+            "date": "09-12",
+            "tags": [
+              "fatigue_day"
+            ]
+          },
+          {
+            "date": "09-15",
+            "tags": [
+              "sport:tennis"
+            ]
+          }
+        ]
+      },
+      "notes": "标注旅行、加班等事件，便于对照 HRV/睡眠变化。"
+    }
+  ],
+  "analyst": {
+    "summary_points": [
+      "HRV 下降",
+      "疲劳压力升高",
+      "肌肉酸痛偏高"
+    ],
+    "risks": [
+      {
+        "metric": "hrv_decline",
+        "value": null,
+        "reason": "HRV Z-score 为 -0.86，低于个性化阈值，提示自律神经恢复不足。",
+        "severity": "medium"
+      },
+      {
+        "metric": "lifestyle_trend_overlap",
+        "value": null,
+        "reason": "生活方式标签（sport:tennis）与恢复指标下滑重叠，建议关注旅行/工作等因素对恢复的影响。",
+        "severity": "medium"
+      },
+      {
+        "metric": "training_load_outlier",
+        "value": null,
+        "reason": "本周检测到 1 天训练量 AU 超过合理阈值（2000），最高值出现在 2025-09-09：AU 10000。建议核对当日训练记录或更正输入。",
+        "severity": "medium"
+      }
+    ],
+    "opportunities": [
+      {
+        "area": "recovery",
+        "recommendation": "增加恢复手段（充足睡眠、营养、主动恢复），短期内避免高强度模式。",
+        "reason": "HRV 下降"
+      },
+      {
+        "area": "recovery",
+        "recommendation": "记录具体感受与诱因，安排主动恢复或减量训练。",
+        "reason": "疲劳压力升高"
+      },
+      {
+        "area": "recovery",
+        "recommendation": "记录具体感受与诱因，安排主动恢复或减量训练。",
+        "reason": "肌肉酸痛偏高"
+      }
+    ],
+    "chart_ids": [
+      "readiness_trend",
+      "readiness_vs_hrv",
+      "hrv_trend",
+      "sleep_duration"
+    ]
+  },
+  "communicator": {
+    "sections": [
+      {
+        "title": "本周亮点",
+        "body_markdown": "- HRV 下降\n- 疲劳压力升高\n- 肌肉酸痛偏高"
+      },
+      {
+        "title": "风险观察",
+        "body_markdown": "- hrv_decline: HRV Z-score 为 -0.86，低于个性化阈值，提示自律神经恢复不足。\n- lifestyle_trend_overlap: 生活方式标签（sport:tennis）与恢复指标下滑重叠，建议关注旅行/工作等因素对恢复的影响。\n- training_load_outlier: 本周检测到 1 天训练量 AU 超过合理阈值（2000），最高值出现在 2025-09-09：AU 10000。建议核对当日训练记录或更正输入。"
+      },
+      {
+        "title": "建议与行动",
+        "body_markdown": "- recovery: 增加恢复手段（充足睡眠、营养、主动恢复），短期内避免高强度模式。\n- recovery: 记录具体感受与诱因，安排主动恢复或减量训练。\n- recovery: 记录具体感受与诱因，安排主动恢复或减量训练。"
+      }
+    ],
+    "tone": "professional_encouraging",
+    "call_to_action": [
+      "增加恢复手段（充足睡眠、营养、主动恢复），短期内避免高强度模式。"
+    ]
+  },
+  "critique": null
+}

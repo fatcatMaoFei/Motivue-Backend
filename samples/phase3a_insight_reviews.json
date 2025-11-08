@@ -1,0 +1,75 @@
+[
+  {
+    "complexity": {
+      "score": 7,
+      "label": "complex",
+      "reasons": [
+        "ACWR 1.45 ≥ 1.25",
+        "3 consecutive high-load days",
+        "HRV Z-score -0.86 indicates moderate drop",
+        "Sleep duration delta -0.60h below baseline",
+        "Hooper high bands: fatigue, soreness",
+        "Lifestyle events recorded: screen_before_bed, work_travel"
+      ]
+    },
+    "tot_hypotheses": {
+      "hypotheses": [
+        {
+          "factor": "训练负荷过高",
+          "evidence": "ACWR 1.4536 超过 1.25 阈值，且连续 3 天高负荷训练。客观负荷高与主观疲劳 (Hooper 6) 和酸痛 (Hooper 5) 高度一致。",
+          "confidence": 0.9,
+          "supporting_metrics": [
+            "acwr_value",
+            "consecutive_high_days",
+            "hooper_fatigue",
+            "hooper_soreness"
+          ]
+        },
+        {
+          "factor": "生活方式影响恢复",
+          "evidence": "HRV Z-score -0.862 下降，睡眠时长较基线减少 0.6h。日志记录“work_travel”和“screen_before_bed”导致“昨晚赶飞机回程，入睡前加班处理工作”，与客观恢复指标下降及主观情绪低落 (mood slider 3.0) 一致。",
+          "confidence": 0.8,
+          "supporting_metrics": [
+            "hrv_z_score",
+            "sleep_duration_delta",
+            "journal_tags",
+            "journal_flags",
+            "mood_slider"
+          ]
+        },
+        {
+          "factor": "整体恢复不足",
+          "evidence": "HRV Z-score -0.862 呈下降趋势，主观疲劳 (Hooper 6) 和酸痛 (Hooper 5) 均高，能量评分仅 3.0。客观与主观指标均指向恢复不足，可能影响后续表现。",
+          "confidence": 0.85,
+          "supporting_metrics": [
+            "hrv_z_score",
+            "hooper_fatigue",
+            "hooper_soreness",
+            "energy_score"
+          ]
+        }
+      ]
+    },
+    "critique": {
+      "issues": [
+        {
+          "statement": "Hypothesis 2: 'HRV Z-score -0.862 下降...'",
+          "reason": "The evidence states '低于个性化阈值' but does not explicitly provide the numerical value of this personalized threshold, which would enhance the quality and completeness of the data citation.",
+          "severity": "low"
+        },
+        {
+          "statement": "Hypothesis 3: 'HRV Z-score -0.862 呈下降趋势...'",
+          "reason": "Similar to Hypothesis 2, the personalized HRV Z-score threshold is referenced but not explicitly stated, which would improve the precision of the evidence.",
+          "severity": "low"
+        }
+      ],
+      "suggestions": [
+        {
+          "target_factor": "HRV Z-score",
+          "recommendation": "For hypotheses referencing HRV Z-score and its deviation from a personalized threshold, explicitly state the numerical value of the personalized threshold (e.g., '低于个性化阈值 -0.5') to improve evidence quality and clarity in future reports."
+        }
+      ],
+      "overall_confidence": 0.9
+    }
+  }
+]

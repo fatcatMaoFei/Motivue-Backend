@@ -1,0 +1,38 @@
+{
+  "hypotheses": [
+    {
+      "factor": "训练负荷过高",
+      "evidence": "ACWR 1.4536 超过 1.25 阈值，且连续 3 天高负荷训练。客观负荷高与主观疲劳 (Hooper 6) 和酸痛 (Hooper 5) 高度一致。",
+      "confidence": 0.9,
+      "supporting_metrics": [
+        "acwr_value",
+        "consecutive_high_days",
+        "hooper_fatigue",
+        "hooper_soreness"
+      ]
+    },
+    {
+      "factor": "生活方式影响恢复",
+      "evidence": "HRV Z-score -0.862 下降，睡眠时长较基线减少 0.6h。日志记录“work_travel”和“screen_before_bed”导致“昨晚赶飞机回程，入睡前加班处理工作”，与客观恢复指标下降及主观情绪低落 (mood slider 3.0) 一致。",
+      "confidence": 0.8,
+      "supporting_metrics": [
+        "hrv_z_score",
+        "sleep_duration_delta",
+        "journal_tags",
+        "journal_flags",
+        "mood_slider"
+      ]
+    },
+    {
+      "factor": "整体恢复不足",
+      "evidence": "HRV Z-score -0.862 呈下降趋势，主观疲劳 (Hooper 6) 和酸痛 (Hooper 5) 均高，能量评分仅 3.0。客观与主观指标均指向恢复不足，可能影响后续表现。",
+      "confidence": 0.85,
+      "supporting_metrics": [
+        "hrv_z_score",
+        "hooper_fatigue",
+        "hooper_soreness",
+        "energy_score"
+      ]
+    }
+  ]
+}

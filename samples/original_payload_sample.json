@@ -1,0 +1,164 @@
+{
+  "user_id": "athlete_001",
+  "date": "2025-09-15",
+  "gender": "男性",
+  "total_sleep_minutes": 420,
+  "in_bed_minutes": 470,
+  "deep_sleep_minutes": 90,
+  "rem_sleep_minutes": 95,
+  "apple_sleep_score": 82,
+  "hrv_rmssd_today": 58,
+  "hrv_rmssd_3day_avg": 55,
+  "hrv_rmssd_7day_avg": 60,
+  "hrv_rmssd_28day_avg": 62.5,
+  "hrv_rmssd_28day_sd": 6.3,
+  "hrv_baseline_mu": 63,
+  "hrv_baseline_sd": 5.8,
+  "sleep_baseline_hours": 7.6,
+  "sleep_baseline_eff": 0.87,
+  "rest_baseline_ratio": 0.37,
+  "recent_training_au": [300, 350, 450, 0, 0, 0, 350],
+  "hooper": {
+    "fatigue": 6,
+    "soreness": 5,
+    "stress": 3,
+    "sleep": 4
+  },
+  "journal": {
+    "alcohol_consumed": false,
+    "late_caffeine": false,
+    "screen_before_bed": true,
+    "late_meal": false,
+    "lifestyle_tags": [
+      "sport:tennis"
+    ],
+    "sliders": {
+      "fatigue_slider": 6,
+      "mood_slider": 3
+    }
+  },
+  "training_tag_counts": {
+    "strength:chest": {"7d": 1, "30d": 8},
+    "strength:back": {"7d": 2, "30d": 6},
+    "strength:legs": {"7d": 1, "30d": 5},
+    "cardio:run": {"7d": 2, "30d": 7},
+    "sport:tennis": {"7d": 3, "30d": 6}
+  },
+  "strength_levels": {
+    "bench_press": {
+      "latest": {"date": "2025-09-14", "weight_kg": 100, "reps": 3, "one_rm_est": 110.0},
+      "baseline_30d": {"date": "2025-08-15", "weight_kg": 90, "reps": 3, "one_rm_est": 99.0}
+    },
+    "back_squat": {
+      "latest": {"date": "2025-09-13", "weight_kg": 140, "reps": 2, "one_rm_est": 149.3},
+      "baseline_30d": {"date": "2025-08-13", "weight_kg": 130, "reps": 2, "one_rm_est": 138.7}
+    }
+  },
+  "history": [
+    {
+      "date": "2025-09-09",
+      "readiness_score": 72,
+      "readiness_band": "Well-adapted",
+      "hrv_rmssd": 64,
+      "hrv_z_score": 0.2,
+      "sleep_duration_hours": 7.6,
+      "sleep_total_minutes": 456,
+      "sleep_deep_minutes": 110,
+      "sleep_rem_minutes": 95,
+      "daily_au": 10000,
+      "acwr": null,
+      "hooper": {"fatigue": 3, "soreness": 3, "stress": 3, "sleep": 7},
+      "lifestyle_events": ["sport:tennis"]
+    },
+    {
+      "date": "2025-09-10",
+      "readiness_score": 70,
+      "readiness_band": "Well-adapted",
+      "hrv_rmssd": 63,
+      "hrv_z_score": 0.1,
+      "sleep_duration_hours": 7.4,
+      "sleep_total_minutes": 444,
+      "sleep_deep_minutes": 105,
+      "sleep_rem_minutes": 92,
+      "daily_au": 350,
+      "acwr": null,
+      "hooper": {"fatigue": 3, "soreness": 3, "stress": 3, "sleep": 7},
+      "lifestyle_events": ["sport:tennis"]
+    },
+    {
+      "date": "2025-09-11",
+      "readiness_score": 66,
+      "readiness_band": "FOR",
+      "hrv_rmssd": 61,
+      "hrv_z_score": -0.2,
+      "sleep_duration_hours": 6.0,
+      "sleep_total_minutes": 360,
+      "sleep_deep_minutes": 80,
+      "sleep_rem_minutes": 75,
+      "daily_au": 450,
+      "acwr": null,
+      "hooper": {"fatigue": 4, "soreness": 4, "stress": 3, "sleep": 6},
+      "lifestyle_events": ["sport:tennis", "strength:legs", "late_night"]
+    },
+    {
+      "date": "2025-09-12",
+      "readiness_score": 62,
+      "readiness_band": "FOR",
+      "hrv_rmssd": 59,
+      "hrv_z_score": -0.4,
+      "sleep_duration_hours": 7.2,
+      "sleep_total_minutes": 432,
+      "sleep_deep_minutes": 95,
+      "sleep_rem_minutes": 85,
+      "daily_au": 0,
+      "acwr": null,
+      "hooper": {"fatigue": 5, "soreness": 4, "stress": 3, "sleep": 6},
+      "lifestyle_events": ["fatigue_day"]
+    },
+    {
+      "date": "2025-09-13",
+      "readiness_score": 65,
+      "readiness_band": "FOR",
+      "hrv_rmssd": 60,
+      "hrv_z_score": -0.3,
+      "sleep_duration_hours": 7.8,
+      "sleep_total_minutes": 468,
+      "sleep_deep_minutes": 100,
+      "sleep_rem_minutes": 90,
+      "daily_au": 0,
+      "acwr": null,
+      "hooper": {"fatigue": 4, "soreness": 3, "stress": 3, "sleep": 7},
+      "lifestyle_events": []
+    },
+    {
+      "date": "2025-09-14",
+      "readiness_score": 68,
+      "readiness_band": "Well-adapted",
+      "hrv_rmssd": 62,
+      "hrv_z_score": -0.1,
+      "sleep_duration_hours": 8.0,
+      "sleep_total_minutes": 480,
+      "sleep_deep_minutes": 105,
+      "sleep_rem_minutes": 95,
+      "daily_au": 0,
+      "acwr": null,
+      "hooper": {"fatigue": 3, "soreness": 3, "stress": 3, "sleep": 7},
+      "lifestyle_events": []
+    },
+    {
+      "date": "2025-09-15",
+      "readiness_score": 70,
+      "readiness_band": "Well-adapted",
+      "hrv_rmssd": 63,
+      "hrv_z_score": 0.0,
+      "sleep_duration_hours": 7.6,
+      "sleep_total_minutes": 456,
+      "sleep_deep_minutes": 110,
+      "sleep_rem_minutes": 92,
+      "daily_au": 350,
+      "acwr": null,
+      "hooper": {"fatigue": 3, "soreness": 3, "stress": 3, "sleep": 7},
+      "lifestyle_events": ["sport:tennis"]
+    }
+  ]
+}

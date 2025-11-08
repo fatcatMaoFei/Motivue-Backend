@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import os
@@ -18,7 +18,7 @@ from readiness.service import compute_readiness_from_payload
 from readiness.constants import TRAINING_LOAD_AU
 
 
-CSV_DEFAULT = os.path.join(ROOT, '涓€у寲CPT', 'history_gui_log.csv')
+CSV_DEFAULT = os.path.join(ROOT, 'samples', 'data', 'personalization', 'history_gui_log.csv')
 
 
 STATES = ['Peak', 'Well-adapted', 'FOR', 'Acute Fatigue', 'NFOR', 'OTS']
@@ -29,7 +29,7 @@ def init_state():
     if 'user_id' not in st.session_state:
         st.session_state.user_id = 'user_001'
     if 'gender' not in st.session_state:
-        st.session_state.gender = '鐢锋€?
+        st.session_state.gender = '男性'
     if 'prev_probs' not in st.session_state:
         st.session_state.prev_probs = {
             'Peak': 0.2, 'Well-adapted': 0.4, 'FOR': 0.3,
@@ -58,7 +58,7 @@ def au_to_label_by_nearest(au: float) -> str:
         d = abs(float(val) - au)
         if best_dist is None or d < best_dist:
             best_label, best_dist = lbl, d
-    return best_label or '浼戞伅'
+    return best_label or '无'
 
 
 def build_payload(today_inputs: Dict[str, Any]) -> Dict[str, Any]:
@@ -108,7 +108,7 @@ def build_payload(today_inputs: Dict[str, Any]) -> Dict[str, Any]:
     payload['journal_today'] = journal_today
 
     # Female cycle (optional): affect today posterior
-    if today_inputs.get('gender') == '濂虫€?:
+    if today_inputs.get('gender') == '女性':
         day = today_inputs.get('cycle_day')
         length = today_inputs.get('cycle_length')
         if day is not None and length is not None and day > 0 and length > 0:
@@ -333,5 +333,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-

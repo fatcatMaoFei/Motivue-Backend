@@ -1,0 +1,347 @@
+{
+  "raw_inputs": {
+    "user_id": "athlete_001",
+    "date": "2025-09-15",
+    "gender": "男性",
+    "sleep": {
+      "total_sleep_minutes": 420,
+      "in_bed_minutes": 470,
+      "deep_sleep_minutes": 90,
+      "rem_sleep_minutes": 95,
+      "sleep_efficiency_score": 82.0
+    },
+    "hrv": {
+      "hrv_rmssd_today": 58.0,
+      "hrv_rmssd_3day_avg": 55.0,
+      "hrv_rmssd_7day_avg": 60.0,
+      "hrv_rmssd_28day_avg": 62.5,
+      "hrv_rmssd_28day_sd": 6.3,
+      "device": "Apple Watch"
+    },
+    "training_sessions": [
+      {
+        "label": "高",
+        "rpe": 8,
+        "duration_minutes": 70,
+        "au": 560,
+        "start_time": "2025-09-14T18:30:00",
+        "notes": "力量训练-背部"
+      }
+    ],
+    "hooper": {
+      "fatigue": 6,
+      "soreness": 5,
+      "stress": 3,
+      "sleep": 4
+    },
+    "journal": {
+      "alcohol_consumed": false,
+      "late_caffeine": false,
+      "screen_before_bed": true,
+      "late_meal": false,
+      "is_sick": false,
+      "is_injured": false,
+      "lifestyle_tags": [
+        "work_travel",
+        "high_pressure_meeting"
+      ],
+      "sliders": {
+        "fatigue_slider": 6.0,
+        "mood_slider": 3.0
+      }
+    },
+    "body_metrics": {
+      "bodyweight_kg": 83.4,
+      "resting_hr": 52.0
+    },
+    "external_events": [
+      "red_eye_flight_previous_day"
+    ]
+  },
+  "metrics": {
+    "training_load": {
+      "daily_au_28d": [360, 400, 0, 500, 420, 560, 300],
+      "daily_au_7d": [0, 500, 420, 560, 300],
+      "acwr_value": 1.32,
+      "acwr_band": "high",
+      "acute_load": 440.0,
+      "chronic_load": 334.0,
+      "consecutive_high_days": 3,
+      "training_volume": 12450.0,
+      "training_intensity_index": 0.72
+    },
+    "recovery": {
+      "sleep_efficiency": 0.894,
+      "sleep_restorative_ratio": 0.44,
+      "sleep_duration_hours": 7.0,
+      "sleep_duration_delta": -0.5,
+      "css_score": 78.5
+    },
+    "physiology": {
+      "hrv_z_score": -0.73,
+      "hrv_trend": "slight_decline",
+      "hrv_state": "moderate_drop",
+      "readiness_prior": {
+        "Peak": 0.08,
+        "Well-adapted": 0.45,
+        "FOR": 0.28,
+        "Acute Fatigue": 0.15,
+        "NFOR": 0.03,
+        "OTS": 0.01
+      }
+    },
+    "subjective": {
+      "hooper_bands": {
+        "fatigue": "high",
+        "soreness": "medium",
+        "stress": "low",
+        "sleep": "medium"
+      },
+      "doms_score": 5.5,
+      "energy_score": 4.0,
+      "fatigue_score": 7.1
+    },
+    "baselines": {
+      "sleep_baseline_hours": 7.6,
+      "sleep_baseline_efficiency": 0.87,
+      "rest_baseline_ratio": 0.37,
+      "hrv_mu": 63.0,
+      "hrv_sigma": 5.8,
+      "personalized_thresholds": {
+        "acwr_high": 1.25,
+        "hrv_decline": -0.5
+      }
+    },
+    "strength": {
+      "e1rm_estimates": {
+        "deadlift": 215.0
+      },
+      "velocity_loss_pct": 5.0
+    }
+  },
+  "trends": {
+    "series": {
+      "sleep_hours_28d": {
+        "name": "sleep_hours_28d",
+        "points": [
+          {"date": "2025-09-09", "value": 7.8},
+          {"date": "2025-09-10", "value": 7.5},
+          {"date": "2025-09-11", "value": 7.1},
+          {"date": "2025-09-12", "value": 6.8},
+          {"date": "2025-09-13", "value": 7.6},
+          {"date": "2025-09-14", "value": 7.3},
+          {"date": "2025-09-15", "value": 7.0}
+        ],
+        "window_days": 28
+      },
+      "hrv_rmssd_28d": {
+        "name": "hrv_rmssd_28d",
+        "points": [
+          {"date": "2025-09-09", "value": 65},
+          {"date": "2025-09-10", "value": 64},
+          {"date": "2025-09-11", "value": 63},
+          {"date": "2025-09-12", "value": 62},
+          {"date": "2025-09-13", "value": 61},
+          {"date": "2025-09-14", "value": 59},
+          {"date": "2025-09-15", "value": 58}
+        ],
+        "window_days": 28
+      },
+      "au_28d": {
+        "name": "au_28d",
+        "points": [
+          {"date": "2025-09-09", "value": 0},
+          {"date": "2025-09-10", "value": 500},
+          {"date": "2025-09-11", "value": 420},
+          {"date": "2025-09-12", "value": 560},
+          {"date": "2025-09-13", "value": 300},
+          {"date": "2025-09-14", "value": 360},
+          {"date": "2025-09-15", "value": 440}
+        ],
+        "window_days": 28
+      }
+    },
+    "metadata": {
+      "sleep_hours": {
+        "weekly_delta": -0.5,
+        "monthly_delta": -0.8,
+        "slope": -0.12,
+        "phase": "accumulation",
+        "confidence": 0.7
+      },
+      "hrv_rmssd": {
+        "weekly_delta": -3.0,
+        "monthly_delta": -4.5,
+        "slope": -0.9,
+        "phase": "accumulation",
+        "confidence": 0.8
+      },
+      "training_load": {
+        "weekly_delta": 110.0,
+        "monthly_delta": 80.0,
+        "slope": 0.35,
+        "phase": "accumulation",
+        "confidence": 0.75
+      }
+    }
+  },
+  "insights": [
+    {
+      "id": "insight_acwr_high_fatigue",
+      "trigger": "acwr_high_fatigue",
+      "summary": "训练负荷偏高 + 疲劳累积",
+      "explanation": "ACWR 达到 1.32，高于个性化阈值 1.25，Hooper 疲劳为高档（6），提示近期累积负荷偏高，需安排恢复。",
+      "actions": [
+        {
+          "recommendation": "未来 48 小时训练量下调 20%，避免高强度爆发练习。",
+          "category": "training_adjustment",
+          "priority": 1
+        },
+        {
+          "recommendation": "增加 30-45 分钟低强度有氧或轻度流动性训练促进恢复。",
+          "category": "recovery",
+          "priority": 2
+        }
+      ],
+      "evidence": [
+        {
+          "key": "acwr_value",
+          "value": 1.32,
+          "description": "ACWR 超过高风险阈值"
+        },
+        {
+          "key": "hooper_fatigue",
+          "value": 6.0,
+          "description": "Hooper 疲劳评分为高档"
+        },
+        {
+          "key": "fatigue_score",
+          "value": 7.1,
+          "description": "综合疲劳指数升高"
+        }
+      ],
+      "confidence": 0.78,
+      "tags": [
+        "training_load",
+        "recovery"
+      ]
+    },
+    {
+      "id": "insight_sleep_decline",
+      "trigger": "sleep_efficiency_drop",
+      "summary": "睡眠效率下降影响恢复",
+      "explanation": "最近一周睡眠效率降至 89%，比基线低 4%，且存在晚间屏幕使用记录，建议优化睡眠卫生。",
+      "actions": [
+        {
+          "recommendation": "睡前 60 分钟关闭电子设备，加入低强度放松活动（呼吸或拉伸）。",
+          "category": "lifestyle",
+          "priority": 2
+        }
+      ],
+      "evidence": [
+        {
+          "key": "sleep_efficiency",
+          "value": 0.894,
+          "description": "睡眠效率低于基线"
+        },
+        {
+          "key": "screen_before_bed",
+          "description": "存在睡前屏幕使用"
+        }
+      ],
+      "confidence": 0.65,
+      "tags": [
+        "sleep",
+        "recovery"
+      ]
+    }
+  ],
+  "report_payload": {
+    "summary": {
+      "readiness_score": 64,
+      "readiness_band": "caution",
+      "drivers": [
+        "训练负荷偏高",
+        "Hooper 疲劳升高",
+        "睡眠效率下降"
+      ],
+      "opportunities": [
+        "引入恢复性有氧",
+        "优化睡前习惯"
+      ],
+      "risks": [
+        "高 ACWR 增加过度训练风险",
+        "HRV 持续下降影响自律神经恢复"
+      ]
+    },
+    "charts": [
+      {
+        "chart_id": "trend_sleep",
+        "title": "近 28 天睡眠时长",
+        "chart_type": "line",
+        "data": {
+          "xAxis": ["09-09", "09-10", "09-11", "09-12", "09-13", "09-14", "09-15"],
+          "series": [
+            {
+              "name": "睡眠时长（小时）",
+              "type": "line",
+              "data": [7.8, 7.5, 7.1, 6.8, 7.6, 7.3, 7.0]
+            }
+          ],
+          "baseline": 7.6
+        },
+        "notes": "过去一周平均睡眠 7.1 小时，低于基线 0.5 小时。"
+      },
+      {
+        "chart_id": "trend_hrv",
+        "title": "近 28 天 HRV (RMSSD)",
+        "chart_type": "line",
+        "data": {
+          "xAxis": ["09-09", "09-10", "09-11", "09-12", "09-13", "09-14", "09-15"],
+          "series": [
+            {
+              "name": "HRV RMSSD",
+              "type": "line",
+              "data": [65, 64, 63, 62, 61, 59, 58]
+            }
+          ],
+          "baseline": 63.0
+        },
+        "notes": "HRV 连续下滑，建议关注恢复策略。"
+      },
+      {
+        "chart_id": "trend_training_load",
+        "title": "近 28 天训练负荷 (AU)",
+        "chart_type": "bar",
+        "data": {
+          "xAxis": ["09-09", "09-10", "09-11", "09-12", "09-13", "09-14", "09-15"],
+          "series": [
+            {
+              "name": "训练 AU",
+              "type": "bar",
+              "data": [0, 500, 420, 560, 300, 360, 440]
+            }
+          ],
+          "acwr": 1.32
+        },
+        "notes": "ACWR 为 1.32，高于个性化阈值 1.25。"
+      }
+    ],
+    "insights": [
+      "训练负荷偏高，建议降低未来 48 小时的训练量并增加恢复性活动。",
+      "睡眠效率下降，建议调整睡前习惯并减少屏幕使用。"
+    ],
+    "metadata": {
+      "period_start": "2025-09-09",
+      "period_end": "2025-09-15",
+      "data_sources": [
+        "Apple HealthKit",
+        "Manual Journal",
+        "Training Log"
+      ],
+      "data_quality_score": 0.9,
+      "generated_at": "2025-09-15T07:30:00Z",
+      "generator_version": "report-agent@0.1.0"
+    }
+  }
+}

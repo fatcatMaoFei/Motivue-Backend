@@ -1,0 +1,233 @@
+Prompt Strategy Summary (v0.2)
+================================
+
+0. 总体原则
+-----------
+- 所有 LLM 调用统一采用「System Prompt（静态角色/约束）」+「User Prompt（动态数据）」的双层结构。
+- 输入数据须先做“上下文预处理”，构建结构化摘要（例如 `metrics_summary`、`insights_summary`），减少 token 消耗。
+- 输出严格遵循 JSON Schema（OpenAI `response_format=json_schema` 或 Anthropic 工具模式）。Schema 需用 Pydantic 定义并在字段 description 中写明含义。
+- 对复杂任务使用 few-shot 示例，帮助模型理解格式与语气。
+- Supervisor 负责唯一写入，其余节点只读/算/生成，再由 Supervisor 汇总。
+
+1. 阶段 3A：洞察强化层（ToT + Critique）
+----------------------------------------
+### 1.1 复杂度评分
+- 规则：ACWR 超阈、连续高强 ≥3、HRV Z-score ≤ -0.5/ -1.5、睡眠效率降 ≥5%、Hooper 高档、lifestyle 负面事件≥2、关键数据缺失等触发加分。
+- 评分结果存入 `GraphState.metadata["complexity_score"]`；≥3 走 ToT/Critique。
+
+### 1.2 ToT 节点（Hypothesis Generation）
+**System Prompt 关键要点**
+```
+# Role
+Elite sports data scientist，面向教练输出可执行洞察。
+
+# Method：S&C 四步诊断
+1. 识别客观信号：训练负荷（ACWR、连续高强天数）、恢复指标（HRV Z-score、睡眠效率/时长、CMJ/VBT）。
+2. 关联压力源：训练计划变化、旅行、缺失数据、生活方式事件。
+3. 融合主观背景：Hooper 分项、fatigue/mood sliders、journal 事件，标注主观与客观的一致或冲突。
+4. 形成假设：总结对 readiness 的影响，输出可执行提示。
+
+# Output Rules
+- 至少 3 条假设；`factor` 简洁聚焦单一驱动因素。
+- `evidence` 必须引用具体数值或阈值（如“ACWR 1.45 ≥ 1.25”“HRV Z-score -0.86”）。
+- 说明客观 vs 主观信号是否一致，并提及 lifestyle 事件或数据缺失。
+- `confidence` 0~1，根据证据强弱给出。
+- 仅输出 JSON，遵循 Schema。
+```
+
+**User Prompt 结构**
+```
+{
+  "user_id": "...",
+  "date": "2025-09-15",
+  "metrics_summary": {...},          # 训练负荷 / 恢复 / 生理 / 主观 / 基线
+  "journal_summary": {...},          # lifestyle flags, tags, sliders, sickness/injury
+  "hooper_scores": {...},
+  "training_sessions": [...],        # 当日训练标签、RPE、AU
+  "draft_insights": [...],
+  "complexity_score": 7,
+  "complexity_reasons": [...],
+  "raw_inputs_snapshot": {...}       # 睡眠、HRV、体重、静息心率等关键信息
+}
+```
+
+**JSON Schema**
+```
+{
+  "type": "object",
+  "properties": {
+    "hypotheses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "factor": {"type": "string"},
+          "evidence": {"type": "string"},
+          "confidence": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+          "supporting_metrics": {"type": "array", "items": {"type": "string"}}
+        },
+        "required": ["factor", "evidence", "confidence"],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    }
+  },
+  "required": ["hypotheses"],
+  "additionalProperties": false
+}
+```
+
+### 1.3 Critique 节点（Self-Refine）
+**System Prompt 关键要点**
+```
+# Role
+Sports performance peer reviewer。
+
+# Checklist
+1. 覆盖面：假设是否同时考虑训练负荷、恢复、主观反馈、生活方式？
+2. 数据准确性：引用的 ACWR、HRV Z-score、Hooper 分项是否正确，阈值是否说明。
+3. 冲突处理：客观与主观矛盾时是否解释或提示后续检查？
+4. 可执行性：假设是否给出具体建议或行动方向？
+
+# Output
+- `issues`: [{statement, reason, severity(=low|medium|high)}]
+- `suggestions`: [{target_factor, recommendation}]
+- `overall_confidence`: 0.0~1.0
+- 无问题也需返回空数组并给出置信度。
+- 仅输出 JSON。
+```
+
+**JSON Schema** 同上，后续将迁移到 Pydantic。
+
+### 1.4 Revision 节点
+- 将 critique 结果写回 `state.insights`：更新 summary/explanation/evidence/confidence。
+- 将 `critique_notes` 记录到 metadata，供报告节点引用。
+
+2. 阶段 4：报告与可视化
+------------------------
+### 2.1 TrendBuilder（无 LLM）
+- 生成 7/28 天趋势、ChartSpec（ECharts JSON）、trend metadata（slope、delta、phase、confidence）。
+
+### 2.2 Analyst Agent
+**System Prompt 核心**
+```
+# Role & Goal
+You are an S&C data analyst; only state objective facts.
+# Task
+- 从 ReadinessState 中提取 summary_points（含具体数据）
+- 标记 risks/opportunities
+- 返回 charts（沿用 TrendBuilder 任意生成的 ChartSpec）
+- JSON only
+```
+**Schema 关键字段**
+```
+{
+  "summary_points": ["string", ...],
+  "risks": [{"metric": "...", "value": "...", "reason": "..."}],
+  "opportunities": [...],
+  "charts": [ChartSpec...]
+}
+```
+
+### 2.3 Communicator Agent
+**System Prompt 核心**
+```
+# Role & Goal
+Professional, empathetic coach; convert facts to a weekly report.
+# Principles
+- Start with positives
+- Frame constructively
+- Action-oriented
+- Tone = professional_encouraging
+# Output
+- Markdown sections + call_to_action (JSON schema)
+```
+**Schema 示例**
+```
+{
+  "sections": [
+    {"title": "本周亮点", "body_markdown": "..."},
+    {"title": "风险与建议", "body_markdown": "..."}
+  ],
+  "tone": "professional_encouraging",
+  "call_to_action": ["..."]
+}
+```
+
+### 2.4 Report Critique Agent
+**System Prompt 核心**
+```
+# Role
+Analyst reviewer; check report text vs data.
+# Task
+- 返回 issues[{sentence, reason, fix}]
+- 若无问题传空数组
+```
+**Revision**：Communicator 依据 issues 修订后输出最终 Markdown。
+
+3. 阶段 5：最终渲染与可选扩展
+---------------------------------
+### 3.1 Finalizer Agent（Phase 5）
+**System Prompt 要点**
+```
+- 角色：资深运动科学家 & 体能教练编辑（Finalizer）。
+- 先应用 critique.fix，替换 communicator 草稿中的原句。
+- 使用 history + chart_specs 作为最终数值：冲突时必须以图表数据为准并说明修正。
+- 强制输出段落顺序：
+  A. 本周概览（准备度 7 日趋势、ACWR、关键驱动）
+  B. 训练负荷与表现（每日表格 + 训练点评）
+  C. 恢复与生理信号（准备度 vs HRV、Z-score 含义、睡眠结构）
+  D. 主观反馈与生活方式（Hooper 趋势、Journal 影响、主客观冲突）
+  E. 备注与训练日志洞察（report_notes、training_sessions.notes 与指标联动）
+  F. 下周行动计划（训练/睡眠/压力/营养/监测 分组行动项）
+  G. 教练寄语（鼓励 + 下周关注重点）
+- 引用图表时注明标题或 chart_id（如“参见‘准备度 vs HRV’图表”）。
+- 语气专业、建设性；解释 ACWR、HRV Z-score 等术语含义。
+```
+
+**输出 Schema（`WeeklyFinalReport`）**
+```
+{
+  "markdown_report": "...",      // 必填，包含全部段落、表格、行动项
+  "html_report": "...",          // 可选（为空时由后端自动转换）
+  "chart_ids": ["readiness_trend", "readiness_vs_hrv", ...],
+  "call_to_action": ["..."]       // 与 Markdown 行动计划保持一致
+}
+```
+
+**输入字段**
+- `weekly_package`: Phase 4 产出（charts、analyst、communicator、critique）。
+- `history`: `WeeklyHistoryEntry[]`（含 readiness_score/band、HRV、睡眠、AU、Hooper、lifestyle）。
+- `report_notes`: 自由文本。
+- `training_sessions`: 当周训练笔记（label、RPE、AU、notes）。
+- `chart_catalog`: `{chart_id → title}`，便于提示词引用。
+
+### 3.2 未来扩展（通知 / 跟进 / 反馈）
+> *保留原设计，待需要对接 CRM 或教练协同时再启用。*
+
+- Notification Agent：生成目标受众/渠道/通知正文/下一步行动。
+- Follow-up Script Agent：输出 coach/athlete 对话脚本。
+- Feedback Summary Agent：把自由文本反馈整理成结构化 highlights/concerns/actions。
+
+4. 数据与上下文预处理建议
+------------------------
+- `metrics_summary`：关键信号（准备度趋势、HRV、ACWR、睡眠、Hooper）。  
+- `insights_summary`：来自阶段 3/3A 的主要结论、confidence。  
+- `journal_summary`：重要生活方式事件、主观备注。  
+- 以 “指标 → 对比 → 结论” 的格式提供，便于 LLM 直接引用。
+
+5. Few-shot 示例需求
+--------------------
+- ToT 节点：提供至少一个完整样例（输入 `metrics_summary` + 输出 hypotheses）。  
+- Critique 节点：提供一个示例 issue（如忽略 journal）、以及建议如何修正。  
+- Analyst 节点：示例 summary_points + risks + charts。  
+- Communicator 节点：示例 Markdown（含亮点、风险、行动）。  
+- Notification / Feedback 节点：示例 JSON。
+
+6. 后续工作提示
+--------------
+- 按上述模板编写 prompt 并配置 Schema；  
+- 用模拟 `ReadinessState` 数据做单元测试；  
+- 与提示词团队协作补充 few-shot 示例；  
+- 在 LangGraph 里串联各节点并记录日志；  
+- 所有 prompt 更新需版本化，以便后续调参与 A/B 测试。

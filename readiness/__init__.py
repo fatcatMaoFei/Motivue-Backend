@@ -1,7 +1,6 @@
-"""Readiness package: constants, mapping, engine, and service interface.
+from __future__ import annotations
 
-This package provides a cleaner surface over the legacy dynamic_model module
-without breaking backward compatibility. You can progressively migrate code to
-import from `readiness.*` while the original `dynamic_model.py` remains intact.
-"""
-
+# Proxy top-level `readiness` package to libs/readiness_engine so legacy imports
+# like `from readiness.constants import ...` continue to work.
+import pathlib as _pathlib
+__path__ = [str(_pathlib.Path(__file__).resolve().parents[1] / 'libs' / 'readiness_engine')]

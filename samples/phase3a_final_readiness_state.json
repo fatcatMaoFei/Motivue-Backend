@@ -1,0 +1,460 @@
+{
+  "raw_inputs": {
+    "user_id": "athlete_demo",
+    "date": "2025-09-15",
+    "gender": "male",
+    "sleep": {
+      "total_sleep_minutes": 420.0,
+      "in_bed_minutes": 470.0,
+      "deep_sleep_minutes": 90.0,
+      "rem_sleep_minutes": 95.0,
+      "core_sleep_minutes": null,
+      "sleep_efficiency_score": null
+    },
+    "hrv": {
+      "hrv_rmssd_today": 58.0,
+      "hrv_rmssd_3day_avg": null,
+      "hrv_rmssd_7day_avg": null,
+      "hrv_rmssd_28day_avg": null,
+      "hrv_rmssd_28day_sd": null,
+      "device": null
+    },
+    "training_sessions": [
+      {
+        "label": "高",
+        "rpe": 8.0,
+        "duration_minutes": 70.0,
+        "au": 560.0,
+        "start_time": null,
+        "notes": "力量训练-背部"
+      }
+    ],
+    "hooper": {
+      "fatigue": 6,
+      "soreness": 5,
+      "stress": 3,
+      "sleep": 4
+    },
+    "journal": {
+      "alcohol_consumed": false,
+      "late_caffeine": false,
+      "screen_before_bed": true,
+      "late_meal": false,
+      "is_sick": null,
+      "is_injured": null,
+      "lifestyle_tags": [
+        "work_travel"
+      ],
+      "sliders": {
+        "fatigue_slider": 6.0,
+        "mood_slider": 3.0
+      }
+    },
+    "body_metrics": {
+      "bodyweight_kg": 83.4,
+      "bodyfat_pct": null,
+      "resting_hr": 52.0
+    },
+    "external_events": null,
+    "report_notes": "昨晚赶飞机回程，入睡前加班处理工作，整体感觉疲劳较高。"
+  },
+  "metrics": {
+    "training_load": {
+      "daily_au_28d": [
+        200.0,
+        300.0,
+        0.0,
+        480.0,
+        360.0,
+        420.0,
+        300.0,
+        260.0,
+        0.0,
+        340.0,
+        380.0,
+        0.0,
+        420.0,
+        300.0,
+        0.0,
+        360.0,
+        400.0,
+        0.0,
+        500.0,
+        420.0,
+        560.0,
+        300.0,
+        360.0,
+        480.0,
+        520.0,
+        560.0,
+        510.0
+      ],
+      "daily_au_7d": [
+        560.0,
+        300.0,
+        360.0,
+        480.0,
+        520.0,
+        560.0,
+        510.0
+      ],
+      "acwr_value": 1.4536,
+      "acwr_band": "high",
+      "acute_load": 470.0,
+      "chronic_load": 323.33,
+      "consecutive_high_days": 3,
+      "training_volume": 70.0,
+      "training_intensity_index": 9.33
+    },
+    "recovery": {
+      "sleep_efficiency": 0.8936,
+      "sleep_restorative_ratio": 0.4405,
+      "sleep_duration_hours": 7.0,
+      "sleep_duration_delta": -0.6,
+      "css_score": 96.6
+    },
+    "physiology": {
+      "hrv_z_score": -0.862,
+      "hrv_trend": "slight_decline",
+      "hrv_state": "slight_decline",
+      "readiness_prior": null
+    },
+    "subjective": {
+      "hooper_bands": {
+        "fatigue": "high",
+        "soreness": "high",
+        "stress": "medium",
+        "sleep": "medium"
+      },
+      "doms_score": 6.0,
+      "energy_score": 3.0,
+      "fatigue_score": 4.86
+    },
+    "baselines": {
+      "sleep_baseline_hours": 7.6,
+      "sleep_baseline_efficiency": 0.87,
+      "rest_baseline_ratio": 0.37,
+      "hrv_mu": 63.0,
+      "hrv_sigma": 5.8,
+      "personalized_thresholds": {
+        "acwr_high": 1.25,
+        "acwr_low": 0.6,
+        "au_high": 500.0,
+        "hrv_decline": -0.5
+      }
+    },
+    "strength": {
+      "e1rm_estimates": null,
+      "velocity_loss_pct": null
+    }
+  },
+  "trends": {
+    "series": {},
+    "metadata": {}
+  },
+  "insights": [
+    {
+      "id": "athlete_demo_2025-09-15_acwr_high",
+      "trigger": "acwr_high",
+      "summary": "训练负荷偏高",
+      "explanation": "ACWR 达到 1.45，超过个性化阈值 1.25。 建议及时安排恢复并降低短期训练量。",
+      "actions": [
+        {
+          "recommendation": "未来 48 小时降低训练量 15-25%，避免高强度爆发训练。",
+          "category": "training_adjustment",
+          "priority": 1
+        },
+        {
+          "recommendation": "安排 30-45 分钟低强度恢复（例如轻度有氧、拉伸或呼吸练习）。",
+          "category": "recovery",
+          "priority": 2
+        }
+      ],
+      "evidence": [
+        {
+          "key": "acwr_value",
+          "value": 1.4536,
+          "description": "ACWR 高于个性化阈值"
+        },
+        {
+          "key": "hooper_fatigue_band",
+          "value": null,
+          "description": "Hooper 疲劳处于高档"
+        },
+        {
+          "key": "fatigue_score",
+          "value": 4.86,
+          "description": "综合疲劳指数升高"
+        }
+      ],
+      "confidence": 0.75,
+      "tags": [
+        "training_load",
+        "recovery"
+      ]
+    },
+    {
+      "id": "athlete_demo_2025-09-15_hrv_decline",
+      "trigger": "hrv_decline",
+      "summary": "HRV 下降",
+      "explanation": "HRV Z-score 为 -0.86，低于个性化阈值，提示自律神经恢复不足。",
+      "actions": [
+        {
+          "recommendation": "增加恢复手段（充足睡眠、营养、主动恢复），短期内避免高强度模式。",
+          "category": "recovery",
+          "priority": 1
+        }
+      ],
+      "evidence": [
+        {
+          "key": "hrv_z_score",
+          "value": -0.862,
+          "description": "HRV 相较基线出现下降"
+        }
+      ],
+      "confidence": 0.65,
+      "tags": [
+        "physiology",
+        "recovery"
+      ]
+    },
+    {
+      "id": "athlete_demo_2025-09-15_hooper_fatigue",
+      "trigger": "hooper_fatigue_high",
+      "summary": "疲劳压力升高",
+      "explanation": "主观疲劳评分为高档，需安排恢复或调整训练。",
+      "actions": [
+        {
+          "recommendation": "记录具体感受与诱因，安排主动恢复或减量训练。",
+          "category": "recovery",
+          "priority": 2
+        }
+      ],
+      "evidence": [
+        {
+          "key": "hooper_fatigue",
+          "value": null,
+          "description": "Hooper 指标处于高档"
+        }
+      ],
+      "confidence": 0.55,
+      "tags": [
+        "subjective",
+        "fatigue"
+      ]
+    },
+    {
+      "id": "athlete_demo_2025-09-15_hooper_soreness",
+      "trigger": "hooper_soreness_high",
+      "summary": "肌肉酸痛偏高",
+      "explanation": "主观酸痛评分高，需要关注肌肉恢复与拉伸。",
+      "actions": [
+        {
+          "recommendation": "记录具体感受与诱因，安排主动恢复或减量训练。",
+          "category": "recovery",
+          "priority": 2
+        }
+      ],
+      "evidence": [
+        {
+          "key": "hooper_soreness",
+          "value": null,
+          "description": "Hooper 指标处于高档"
+        }
+      ],
+      "confidence": 0.55,
+      "tags": [
+        "subjective",
+        "soreness"
+      ]
+    },
+    {
+      "id": "athlete_demo_2025-09-15_lifestyle_events",
+      "trigger": "lifestyle_events",
+      "summary": "生活方式事件提示",
+      "explanation": "检测到影响恢复的生活方式事件，建议关注睡眠与恢复质量。",
+      "actions": [
+        {
+          "recommendation": "记录事件及其影响，必要时调整晚间习惯或生活节奏。",
+          "category": "lifestyle",
+          "priority": 3
+        }
+      ],
+      "evidence": [
+        {
+          "key": "lifestyle_events",
+          "value": null,
+          "description": "睡前使用屏幕, work_travel"
+        }
+      ],
+      "confidence": 0.45,
+      "tags": [
+        "lifestyle"
+      ]
+    },
+    {
+      "id": "athlete_demo_2025-09-15_sleep_lifestyle_combo",
+      "trigger": "sleep_lifestyle_events",
+      "summary": "生活方式事件影响睡眠恢复",
+      "explanation": "近期生活方式事件（睡前屏幕）与睡眠下降同时出现，建议优化晚间习惯。",
+      "actions": [
+        {
+          "recommendation": "限制晚间刺激（咖啡因、酒精、屏幕光），提前结束进食时间。",
+          "category": "lifestyle",
+          "priority": 1
+        }
+      ],
+      "evidence": [
+        {
+          "key": "sleep_duration_delta",
+          "value": -0.6,
+          "description": "睡眠时长低于基线"
+        },
+        {
+          "key": "sleep_efficiency",
+          "value": 0.8936,
+          "description": "睡眠效率下降"
+        },
+        {
+          "key": "lifestyle_events",
+          "value": null,
+          "description": "睡前屏幕"
+        }
+      ],
+      "confidence": 0.65,
+      "tags": [
+        "sleep",
+        "lifestyle"
+      ]
+    },
+    {
+      "id": "athlete_demo_2025-09-15_lifestyle_trend_watch",
+      "trigger": "lifestyle_trend_overlap",
+      "summary": "生活方式事件与恢复下降同时出现",
+      "explanation": "生活方式标签（work_travel）与恢复指标下滑重叠，建议关注旅行/工作等因素对恢复的影响。",
+      "actions": [
+        {
+          "recommendation": "提前规划行程恢复窗口，保持睡眠作息稳定。",
+          "category": "lifestyle",
+          "priority": 2
+        }
+      ],
+      "evidence": [
+        {
+          "key": "hrv_z_score",
+          "value": -0.862,
+          "description": "HRV 下降，提示恢复压力"
+        },
+        {
+          "key": "sleep_duration_delta",
+          "value": -0.6,
+          "description": "睡眠时长低于基线"
+        },
+        {
+          "key": "lifestyle_tags",
+          "value": null,
+          "description": "work_travel"
+        }
+      ],
+      "confidence": 0.6,
+      "tags": [
+        "lifestyle",
+        "recovery"
+      ]
+    }
+  ],
+  "insight_reviews": [
+    {
+      "complexity": {
+        "score": 7,
+        "label": "complex",
+        "reasons": [
+          "ACWR 1.45 ≥ 1.25",
+          "3 consecutive high-load days",
+          "HRV Z-score -0.86 indicates moderate drop",
+          "Sleep duration delta -0.60h below baseline",
+          "Hooper high bands: fatigue, soreness",
+          "Lifestyle events recorded: screen_before_bed, work_travel"
+        ]
+      },
+      "tot_hypotheses": {
+        "hypotheses": [
+          {
+            "factor": "训练负荷过高",
+            "evidence": "ACWR 1.4536 超过 1.25 阈值，且连续 3 天高负荷训练。客观负荷高与主观疲劳 (Hooper 6) 和酸痛 (Hooper 5) 高度一致。",
+            "confidence": 0.9,
+            "supporting_metrics": [
+              "acwr_value",
+              "consecutive_high_days",
+              "hooper_fatigue",
+              "hooper_soreness"
+            ]
+          },
+          {
+            "factor": "生活方式影响恢复",
+            "evidence": "HRV Z-score -0.862 下降，睡眠时长较基线减少 0.6h。日志记录“work_travel”和“screen_before_bed”导致“昨晚赶飞机回程，入睡前加班处理工作”，与客观恢复指标下降及主观情绪低落 (mood slider 3.0) 一致。",
+            "confidence": 0.8,
+            "supporting_metrics": [
+              "hrv_z_score",
+              "sleep_duration_delta",
+              "journal_tags",
+              "journal_flags",
+              "mood_slider"
+            ]
+          },
+          {
+            "factor": "整体恢复不足",
+            "evidence": "HRV Z-score -0.862 呈下降趋势，主观疲劳 (Hooper 6) 和酸痛 (Hooper 5) 均高，能量评分仅 3.0。客观与主观指标均指向恢复不足，可能影响后续表现。",
+            "confidence": 0.85,
+            "supporting_metrics": [
+              "hrv_z_score",
+              "hooper_fatigue",
+              "hooper_soreness",
+              "energy_score"
+            ]
+          }
+        ]
+      },
+      "critique": {
+        "issues": [
+          {
+            "statement": "Hypothesis 2: 'HRV Z-score -0.862 下降...'",
+            "reason": "The evidence states '低于个性化阈值' but does not explicitly provide the numerical value of this personalized threshold, which would enhance the quality and completeness of the data citation.",
+            "severity": "low"
+          },
+          {
+            "statement": "Hypothesis 3: 'HRV Z-score -0.862 呈下降趋势...'",
+            "reason": "Similar to Hypothesis 2, the personalized HRV Z-score threshold is referenced but not explicitly stated, which would improve the precision of the evidence.",
+            "severity": "low"
+          }
+        ],
+        "suggestions": [
+          {
+            "target_factor": "HRV Z-score",
+            "recommendation": "For hypotheses referencing HRV Z-score and its deviation from a personalized threshold, explicitly state the numerical value of the personalized threshold (e.g., '低于个性化阈值 -0.5') to improve evidence quality and clarity in future reports."
+          }
+        ],
+        "overall_confidence": 0.9
+      }
+    }
+  ],
+  "report_payload": {
+    "summary": {
+      "readiness_score": null,
+      "readiness_band": null,
+      "drivers": [],
+      "opportunities": [],
+      "risks": []
+    },
+    "charts": [],
+    "insights": [],
+    "metadata": {
+      "period_start": null,
+      "period_end": null,
+      "data_sources": [],
+      "data_quality_score": null,
+      "generated_at": null,
+      "generator_version": null
+    }
+  }
+}

@@ -1,0 +1,94 @@
+标准化状态建设规划（覆盖五阶段）
+
+总览与架构原则
+  - 采用 Supervisor + Specialist 模型：由主管智能体统一负责“写入”与对话接口，分析、策略、反思等任务由专长节点在 LangGraph 中协同完成；
+  - 流程骨架（自上而下）：Supervisor → 摄入节点 → 确定性指标 → 规则洞察 → 洞察强化（ToT/Critique） → 趋势与报告 → Coach 协同；
+  - LLM 使用策略：优先选择支持结构化输出的 API（OpenAI `response_format=json_schema` 或 Anthropic 工具模式），强约束模型输出格式，避免脆弱解析；
+  - Prompt 管理：为每类智能体维护独立 prompt 模板（角色描述、语气、输入输出），并配合 JSON Schema/工具调用保证稳定通信。
+
+阶段 1：摄入与验证
+  - 定义 `ReadinessState`（Pydantic/TypedDict），分层包含：
+    * raw_inputs：原始采集数据（HealthKit 睡眠/HRV，训练标签、RPE、时长，Hooper，结构化 journal & 生活方式标签，体重/疲劳滑杆等）
+    * metrics：确定性指标（ACWR、慢性区间、连续高强统计、睡眠效率/恢复性、CSS、HRV Z-score、Hooper 标准化、DOMS/能量、个性化基线、力量/速度扩展）
+    * trends：时间序列与长周期标签（3/7/28 天滚动、周内趋势、训练周期阶段标记）
+    * insights：因果触发、解释、行动建议、置信度
+    * report_payload：报告所需摘要、图表数据、元信息
+  - 辅助结构：`MetricsSnapshot`、`TrendSeries`、`InsightFlag` 等，方便 Agent 复用。
+  - 落地步骤：
+    * 新增摄入模块（或 LangGraph 节点）填充 `state.raw_inputs.*`，执行数据质量校验、缺失补全、单位转换；
+    * 预留手动/外部数据接入口，确保洞察层可引用体重、疲劳滑杆等扩展字段。
+
+阶段 2：确定性指标工具
+  - 将现有 ACWR、Hooper、睡眠效率、HRV Z-score 等逻辑迁移到独立工具模块，写入 `state.metrics.*`；
+  - 构建 AU 时间序列聚合器，自动生成 3/7/28 天滚动数组、训练量/强度趋势；
+  - 为未来的力量/速度指标（e1RM、velocity loss）预留接口；
+  - 确保工具函数可被 orchestrator 和报告复用。
+
+阶段 3：洞察综合层（规则版）
+  - 建立规则→解释→建议映射（配置驱动），生成 `InsightItem`，写入 `state.insights`;
+  - 引入历史上下文：上一周期 readiness、训练周期阶段（accumulation/peak 等），写入 `state.trends.metadata`;
+  - 支持个性化参数（CPT、阈值）覆盖默认逻辑，提高洞察精度。
+  - Prompt（规则版洞察）：聚焦于“检测指标是否超阈→输出结构化洞察”，保持 deterministic 逻辑。
+
+阶段 3A：洞察强化层（ToT / Critique）
+  - LangGraph 扩展：在规则洞察后增加复杂度预检节点
+    * 简单样本：走标准 CoT 分析
+    * 复杂样本：启用 Tree-of-Thought（探索多条因果链），并在洞察输出后加入“反思/批判”节点进行自检与修正；
+  - 复杂度判断依据：当周预警信号数量、生活方式负面事件、HRV/ACWR 超阈叠加情况；
+  - ToT 提示词：要求 LLM 针对 HRV/睡眠/主观信号分别列出至少 3 个可能原因，并标注证据；
+  - Critique 提示词：让 LLM 扮演“严谨的运动科学同行评审”，指出忽略的数据、逻辑漏洞或过度简化，给出修正建议；
+  - 修订节点：根据 Critique 输出更新洞察文本、证据说明、置信度。
+  - 结构化输出：ToT、Critique 均通过 JSON Schema 描述候选因果链、审核意见（字段示例：`{hypotheses:[{factor, evidence, confidence,...}], critique:[{issue, correction,...}]}`）。
+
+阶段 4：报告与可视化
+  - 构建 `TrendBuilder`：汇总 7/28 天睡眠、HRV、训练、Hooper 等趋势并写入 `state.trends`，生成 `ChartSpec` 供报告使用；
+  - 设计 LangGraph `report_node` 的双智能体流程：
+    * S&C Analyst Agent：输出数据要点与图表 JSON（偏“硬核”）；
+    * Coaching Communicator Agent：将要点转成教练友好的报告文案；
+    * Cross-check 子节点：Analyst 对初稿进行事实核查，Communicator 根据反馈修订；
+  - 产出 Markdown/JSON/ECharts 配置，可直接被前端或 PDF 渲染消费。
+  - Prompt 模板：
+    * Analyst Prompt：输入 `ReadinessState`（metrics/insights/trends），输出 `{summary_points:[], charts:[ChartSpec...]}`；
+    * Communicator Prompt：输入 Analyst 要点 + ChartSpec，输出 Markdown 文案（schema 包含 `sections`, `tone`, `call_to_action` 等字段）；
+    * Report Critique Prompt：Analyst 审核 Communicator 文案，返回 `{issues:[{sentence, reason, fix}]}`，重写后更新最终文案；
+  - JSON Schema：对 ChartSpec、Summary、Report Text 分别定义 schema，确保跨节点稳定传输。
+
+阶段 5：教练协同与商业闭环
+  - 在 `report_payload.metadata` 补充生成时间、数据质量评分、试用阶段状态；
+  - 规划试用/教练协同节点：利用 LLM 生成试用引导、通知提醒、教练回访话术，并记录反馈；
+  - 引入多智能体协作（通知撰写、反馈总结、跟进策略），对接 CRM/Portal，形成试用→反馈→迭代的闭环。
+  - Prompt 模板：
+    * Notification Prompt：生成邮件/应用内提醒 `{audience, message, next_step}`；
+    * Follow-up Script Prompt：Communicator 生成教练对话脚本，Analyst 审核事实准确性；
+    * Feedback Summary Prompt：整理教练反馈为 `{highlights, risks, suggested_actions}`；
+  - 结构化输出：全部通过 JSON Schema/工具调用，便于 CRM/Portal 自动解析。
+
+输出与兼容策略
+  - 保持现有 API/数据库不变，可在响应中追加 `diagnostics`/`state` 字段，或提供序列化接口供 Agent 消费；
+  - 在 `readiness/__init__.py` 暴露 `ReadinessState`、工具函数与趋势构建器，方便 LangGraph/其他服务调用；
+  - 通过 `ReadinessState().model_dump_json()` 随时生成 JSON 传递给后续智能体。
+
+实施节奏
+  - 阶段一：定义模型 + 基础填充，验证附加 state 后旧功能无回归；
+  - 阶段二：补充趋势与生活方式评分，跑历史回放验证时间序列正确；
+  - 阶段三：加载洞察规则；
+  - 阶段三A：实现复杂度预检、ToT 推理、Critique 修订，输出结构化洞察；
+  - 阶段四：构建 TrendBuilder、双智能体报告节点与交叉审核；
+  - 阶段五：集成教练协同流程、通知/反馈，完成商业闭环。
+
+近期研发排期（迭代顺序）
+  1. 将现有 readiness API 接入 `weekly_report.workflow.run_workflow`，输出统一 JSON；
+  2. 设计并实现阶段 3A 节点：
+     - 复杂度评分函数（基于指标/事件数量）；
+     - Tree-of-Thought LLM 调用模板与 JSON Schema；
+     - Critique & Revision 节点，实现结构化反馈 → 洞察修订；
+  3. TrendBuilder 开发，生成可视化数据并写入 `state.trends`；
+  4. 阶段 4 报告流程：
+     - Analyst Agent（结构化要点 + ChartSpec）；
+     - Communicator Agent（Markdown 文案，带 schema）；
+     - Cross-check 节点实现事实核查 → 修订；
+  5. 阶段 5 教练协同：
+     - 通知/提醒脚本生成；
+     - 反馈总结 + 下一步建议；
+     - CRM/Portal 对接预留；
+  6. Prompt 手册与 JSON Schema 文档化，交给提示词团队；结合结构化输出配置（OpenAI/Anthropic）确保稳健生产。
