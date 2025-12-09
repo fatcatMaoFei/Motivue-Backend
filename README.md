@@ -22,7 +22,7 @@ Execution and data contracts stay independent:
 | --- | --- | --- | --- |
 | Service | What it does | Key modules | Dockerfile |
 | --- | --- | --- | --- |
-| **Readiness API** | Daily readiness score via a Bayesian prior/posterior engine that fuses training load, objective biomarkers, subjective Hooper scores, journals, menstrual cycle and interaction terms. | `apps/readiness-api/main.py`, libs: `libs/readiness_engine/{engine.py,service.py,mapping.py,constants.py}` | `Dockerfile.readiness` |
+| **Readiness API** | Daily readiness score via a Bayesian prior/posterior engine that fuses training load, objective biomarkers (sleep/HRV), subjective Hooper scores, menstrual cycle and interaction terms. Journals / device recovery can be stored but are currently not used as evidence. | `apps/readiness-api/main.py`, libs: `libs/readiness_engine/{engine.py,service.py,mapping.py,constants.py}` | `Dockerfile.readiness` |
 | **Weekly Report API** | Multi-agent LLM chain that turns a hydrated `ReadinessState` into chart packs and Markdown/HTML reports (Analyst → Communicator → Critique → Finaliser) with schema validation. | `apps/weekly-report-api/main.py`, libs: `libs/weekly_report/{trend_builder.py,pipeline.py,finalizer.py}` | `Dockerfile.weekly_report` |
 | **Baseline Service** | Computes and maintains long-term personal baselines (sleep duration/efficiency, restorative ratio, HRV μ/σ) with questionnaire fallbacks and auto-upgrade logic. | `apps/baseline-api/main.py`, libs: `libs/analytics/{service.py,calculator.py,storage.py,auto_upgrade.py}` | `Dockerfile.baseline` |
 | **Physiological Age** | Estimates physiological age from 30-day HRV/RHR history plus today’s sleep CSS. | `apps/physio-age-api/main.py`, libs: `libs/physio/{core.py,css.py}` | `Dockerfile.physio_age` |
@@ -242,7 +242,7 @@ See also: `docs/backend/architecture_overview.md` for service boundaries, contra
 ### Directory Reference (what each module does)
 
 - `apps/`
-  - `apps/readiness-api/main.py`: HTTP API for daily readiness. Ingests HealthKit-like payload, merges baselines, calls readiness engine, writes `user_daily` and supports `POST /readiness/consumption` for training consumption updates.
+  - `apps/readiness-api/main.py`: HTTP API for daily readiness. Ingests HealthKit-like payload (or raw nightly sleep + HRV samples from wearables), merges baselines, calls readiness engine, writes `user_daily` and supports `POST /readiness/consumption` for training consumption updates.
   - `apps/weekly-report-api/main.py`: HTTP API for weekly report generation (LLM required). Runs workflow (ToT/Critique), builds chart specs, Analyst/Communicator, Finalizer, and optionally persists `weekly_reports`.
   - `apps/baseline-api/main.py`: HTTP API for baseline compute/update and retrieval; publishes MQ message `readiness.baseline_updated` so readiness can refresh personalization state.
   - `apps/physio-age-api/main.py`: HTTP API for physiological age (uses SDNN/RHR + CSS).
