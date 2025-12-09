@@ -22,7 +22,7 @@ Execution and data contracts stay independent:
 | --- | --- | --- | --- |
 | Service | What it does | Key modules | Dockerfile |
 | --- | --- | --- | --- |
-| **Readiness API** | Daily readiness score via a Bayesian prior/posterior engine that fuses training load, objective biomarkers, subjective Hooper scores, journals, menstrual cycle and interaction terms. | `apps/readiness-api/main.py`, libs: `libs/readiness_engine/{engine.py,service.py,mapping.py,constants.py}` | `Dockerfile.readiness` |
+| **Readiness API** | Daily readiness score via a Bayesian prior/posterior engine that fuses training load, objective biomarkers (sleep/HRV), subjective Hooper scores, menstrual cycle and interaction terms. Journals / device recovery can be stored but are currently not used as evidence. In the Motivue app, all raw signals now come directly from the wearable SDK; HealthKit remains an optional, backwards-compatible source that must be mapped into the same daily payload schema. | `apps/readiness-api/main.py`, libs: `libs/readiness_engine/{engine.py,service.py,mapping.py,constants.py}` | `Dockerfile.readiness` |
 | **Weekly Report API** | Multi-agent LLM chain that turns a hydrated `ReadinessState` into chart packs and Markdown/HTML reports (Analyst → Communicator → Critique → Finaliser) with schema validation. | `apps/weekly-report-api/main.py`, libs: `libs/weekly_report/{trend_builder.py,pipeline.py,finalizer.py}` | `Dockerfile.weekly_report` |
 | **Baseline Service** | Computes and maintains long-term personal baselines (sleep duration/efficiency, restorative ratio, HRV μ/σ) with questionnaire fallbacks and auto-upgrade logic. | `apps/baseline-api/main.py`, libs: `libs/analytics/{service.py,calculator.py,storage.py,auto_upgrade.py}` | `Dockerfile.baseline` |
 | **Physiological Age** | Estimates physiological age from 30-day HRV/RHR history plus today’s sleep CSS. | `apps/physio-age-api/main.py`, libs: `libs/physio/{core.py,css.py}` | `Dockerfile.physio_age` |
@@ -242,7 +242,7 @@ See also: `docs/backend/architecture_overview.md` for service boundaries, contra
 ### Directory Reference (what each module does)
 
 - `apps/`
-  - `apps/readiness-api/main.py`: HTTP API for daily readiness. Ingests HealthKit-like payload, merges baselines, calls readiness engine, writes `user_daily` and supports `POST /readiness/consumption` for training consumption updates.
+  - `apps/readiness-api/main.py`: HTTP API for daily readiness. Ingests HealthKit-like payload (or raw nightly sleep + HRV samples from wearables), merges baselines, calls readiness engine, writes `user_daily` and supports `POST /readiness/consumption` for training consumption updates.
   - `apps/weekly-report-api/main.py`: HTTP API for weekly report generation (LLM required). Runs workflow (ToT/Critique), builds chart specs, Analyst/Communicator, Finalizer, and optionally persists `weekly_reports`.
   - `apps/baseline-api/main.py`: HTTP API for baseline compute/update and retrieval; publishes MQ message `readiness.baseline_updated` so readiness can refresh personalization state.
   - `apps/physio-age-api/main.py`: HTTP API for physiological age (uses SDNN/RHR + CSS).
@@ -298,6 +298,17 @@ See also: `docs/backend/architecture_overview.md` for service boundaries, contra
 
 - `tmp/`: Scratchpad folder for local experiments; ignored by services. Safe to clean.
 - `legacy_personalization/`: Temporary placeholder of the old Chinese-named folder; no code references it. Safe to remove once the team confirms migration is complete.
+
+### Motivue app data flow (SDK-first)
+
+For the Motivue iOS app we no longer rely on HealthKit as the primary source of truth. The production pipeline is:
+
+- The app reads **raw signals directly from the wearable SDK** (sleep segments, per‑minute heart rate/HRV index, sport sessions, PAI, etc.).
+- On the app side we compute **daily features** (nightly HRV index, sleep minutes/efficiency, training AU, Hooper ratings, journal flags) using logic equivalent to the helpers in this repo (for example `libs/core_domain/utils/*`, training‑load mixing in `libs/readiness_engine/service.py`).
+- These daily features are packed into the same readiness payload schema documented in `docs/backend/*` and sent to `apps/readiness-api` (or evaluated fully on‑device when the readiness engine is embedded in the app).
+- The Bayesian readiness engine itself (CPTs, probability updates, diagnosis logic) **does not change**: only the *data source* changed (HealthKit → SDK), and the *feature engineering* is gradually migrating from backend to the app.
+
+HealthKit remains an optional, backward‑compatible source for other clients as long as they normalise their data into the same daily payload fields.
 
 ### Housekeeping & migrations
 
