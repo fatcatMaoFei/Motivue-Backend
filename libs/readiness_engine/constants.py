@@ -62,6 +62,15 @@ EMISSION_CPT = {
         'medium': {'Peak': 0.40, 'Well-adapted': 0.50, 'FOR': 0.40, 'Acute Fatigue': 0.35, 'NFOR': 0.25, 'OTS': 0.15},
         'low': {'Peak': 1e-6, 'Well-adapted': 0.10, 'FOR': 0.20, 'Acute Fatigue': 0.30, 'NFOR': 0.70, 'OTS': 0.80}
     },
+    # Device-side recovery status derived from recoveryTime (minutes).
+    # good   : complete recovery in <= 12h
+    # medium : 12h–24h
+    # poor   : >24h
+    'device_recovery': {
+        'good':   {'Peak': 0.70, 'Well-adapted': 0.65, 'FOR': 0.25, 'Acute Fatigue': 0.15, 'NFOR': 0.05, 'OTS': 1e-6},
+        'medium': {'Peak': 0.25, 'Well-adapted': 0.40, 'FOR': 0.40, 'Acute Fatigue': 0.30, 'NFOR': 0.15, 'OTS': 0.05},
+        'poor':   {'Peak': 1e-6, 'Well-adapted': 0.05, 'FOR': 0.20, 'Acute Fatigue': 0.40, 'NFOR': 0.60, 'OTS': 0.70},
+    },
     'gi_symptoms': {
         'none': {'Peak': 0.90, 'Well-adapted': 0.85, 'FOR': 0.80, 'Acute Fatigue': 0.70, 'NFOR': 0.50, 'OTS': 0.40},
         'mild': {'Peak': 0.05, 'Well-adapted': 0.10, 'FOR': 0.15, 'Acute Fatigue': 0.25, 'NFOR': 0.40, 'OTS': 0.40},
