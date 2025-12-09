@@ -90,6 +90,27 @@ class Cycle(BaseModel):
     cycle_length: Optional[int] = Field(None, ge=20, le=40)
 
 
+class NightlySleepSegment(BaseModel):
+    """Raw sci-sleep segment for nightly HRV aggregation (optional).
+
+    All timestamps are seconds since epoch (UTC or consistently local across
+    sleep segments and per-minute samples).
+    """
+
+    start_ts: int
+    duration_minutes: int = Field(..., ge=1)
+    sleep_type: int
+
+
+class NightlyHRVSample(BaseModel):
+    """Minute-level health sample for nightly HRV aggregation (optional)."""
+
+    ts: int
+    step: Optional[int] = Field(None, ge=0)
+    dynamic_hr: Optional[int] = Field(None, ge=0)
+    hrv_index: Optional[float] = Field(None, ge=0)
+
+
 class FromHKRequest(BaseModel):
     # Required basics
     user_id: str
@@ -121,6 +142,10 @@ class FromHKRequest(BaseModel):
     hrv_rmssd_21day_sd: Optional[float] = Field(None, ge=0)
     hrv_rmssd_3day_avg: Optional[float] = Field(None, ge=0)
     hrv_rmssd_7day_avg: Optional[float] = Field(None, ge=0)
+
+    # Optional raw nightly data from device (for backend-side aggregation)
+    nightly_sleep_segments: Optional[list[NightlySleepSegment]] = None
+    nightly_hrv_samples: Optional[list[NightlyHRVSample]] = None
 
     # Journal + Hooper
     journal: Optional[Journal] = None
@@ -351,6 +376,27 @@ async def get_baseline_cached(user_id: str, refresh: Optional[int] = 0) -> Dict[
 @app.post("/readiness/from-healthkit")
 async def post_readiness_from_healthkit(req: FromHKRequest, session: Session = Depends(get_session)) -> Dict[str, Any]:
     raw_dict: Dict[str, Any] = req.model_dump(exclude_none=True)
+
+    # If the client sent raw nightly sleep + HRV samples but did not provide a
+    # daily HRV index yet, aggregate one here so downstream mapping and the
+    # readiness engine can work with a stable day-level metric.
+    if raw_dict.get("hrv_rmssd_today") is None and raw_dict.get("nightly_sleep_segments") and raw_dict.get("nightly_hrv_samples"):
+        try:
+            from libs.core_domain.utils.hrv import compute_nightly_hrv_metric
+
+            hrv_result = compute_nightly_hrv_metric(
+                sleep_segments=raw_dict.get("nightly_sleep_segments") or [],
+                hrv_samples=raw_dict.get("nightly_hrv_samples") or [],
+            )
+            if hrv_result.get("hrv_rmssd_today") is not None:
+                raw_dict["hrv_rmssd_today"] = hrv_result["hrv_rmssd_today"]
+                # Optionally expose a simple quality flag for analytics
+                raw_dict.setdefault("hrv_quality", hrv_result.get("quality_band"))
+        except Exception:
+            # Aggregation failure should never break readiness computation;
+            # fallback to whatever daily HRV the client may have provided.
+            pass
+
     # Inject baseline BEFORE mapping so mapping can use mu/sd & thresholds
     if not any(k in raw_dict for k in [
         "sleep_baseline_hours", "sleep_baseline_eff", "rest_baseline_ratio",

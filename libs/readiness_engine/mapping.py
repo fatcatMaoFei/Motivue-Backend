@@ -314,7 +314,9 @@ def map_inputs_to_states(raw_inputs: Dict[str, Any]) -> Dict[str, Any]:
                     mapped[model_key] = 'high'
 
     # Direct categorical passthrough
-    for key in ['sleep_performance_state', 'restorative_sleep', 'hrv_trend', 'nutrition', 'gi_symptoms', 'fatigue_3day_state']:
+    for key in ['sleep_performance_state', 'restorative_sleep', 'hrv_trend',
+                'nutrition', 'gi_symptoms', 'fatigue_3day_state',
+                'device_recovery_state']:
         if key in raw_inputs and raw_inputs[key] is not None:
             # If Apple sleep score is present, enforce either-or: drop traditional sleep_performance
             if key == 'sleep_performance_state' and mapped.get('_using_apple_sleep_score', False):
