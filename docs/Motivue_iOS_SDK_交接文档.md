@@ -3699,6 +3699,463 @@ struct StatusHeaderCard: View {
 | `CONF_01` | 主观疲劳高 + 客观指标正常 | `subjective_objective_conflict` | Medium | "虽然HRV正常，但主观感觉疲劳..." |
 | `REC_OPT` | Readiness ≥ 80 | `recovery_optimal` | Low | "恢复充分，今天适合挑战高强度！" |
 
+### 11.8 通用因果发现系统
+
+> **核心原则**: 不写死具体字段，任何运动记录、任何Journal字段都自动参与相关性分析。
+
+#### 设计原则
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      通用因果发现原则                            │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ❌ 错误做法 (写死)                                              │
+│  if journal.alcoholConsumed { ... }  // 只能识别预设字段        │
+│                                                                  │
+│  ✅ 正确做法 (通用)                                              │
+│  for field in journal.allFields {    // 任何有值字段都参与      │
+│      if field.hasValue { analyzeCorrelation(field) }            │
+│  }                                                              │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### 系统架构
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        通用因果发现系统                                  │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│   Step 1: 收集所有"因" (通用扫描)                                       │
+│   ┌────────────────┐  ┌────────────────┐  ┌────────────────┐           │
+│   │ 运动记录       │  │ Journal记录    │  │ SDK数据        │           │
+│   │ (任意类型)     │  │ (任意字段)     │  │ (任意指标)     │           │
+│   └───────┬────────┘  └───────┬────────┘  └───────┬────────┘           │
+│           └───────────────────┴───────────────────┘                     │
+│                               │                                          │
+│   Step 2: 收集所有"果" (指标变化)                                       │
+│   ┌────────────────┐  ┌────────────────┐  ┌────────────────┐           │
+│   │ HRV变化        │  │ 睡眠变化       │  │ 准备度变化     │           │
+│   └───────┬────────┘  └───────┬────────┘  └───────┬────────┘           │
+│           └───────────────────┴───────────────────┘                     │
+│                               │                                          │
+│   Step 3: 统计相关性分析                                                │
+│   计算每个"因"出现后，各个"果"的平均变化                               │
+│   与无该"因"时对比，发现显著关联                                        │
+│                               │                                          │
+│   Step 4: 小模型生成文案                                                │
+│   将发现的相关性用自然语言描述                                          │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+#### 核心代码实现
+
+```swift
+// MARK: - 通用因果发现系统
+
+class UniversalCausalDiscovery {
+    
+    private let dataStore: LocalDataStore
+    private let localLLM: LocalLLMEngine
+    
+    // MARK: - 主入口 (支持多周期)
+    
+    /// 日报洞察 (1-3天因果)
+    func discoverDailyInsights() async -> [Insight] {
+        return await discoverInsights(period: .daily, lookbackDays: 3)
+    }
+    
+    /// 周报洞察 (7天模式)
+    func discoverWeeklyInsights() async -> [Insight] {
+        return await discoverInsights(period: .weekly, lookbackDays: 7)
+    }
+    
+    /// 月报洞察 (28天趋势)
+    func discoverMonthlyInsights() async -> [Insight] {
+        return await discoverInsights(period: .monthly, lookbackDays: 28)
+    }
+    
+    private func discoverInsights(period: AnalysisPeriod, lookbackDays: Int) async -> [Insight] {
+        
+        let data = dataStore.getDataForLastDays(lookbackDays)
+        guard let baseline = dataStore.getBaseline() else { return [] }
+        
+        // Step 1: 收集所有"因"
+        let allCauses = collectAllCauses(data: data)
+        
+        // Step 2: 收集所有"果"
+        let allEffects = collectAllEffects(data: data, baseline: baseline)
+        
+        // Step 3: 发现相关性
+        let correlations = discoverCorrelations(causes: allCauses, effects: allEffects)
+        
+        // Step 4: 生成洞察 (用小模型)
+        var insights: [Insight] = []
+        for correlation in correlations.filter({ $0.isSignificant }) {
+            let narrative = await generateNarrativeWithLLM(correlation: correlation, period: period)
+            insights.append(Insight(
+                id: UUID().uuidString,
+                period: period,
+                correlation: correlation,
+                narrative: narrative,
+                generatedAt: Date()
+            ))
+        }
+        
+        return insights
+    }
+    
+    // MARK: - Step 1: 通用收集"因"
+    
+    private func collectAllCauses(data: [DailyData]) -> [CauseRecord] {
+        
+        var causes: [CauseRecord] = []
+        
+        for (dayIndex, day) in data.enumerated() {
+            let daysAgo = dayIndex + 1
+            
+            // === 运动记录 (任意类型，不写死) ===
+            for activity in day.activities {
+                causes.append(CauseRecord(
+                    category: "activity",
+                    key: activity.type,              // 运动类型作为key
+                    label: activity.type,            // 显示名称
+                    value: activity.trainingLoad,    // 数值
+                    date: day.date,
+                    daysAgo: daysAgo,
+                    metadata: [
+                        "duration": activity.duration,
+                        "intensity": activity.intensity
+                    ]
+                ))
+            }
+            
+            // === Journal记录 (通用扫描，任意字段) ===
+            if let journal = day.journal {
+                let journalCauses = extractAllJournalFields(journal: journal, daysAgo: daysAgo)
+                causes.append(contentsOf: journalCauses)
+            }
+        }
+        
+        return causes
+    }
+    
+    /// 通用Journal字段提取 - 不写死具体字段名
+    private func extractAllJournalFields(journal: JournalEntry, daysAgo: Int) -> [CauseRecord] {
+        
+        var causes: [CauseRecord] = []
+        
+        // Journal转为字典，遍历所有字段
+        let journalDict = journal.toDictionary()
+        
+        for (key, value) in journalDict {
+            
+            // 跳过空值和元数据字段
+            guard !isEmptyValue(value),
+                  !isMetadataField(key) else { continue }
+            
+            causes.append(CauseRecord(
+                category: "journal",
+                key: key,                             // 字段名作为key
+                label: FieldLabelConfig.shared.getLabel(for: key),
+                value: normalizeValue(value),
+                date: journal.date,
+                daysAgo: daysAgo,
+                metadata: ["raw_value": "\(value)"]
+            ))
+        }
+        
+        return causes
+    }
+    
+    /// 判断是否为空值
+    private func isEmptyValue(_ value: Any) -> Bool {
+        if let boolValue = value as? Bool { return !boolValue }
+        if let stringValue = value as? String { return stringValue.isEmpty }
+        if let arrayValue = value as? [Any] { return arrayValue.isEmpty }
+        return false
+    }
+    
+    /// 元数据字段 (不参与因果分析)
+    private func isMetadataField(_ key: String) -> Bool {
+        return ["id", "date", "created_at", "updated_at", "user_id"].contains(key)
+    }
+    
+    /// 统一值为数值
+    private func normalizeValue(_ value: Any) -> Double {
+        if let d = value as? Double { return d }
+        if let i = value as? Int { return Double(i) }
+        if let b = value as? Bool { return b ? 1.0 : 0.0 }
+        return 1.0  // 其他类型表示"存在"
+    }
+    
+    // MARK: - Step 2: 收集"果"
+    
+    private func collectAllEffects(data: [DailyData], baseline: PersonalBaseline) -> [EffectRecord] {
+        
+        var effects: [EffectRecord] = []
+        
+        for day in data {
+            guard let metrics = day.metrics else { continue }
+            
+            // HRV变化
+            if let hrv = metrics.hrvRMSSD {
+                let change = ((hrv - baseline.hrvRMSSDMean) / baseline.hrvRMSSDMean) * 100
+                effects.append(EffectRecord(
+                    key: "hrv_change",
+                    value: change,
+                    date: day.date
+                ))
+            }
+            
+            // 睡眠效率变化
+            let sleepEffChange = ((metrics.sleep.efficiency - baseline.sleepEfficiencyMean) 
+                                  / baseline.sleepEfficiencyMean) * 100
+            effects.append(EffectRecord(key: "sleep_efficiency_change", value: sleepEffChange, date: day.date))
+            
+            // 睡眠时长变化
+            let durationChange = ((Double(metrics.sleep.totalMinutes) - baseline.sleepDurationMean) 
+                                  / baseline.sleepDurationMean) * 100
+            effects.append(EffectRecord(key: "sleep_duration_change", value: durationChange, date: day.date))
+            
+            // 准备度
+            if let readiness = metrics.readinessScore {
+                effects.append(EffectRecord(key: "readiness_score", value: readiness, date: day.date))
+            }
+        }
+        
+        return effects
+    }
+    
+    // MARK: - Step 3: 发现相关性 (核心算法)
+    
+    private func discoverCorrelations(
+        causes: [CauseRecord],
+        effects: [EffectRecord]
+    ) -> [DiscoveredCorrelation] {
+        
+        var correlations: [DiscoveredCorrelation] = []
+        
+        // 按cause的key分组
+        let causesByKey = Dictionary(grouping: causes) { $0.key }
+        let effectsByKey = Dictionary(grouping: effects) { $0.key }
+        
+        // 对每种cause，分析与各种effect的关系
+        for (causeKey, causeRecords) in causesByKey {
+            let causeDates = Set(causeRecords.map { $0.date })
+            
+            for (effectKey, effectRecords) in effectsByKey {
+                
+                // 分组: 有cause时的effect vs 无cause时的effect
+                var effectsWithCause: [Double] = []
+                var effectsWithoutCause: [Double] = []
+                
+                for effect in effectRecords {
+                    // 检查前1-2天是否有该cause
+                    let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: effect.date)!
+                    let dayBefore = Calendar.current.date(byAdding: .day, value: -2, to: effect.date)!
+                    
+                    if causeDates.contains(yesterday) || causeDates.contains(dayBefore) {
+                        effectsWithCause.append(effect.value)
+                    } else {
+                        effectsWithoutCause.append(effect.value)
+                    }
+                }
+                
+                // 样本量检查
+                guard effectsWithCause.count >= 3, effectsWithoutCause.count >= 3 else { continue }
+                
+                // 计算差异
+                let avgWith = effectsWithCause.reduce(0, +) / Double(effectsWithCause.count)
+                let avgWithout = effectsWithoutCause.reduce(0, +) / Double(effectsWithoutCause.count)
+                let difference = avgWith - avgWithout
+                
+                // 计算显著性 (Cohen's d)
+                let pooledStd = calculatePooledStd(effectsWithCause, effectsWithoutCause)
+                let effectSize = pooledStd > 0 ? abs(difference) / pooledStd : 0
+                let significance = min(effectSize / 0.8, 1.0)
+                
+                guard significance >= 0.3 else { continue }
+                
+                correlations.append(DiscoveredCorrelation(
+                    causeKey: causeKey,
+                    causeLabel: causeRecords.first?.label ?? causeKey,
+                    effectKey: effectKey,
+                    avgEffectWithCause: avgWith,
+                    avgEffectWithoutCause: avgWithout,
+                    difference: difference,
+                    significance: significance,
+                    sampleSize: effectsWithCause.count,
+                    isSignificant: significance >= 0.5
+                ))
+            }
+        }
+        
+        return correlations.sorted { $0.significance > $1.significance }
+    }
+    
+    // MARK: - Step 4: 小模型生成文案
+    
+    private func generateNarrativeWithLLM(
+        correlation: DiscoveredCorrelation,
+        period: AnalysisPeriod
+    ) async -> String {
+        
+        let periodText = switch period {
+            case .daily: "近几天"
+            case .weekly: "本周"
+            case .monthly: "本月"
+        }
+        
+        let directionText = correlation.difference > 0 ? "上升" : "下降"
+        
+        let prompt = """
+        你是健康数据分析师，请根据发现的数据相关性生成一段简洁的洞察文案。
+        
+        发现的相关性:
+        - 因素: \(correlation.causeLabel)
+        - 影响: \(correlation.effectKey) \(directionText)
+        - 有该因素时平均值: \(String(format: "%.1f", correlation.avgEffectWithCause))
+        - 无该因素时平均值: \(String(format: "%.1f", correlation.avgEffectWithoutCause))
+        - 差异: \(String(format: "%.1f", abs(correlation.difference)))
+        - 相关强度: \(String(format: "%.0f", correlation.significance * 100))%
+        - 时间范围: \(periodText)
+        
+        要求:
+        1. 用"你"称呼用户
+        2. 说明发现了什么规律
+        3. 给出1条具体建议
+        4. 控制在80字以内
+        5. 语气友好
+        
+        洞察文案:
+        """
+        
+        do {
+            return try await localLLM.generate(prompt: prompt)
+        } catch {
+            // 降级到模板
+            let dir = correlation.difference > 0 ? "提高" : "降低"
+            return "发现规律：当有\"\(correlation.causeLabel)\"时，\(correlation.effectKey)会\(dir)约\(String(format: "%.0f", abs(correlation.difference)))%。"
+        }
+    }
+}
+```
+
+#### 数据模型
+
+```swift
+// MARK: - 因果发现数据模型
+
+enum AnalysisPeriod {
+    case daily    // 1-3天
+    case weekly   // 7天
+    case monthly  // 28天
+}
+
+struct CauseRecord {
+    let category: String         // "activity", "journal", "sdk"
+    let key: String              // 唯一标识 (字段名/运动类型)
+    let label: String            // 显示名称
+    let value: Double            // 数值化的值
+    let date: Date
+    let daysAgo: Int
+    let metadata: [String: Any]
+}
+
+struct EffectRecord {
+    let key: String              // "hrv_change", "sleep_efficiency_change"
+    let value: Double            // 变化百分比
+    let date: Date
+}
+
+struct DiscoveredCorrelation {
+    let causeKey: String
+    let causeLabel: String
+    let effectKey: String
+    let avgEffectWithCause: Double
+    let avgEffectWithoutCause: Double
+    let difference: Double
+    let significance: Double     // 0-1, ≥0.5为显著
+    let sampleSize: Int
+    let isSignificant: Bool
+}
+
+struct Insight: Identifiable {
+    let id: String
+    let period: AnalysisPeriod
+    let correlation: DiscoveredCorrelation
+    let narrative: String        // 小模型生成的文案
+    let generatedAt: Date
+}
+```
+
+#### 字段显示名称配置 (可扩展)
+
+```swift
+// MARK: - 字段名称配置 (支持动态扩展)
+
+class FieldLabelConfig {
+    
+    static let shared = FieldLabelConfig()
+    
+    /// 字段名 → 显示名称 (可从云端更新)
+    private var labelMap: [String: String] = [
+        // 预设常见字段
+        "alcohol_consumed": "饮酒",
+        "late_caffeine": "晚间咖啡因",
+        "screen_before_bed": "睡前屏幕",
+        "late_meal": "晚餐过晚",
+        "hooper_fatigue": "疲劳感",
+        "hooper_stress": "压力感",
+        "hooper_soreness": "肌肉酸痛",
+        "hooper_sleep": "主观睡眠",
+        "is_sick": "身体不适",
+        "is_traveling": "出差旅行",
+        // ... 新字段会自动使用key作为显示名
+    ]
+    
+    func getLabel(for key: String) -> String {
+        return labelMap[key] ?? formatKeyAsLabel(key)
+    }
+    
+    /// 从云端更新配置
+    func updateFromCloud(_ newLabels: [String: String]) {
+        labelMap.merge(newLabels) { _, new in new }
+    }
+    
+    /// snake_case → 可读文本
+    private func formatKeyAsLabel(_ key: String) -> String {
+        return key.replacingOccurrences(of: "_", with: " ").capitalized
+    }
+}
+```
+
+#### 相关性发现示例
+
+| 周期 | 发现的因 | 发现的果 | 强度 | 小模型生成文案 |
+|------|---------|---------|------|---------------|
+| 日报 | `running` | HRV -8% | 65% | "发现你跑步后，第二天HRV通常下降约8%。这是正常的训练反应，跑步后注意补充休息。" |
+| 日报 | `alcohol_consumed` | 睡眠效率 -12% | 78% | "你喝酒后睡眠效率平均下降12%。如果明天有重要事，今晚可以少喝点。" |
+| 周报 | `meditation` (新增字段) | HRV +5% | 52% | "有意思：你冥想后HRV会略微提升。坚持下去应该会有帮助。" |
+| 周报 | `work_overtime` (自定义) | 准备度 -15 | 71% | "加班和准备度下降有关联，加班后准备度平均低15分。注意工作平衡哦。" |
+| 月报 | 连续高强度训练模式 | HRV周趋势↓ | 82% | "本月有几次连续3天高强度训练后HRV下降。身体需要恢复周期。" |
+| 月报 | 周末效应 | 周一HRV↓ | 68% | "发现规律：周六有饮酒的周末，周一HRV通常偏低。" |
+
+#### 核心特性
+
+| 特性 | 说明 |
+|------|------|
+| **通用性** | 不写死字段，任何有值记录都参与 |
+| **自动发现** | 统计分析自动发现因果关联 |
+| **多周期** | 日报(1-3天) / 周报(7天) / 月报(28天) |
+| **可扩展** | Journal新增字段自动参与分析 |
+| **小模型文案** | 用本地LLM生成自然语言 |
+| **显著性过滤** | Cohen's d ≥ 0.5 才输出 |
+
 ---
 
 ## 十二、AI Coach 系统 (本地LLM + RAG)
@@ -4887,7 +5344,8 @@ struct ChatMessage: Identifiable {
 | 1.2 | 2025-12-10 | 整合SDK优化计划: 新增VO2max/恢复时间/PAI生理年龄指标; 新增device_recovery/training_effect CPT |
 | 1.3 | 2025-12-10 | 完整实现版: 新增Swift完整数据模型定义; SDK睡眠解析逻辑; Core Data Schema; 生理年龄完整实现; 女性月经周期算法; iOS后台采集配置; 验证用例和单元测试; 个性化CPT云端同步API |
 | 1.4 | 2025-12-10 | 新增洞察系统: WHOOP风格因果关联洞察; 自然语言生成器; 日报洞察生成器; SwiftUI展示组件; 完整触发规则表 |
-| **1.5** | **2025-12-10** | **新增AI Coach系统**: 本地LLM(Phi-3/Llama)+RAG架构; 用户数据+知识库联合推理; 云端备选+调用限制; 知识库更新机制; 完整SwiftUI聊天界面 |
+| 1.5 | 2025-12-10 | 新增AI Coach系统: 本地LLM(Phi-3/Llama)+RAG架构; 用户数据+知识库联合推理; 云端备选+调用限制; 知识库更新机制; 完整SwiftUI聊天界面 |
+| **1.6** | **2025-12-10** | **通用因果发现系统**: 不写死字段，任何运动/Journal记录自动参与; 统计相关性分析; 多周期(日/周/月)洞察; 小模型生成文案; 可扩展字段配置 |
 
 ### 13.3 联系方式
 - 技术负责人: [填写]
