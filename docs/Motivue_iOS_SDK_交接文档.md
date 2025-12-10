@@ -202,9 +202,188 @@ Motivue_iOS_SDK_交接文档.md        # 本文档 - 主索引
 | **Hooper酸痛** | 用户在APP输入 | 1-7分 | Core Data `DailyHooperEntity` | **参与准备度计算** |
 | **Hooper压力** | 用户在APP输入 | 1-7分 | Core Data `DailyHooperEntity` | **参与准备度计算** |
 | **Hooper睡眠** | 用户在APP输入 | 1-7分 | Core Data `DailyHooperEntity` | **参与准备度计算** |
-| **训练RPE** | 用户在APP输入 | 1-10分 | Core Data `TrainingSessionEntity` | 训练消耗计算 |
-| **训练时长** | 用户在APP输入 | 分钟 | Core Data `TrainingSessionEntity` | 训练负荷 |
-| **Journal条目** | 用户记录 | 布尔/文本 | Core Data `JournalEntity` | 因果分析 |
+| **训练RPE** | 用户在APP输入 | 1-10分 | Core Data `TrainingSessionEntity` | **计算手动AU** |
+| **训练时长** | 用户在APP输入 | 分钟 | Core Data `TrainingSessionEntity` | **计算手动AU** |
+| **Journal条目** | 用户勾选/自定义 | 标签列表 | Core Data `JournalEntity` | **因果分析** |
+
+#### 2.4.2.1 训练AU计算 (手动输入)
+
+用户输入 RPE + 时长 → 计算手动AU：
+
+```swift
+/// 手动输入训练AU计算
+/// AU = RPE × 训练时长(分钟)
+func calculateManualAU(rpe: Int, durationMinutes: Int) -> Double {
+    return Double(rpe) * Double(durationMinutes)
+}
+
+// 示例：RPE=7, 时长=60分钟 → AU = 7 × 60 = 420
+```
+
+**训练负荷融合逻辑**：
+```swift
+/// 训练负荷智能融合
+/// - 只有手动: 100%使用手动AU
+/// - 只有SDK: 100%使用SDK loadPeak
+/// - 都有: 50%手动 + 50% SDK
+func fusedTrainingLoad(manualAU: Double?, sdkLoadPeak: Double?) -> Double {
+    switch (manualAU, sdkLoadPeak) {
+    case (let manual?, nil):
+        return manual                           // 100%手动
+    case (nil, let sdk?):
+        return sdk                              // 100% SDK
+    case (let manual?, let sdk?):
+        return (manual + sdk) / 2.0            // 50/50融合
+    default:
+        return 0
+    }
+}
+```
+
+#### 2.4.2.2 Journal系统 (类似WHOOP)
+
+> Journal采用**勾选标签**方式，用户可以快速选择预设标签，也可以自定义添加新标签。
+
+**预设标签分类**：
+
+| 分类 | 标签示例 | 存储key |
+|------|---------|---------|
+| **饮食/饮品** | 饮酒、晚间咖啡因、晚餐过晚 | `alcohol`, `late_caffeine`, `late_meal` |
+| **睡眠习惯** | 睡前屏幕、卧室噪音、温度不适 | `screen_before_bed`, `noise`, `temperature` |
+| **身体状况** | 生病、受伤、经期 | `is_sick`, `is_injured`, `menstrual` |
+| **生活事件** | 出差、加班、旅行、重大事件 | `travel`, `overtime`, `major_event` |
+| **运动类型** | 篮球、跑步、游泳、健身 | `sport:basketball`, `sport:running`... |
+| **用户自定义** | 任意文本 | 动态key |
+
+**Journal界面示例**：
+
+```swift
+// MARK: - Journal输入界面 (类似WHOOP勾选)
+
+struct JournalInputView: View {
+    @State private var selectedTags: Set<String> = []
+    @State private var customTag: String = ""
+    
+    // 预设标签
+    let presetTags: [String: [String]] = [
+        "饮食": ["alcohol", "late_caffeine", "late_meal"],
+        "睡眠": ["screen_before_bed", "noise", "temperature_issue"],
+        "身体": ["is_sick", "is_injured", "menstrual"],
+        "生活": ["travel", "overtime", "major_event"],
+        "运动": ["sport:basketball", "sport:running", "sport:swimming", "sport:gym"]
+    ]
+    
+    // 用户自定义标签 (从历史记录加载)
+    @State private var userCustomTags: [String] = []
+    
+    var body: some View {
+        Form {
+            // 预设标签 (分组显示，勾选)
+            ForEach(presetTags.keys.sorted(), id: \.self) { category in
+                Section(header: Text(category)) {
+                    ForEach(presetTags[category]!, id: \.self) { tag in
+                        Toggle(tagLabel(tag), isOn: Binding(
+                            get: { selectedTags.contains(tag) },
+                            set: { if $0 { selectedTags.insert(tag) } else { selectedTags.remove(tag) } }
+                        ))
+                    }
+                }
+            }
+            
+            // 用户自定义标签
+            Section(header: Text("我的标签")) {
+                ForEach(userCustomTags, id: \.self) { tag in
+                    Toggle(tag, isOn: Binding(
+                        get: { selectedTags.contains(tag) },
+                        set: { if $0 { selectedTags.insert(tag) } else { selectedTags.remove(tag) } }
+                    ))
+                }
+                
+                // 添加新标签
+                HStack {
+                    TextField("添加新标签...", text: $customTag)
+                    Button("添加") {
+                        if !customTag.isEmpty {
+                            userCustomTags.append(customTag)
+                            selectedTags.insert(customTag)
+                            saveCustomTag(customTag)
+                            customTag = ""
+                        }
+                    }
+                }
+            }
+            
+            Button("保存Journal") {
+                saveJournal()
+            }
+        }
+    }
+    
+    func saveJournal() {
+        let journal = JournalEntity(context: viewContext)
+        journal.id = UUID()
+        journal.date = Date()
+        journal.tags = Array(selectedTags)  // 存储为数组
+        try? viewContext.save()
+        
+        // 因果分析会自动扫描这些标签
+    }
+    
+    func tagLabel(_ key: String) -> String {
+        // 使用FieldLabelConfig获取显示名
+        return FieldLabelConfig.shared.getLabel(for: key)
+    }
+}
+```
+
+**Journal数据模型**：
+
+```swift
+// Core Data Entity
+// Entity: JournalEntity
+// Attributes:
+//   - id: UUID
+//   - date: Date (indexed)
+//   - tags: [String] (Transformable - 存储标签数组)
+//   - notes: String? (可选备注)
+
+// 因果分析时，CausalEngine会自动扫描所有tags
+// 任何新标签都会自动参与因果发现，无需写死代码
+```
+
+**标签显示名配置**：
+
+```swift
+class FieldLabelConfig {
+    static let shared = FieldLabelConfig()
+    
+    private var labelMap: [String: String] = [
+        // 预设标签映射
+        "alcohol": "饮酒",
+        "late_caffeine": "晚间咖啡因",
+        "late_meal": "晚餐过晚",
+        "screen_before_bed": "睡前屏幕",
+        "is_sick": "身体不适",
+        "is_injured": "受伤",
+        "travel": "出差旅行",
+        "overtime": "加班",
+        "menstrual": "经期",
+        "sport:basketball": "打篮球",
+        "sport:running": "跑步",
+        "sport:swimming": "游泳",
+        "sport:gym": "健身",
+        // ... 更多预设
+    ]
+    
+    func getLabel(for key: String) -> String {
+        return labelMap[key] ?? key  // 自定义标签直接显示原文
+    }
+    
+    /// 云端可以更新标签映射
+    func updateFromCloud(_ newLabels: [String: String]) {
+        labelMap.merge(newLabels) { _, new in new }
+    }
+}
 
 #### 2.4.3 Hooper量表对接方式
 
