@@ -103,8 +103,18 @@ Motivue_iOS_SDK_交接文档.md        # 本文档 - 主索引
 | 数据类型 | SDK属性 | 数据类型 | 用途 |
 |---------|---------|---------|------|
 | 心率 | `heartRate` | bpm | 核心指标 |
-| HRV | `heartRateVariability` | 1-29低/30-60正常/61-101良好/102+优秀 | 核心指标 |
+| HRV (RMSSD) | `heartRateVariability` | **毫秒 (ms)** | 核心指标 |
 | 血氧 | `bloodOxygen` | % | **仪表盘展示** |
+
+> **⚠️ 重要说明：HRV数据**
+> 
+> SDK 的 `heartRateVariability` 就是 **RMSSD 毫秒值**，可直接用于HRV计算：
+> - 1-29 ms = 低 (恢复不足/压力大)
+> - 30-60 ms = 正常
+> - 61-101 ms = 良好 
+> - 102+ ms = 优秀 (运动员水平)
+> 
+> 在代码中直接使用：`let hrvRMSSD = sdkData.heartRateVariability // 单位：毫秒`
 | 压力值 | `stressValue` | 0-100 | **仪表盘展示** |
 | 情绪 | `mood` | 1消极/2中性/3积极 | **仪表盘展示** |
 | PAI | `LowPAI/midPAI/highPAI` | 整数 | 活动量统计 |
@@ -151,7 +161,7 @@ Motivue_iOS_SDK_交接文档.md        # 本文档 - 主索引
 │  └─ training_load (手动+SDK融合)                               │
 │                                                                  │
 │  【生理年龄计算】                  【周报/仪表盘】               │
-│  ├─ SDNN (HRV)                    ├─ weekly_pai                │
+│  ├─ RMSSD (SDK的heartRateVariability) ├─ weekly_pai           │
 │  ├─ 静息心率                      ├─ 恢复时间趋势              │
 │  ├─ CSS睡眠评分                   └─ 所有原始数据可视化        │
 │  ├─ VO2max (新增)                                              │
@@ -836,16 +846,25 @@ Posterior更新:
 
 ### 4.4 生理年龄估算 (增强版)
 
+> **⚠️ HRV指标说明**
+> 
+> SDK 的 `heartRateVariability` 是 **RMSSD 毫秒值**（不是SDNN）。
+> RMSSD 和 SDNN 高度相关（r > 0.9），参考值范围类似（健康成年人30-100ms），
+> 可以直接用 RMSSD 代替原公式中的 SDNN。
+
 **原公式：**
 ```
-PhysAge = 35 - 8×SDNN_z - 5×CSS_z - 6×RHR_z
+PhysAge = 35 - 8×HRV_z - 5×CSS_z - 6×RHR_z
 ```
 
 **增强版公式 (加入SDK数据)：**
 
 ```swift
+// HRV使用SDK的heartRateVariability (RMSSD毫秒值)
+let hrvRMSSD = sdkData.heartRateVariability  // 单位：毫秒
+
 // 有VO2max时
-age_adjust = -4.0 * sdnn_z      // HRV
+age_adjust = -4.0 * hrv_z       // HRV (使用RMSSD)
            + -3.0 * css_z       // 睡眠
            + -4.0 * rhr_z       // 静息心率
            + -8.0 * vo2max_z    // VO2max (最高权重)
@@ -853,7 +872,7 @@ age_adjust = -4.0 * sdnn_z      // HRV
            + -2.0 * pai_z       // 活动量
 
 // 无VO2max时
-age_adjust = -8.0 * sdnn_z      // HRV (权重提升)
+age_adjust = -8.0 * hrv_z       // HRV (使用RMSSD，权重提升)
            + -5.0 * css_z       // 睡眠
            + -6.0 * rhr_z       // 静息心率
            + -3.0 * recovery_z  // 恢复能力
@@ -866,7 +885,7 @@ phys_age = max(18, min(80, 35 + age_adjust))
 
 | 指标 | 基准值 | 标准差 | 说明 |
 |-----|--------|-------|------|
-| SDNN | 50 ms | 20 ms | 高SDNN更年轻 |
+| HRV (RMSSD) | 50 ms | 20 ms | 高HRV更年轻，SDK的`heartRateVariability` |
 | RHR | 60 bpm | 10 bpm | 低RHR更年轻 |
 | CSS | 70 分 | 15 分 | 高CSS更年轻 |
 | **VO2max** | 47-(age-20)×0.35 (男) / 41-(age-20)×0.35 (女) | 6 ml/kg/min | 高VO2更年轻 |

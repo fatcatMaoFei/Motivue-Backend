@@ -22,7 +22,7 @@
 | **MET** | `oxygenUptake` | 代谢当量 | 运动记录 | ✅ 可获取 |
 | **恢复时间** | `recoveryTime` | 分钟 | 运动记录 | ✅ 可获取 |
 | **设备体能年龄** | `fitnessAge` | 岁 | 运动记录 | ✅ 可获取 |
-| **HRV** | `heartRateVariability` | 1-29低/30-60正常/61-101良好/102+优秀 | 每分钟采样 | ✅ 可获取 |
+| **HRV (RMSSD)** | `heartRateVariability` | **毫秒值** (1-29低/30-60正常/61-101良好/102+优秀) | 每分钟采样 | ✅ 可获取 |
 | **静息心率** | `restingHeartRate` | bpm | 日总计数据 | ✅ 可获取 |
 | **心率区间** | `heartRateZone` | 1-5 | 实时运动 | ✅ 可获取 |
 
