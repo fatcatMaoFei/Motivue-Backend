@@ -171,7 +171,145 @@ Motivue_iOS_SDK_交接文档.md        # 本文档 - 主索引
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 2.4 准备度状态定义
+### 2.4 完整数据来源对照表
+
+> **⚠️ 核心理解**: 系统数据分为三类来源
+
+#### 2.4.1 SDK自动采集数据 (客观数据)
+
+| 数据 | SDK属性 | 获取方式 | 单位 | 用途 |
+|------|---------|---------|------|------|
+| **心率** | `heartRate` | `getSampleDetailData` | bpm | 核心指标 |
+| **HRV (RMSSD)** | `heartRateVariability` | `UTEModelMotionFrameItemContent` | **毫秒** | 核心指标/生理年龄 |
+| **静息心率** | `restingHeartRate` | `UTEModelMotionFrameItemContent` | bpm | 生理年龄 |
+| **血氧** | `bloodOxygen` | `UTEModelMotionFrameItemContent` | % | 仪表盘展示 |
+| **压力值** | `stressValue` | `downloadStressDataFileModel` | 0-100 | 仪表盘展示 |
+| **情绪** | `mood` | `UTEModelMotionFrameItemContent` | 1/2/3 | 仪表盘展示 |
+| **PAI** | `LowPAI/midPAI/highPAI` | `UTEModelMotionFrameItemContent` | 整数 | 生理年龄/展示 |
+| **步数** | `step` | `getSampleDetailData` | 整数 | 活动量统计 |
+| **睡眠数据** | 科学睡眠模型 | `getSciSleepModelWithStartTime` | 分钟 | 核心指标 |
+| **训练负荷** | `loadPeak` | `UTEModeSportRecordSummary` | AU | 参与计算 |
+| **有氧效果** | `trainingEffect` | `UTEModeSportRecordSummary` | 0-5 | 参与计算 |
+| **无氧效果** | `anaerobicSportsEffect` | `UTEModeSportRecordSummary` | 0-5 | 参与计算 |
+| **VO2max** | `oxygenConsumption` | `UTEModeSportRecordSummary` | ml/kg/min | 生理年龄 |
+| **恢复时间** | `recoveryTime` | `UTEModeSportRecordSummary` | 分钟 | 参与计算/生理年龄 |
+
+#### 2.4.2 用户手动输入数据 (主观数据)
+
+| 数据 | 来源 | 数值范围 | 存储方式 | 用途 |
+|------|------|---------|---------|------|
+| **Hooper疲劳** | 用户在APP输入 | 1-7分 | Core Data `DailyHooperEntity` | **参与准备度计算** |
+| **Hooper酸痛** | 用户在APP输入 | 1-7分 | Core Data `DailyHooperEntity` | **参与准备度计算** |
+| **Hooper压力** | 用户在APP输入 | 1-7分 | Core Data `DailyHooperEntity` | **参与准备度计算** |
+| **Hooper睡眠** | 用户在APP输入 | 1-7分 | Core Data `DailyHooperEntity` | **参与准备度计算** |
+| **训练RPE** | 用户在APP输入 | 1-10分 | Core Data `TrainingSessionEntity` | 训练消耗计算 |
+| **训练时长** | 用户在APP输入 | 分钟 | Core Data `TrainingSessionEntity` | 训练负荷 |
+| **Journal条目** | 用户记录 | 布尔/文本 | Core Data `JournalEntity` | 因果分析 |
+
+#### 2.4.3 Hooper量表对接方式
+
+```swift
+// MARK: - Hooper输入界面 (用户手动填写)
+
+struct HooperInputView: View {
+    @State private var fatigue: Int = 4      // 1-7
+    @State private var soreness: Int = 4     // 1-7
+    @State private var stress: Int = 4       // 1-7
+    @State private var sleepQuality: Int = 4 // 1-7
+    
+    var body: some View {
+        Form {
+            Section(header: Text("主观评估 (1=非常好, 7=极差)")) {
+                Stepper("疲劳感: \(fatigue)", value: $fatigue, in: 1...7)
+                Stepper("肌肉酸痛: \(soreness)", value: $soreness, in: 1...7)
+                Stepper("心理压力: \(stress)", value: $stress, in: 1...7)
+                Stepper("睡眠质量: \(sleepQuality)", value: $sleepQuality, in: 1...7)
+            }
+            
+            Button("提交") {
+                saveHooperScores()
+            }
+        }
+    }
+    
+    func saveHooperScores() {
+        // 保存到Core Data
+        let hooper = DailyHooperEntity(context: viewContext)
+        hooper.id = UUID()
+        hooper.date = Date()
+        hooper.fatigue = Int16(fatigue)
+        hooper.soreness = Int16(soreness)
+        hooper.stress = Int16(stress)
+        hooper.sleepQuality = Int16(sleepQuality)
+        
+        try? viewContext.save()
+        
+        // 触发准备度重新计算
+        readinessEngine.updateWithHooperScores(
+            fatigue: fatigue,
+            soreness: soreness,
+            stress: stress,
+            sleepQuality: sleepQuality
+        )
+    }
+}
+```
+
+#### 2.4.4 数据对接流程图
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          数据来源与对接流程                                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│   SDK自动采集                    用户手动输入                                │
+│   ════════════                   ════════════                                │
+│                                                                              │
+│   ┌─────────────────┐           ┌─────────────────┐                        │
+│   │ UTEBluetoothRY  │           │ SwiftUI 输入界面 │                        │
+│   │     Api SDK     │           │                 │                        │
+│   └────────┬────────┘           └────────┬────────┘                        │
+│            │                             │                                  │
+│            │ 自动同步                    │ 用户提交                         │
+│            │                             │                                  │
+│            ▼                             ▼                                  │
+│   ┌─────────────────────────────────────────────────────────┐              │
+│   │                    Core Data 本地存储                    │              │
+│   │                                                          │              │
+│   │  ┌──────────────┐ ┌──────────────┐ ┌──────────────────┐ │              │
+│   │  │ SDKDataEntity│ │HooperEntity  │ │ TrainingEntity   │ │              │
+│   │  │              │ │              │ │                  │ │              │
+│   │  │ hrv          │ │ fatigue 1-7  │ │ rpe 1-10        │ │              │
+│   │  │ heartRate    │ │ soreness 1-7 │ │ duration_min    │ │              │
+│   │  │ bloodOxygen  │ │ stress 1-7   │ │ label           │ │              │
+│   │  │ stressValue  │ │ sleep 1-7    │ │ manual_au       │ │              │
+│   │  │ sleep...     │ │              │ │                  │ │              │
+│   │  │ loadPeak     │ │              │ │                  │ │              │
+│   │  └──────────────┘ └──────────────┘ └──────────────────┘ │              │
+│   └─────────────────────────────┬───────────────────────────┘              │
+│                                 │                                          │
+│                                 │ 数据聚合                                 │
+│                                 ▼                                          │
+│   ┌─────────────────────────────────────────────────────────┐              │
+│   │                  准备度引擎 (ReadinessEngine)             │              │
+│   │                                                          │              │
+│   │  SDK数据映射:                 Hooper映射:                 │              │
+│   │  ├─ HRV → hrv_trend          ├─ fatigue → subjective_   │              │
+│   │  ├─ Sleep → sleep_perf           fatigue (low/med/high)│              │
+│   │  ├─ loadPeak → training_load ├─ soreness → muscle_      │              │
+│   │  ├─ recoveryTime → device_       soreness              │              │
+│   │  │     recovery              ├─ stress → subjective_    │              │
+│   │  └─ trainingEffect → ...         stress                │              │
+│   │                              └─ sleep → subjective_     │              │
+│   │                                  sleep                  │              │
+│   │                                                          │              │
+│   │  贝叶斯更新 → 准备度分数                                  │              │
+│   └─────────────────────────────────────────────────────────┘              │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 2.5 准备度状态定义
 
 系统使用 6 种状态描述运动员/用户的恢复状态：
 
