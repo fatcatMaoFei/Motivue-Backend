@@ -2694,24 +2694,1032 @@ class ReadinessEngineTests: XCTestCase {
 
 ---
 
-## 十一、附录
+## 十一、洞察系统 (Insights Engine)
 
-### 11.1 参考文档
+> 参考 WHOOP 风格的因果关联洞察，将用户行为与指标变化关联，用自然语言输出。
+
+### 11.1 洞察系统架构
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        iOS 本地洞察系统                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐       │
+│  │  数据采集层   │───▶│  关联分析层   │───▶│  文案生成层   │       │
+│  └──────────────┘    └──────────────┘    └──────────────┘       │
+│         │                   │                   │                │
+│         ▼                   ▼                   ▼                │
+│  • SDK原始数据         • 因果推断           • 模板渲染           │
+│  • 用户行为记录        • 趋势检测           • 自然语言化          │
+│  • 历史基线           • 异常识别           • 多语言支持          │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼ (可选: 复杂问答/周报)
+┌─────────────────────────────────────────────────────────────────┐
+│                        云端 AI 服务                              │
+├─────────────────────────────────────────────────────────────────┤
+│  • AI教练对话 (GPT-4o/Claude)                                    │
+│  • 周报生成 (LangChain Pipeline)                                 │
+│  • 个性化洞察学习                                                │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 11.2 洞察数据模型
+
+```swift
+// MARK: - 洞察数据模型
+
+/// 洞察类型枚举
+enum InsightType: String, Codable {
+    // 恢复相关
+    case hrvDecline = "hrv_decline"
+    case hrvImproved = "hrv_improved"
+    case sleepQualityDrop = "sleep_quality_drop"
+    case sleepQualityImproved = "sleep_quality_improved"
+    case recoveryLow = "recovery_low"
+    case recoveryOptimal = "recovery_optimal"
+    
+    // 训练相关
+    case trainingLoadHigh = "training_load_high"
+    case trainingLoadLow = "training_load_low"
+    case overreaching = "overreaching"
+    case detraining = "detraining"
+    
+    // 生活方式关联
+    case activityImpact = "activity_impact"
+    case lifestyleImpact = "lifestyle_impact"
+    case sleepHabitImpact = "sleep_habit_impact"
+    
+    // 趋势预警
+    case trendWarning = "trend_warning"
+    case trendPositive = "trend_positive"
+    
+    // 主客观冲突
+    case subjectiveObjectiveConflict = "subjective_objective_conflict"
+}
+
+/// 洞察优先级
+enum InsightPriority: Int, Codable {
+    case critical = 1   // 需立即关注
+    case high = 2       // 重要提示
+    case medium = 3     // 一般建议
+    case low = 4        // 信息性
+}
+
+/// 因果证据
+struct CausalEvidence: Codable {
+    let factor: String           // 因素名称 (如 "basketball", "alcohol")
+    let factorLabel: String      // 显示名称 (如 "打篮球", "饮酒")
+    let timestamp: Date          // 发生时间
+    let value: Double?           // 量化值 (如训练时长、饮酒量)
+    let source: String           // 数据来源 ("sdk", "manual", "journal")
+}
+
+/// 指标变化
+struct MetricChange: Codable {
+    let metric: String           // 指标名称
+    let metricLabel: String      // 显示名称
+    let previousValue: Double    // 之前值
+    let currentValue: Double     // 当前值
+    let baselineValue: Double?   // 基线值
+    let changePercent: Double    // 变化百分比
+    let changeDirection: String  // "up", "down", "stable"
+    let significance: String     // "significant", "moderate", "minor"
+}
+
+/// 洞察项
+struct InsightItem: Codable, Identifiable {
+    let id: String
+    let type: InsightType
+    let priority: InsightPriority
+    let timestamp: Date
+    
+    // 因果关联
+    let causes: [CausalEvidence]      // 可能的原因
+    let effects: [MetricChange]       // 观察到的效果
+    let correlationStrength: Double   // 关联强度 0-1
+    
+    // 输出文案
+    let headline: String              // 标题 (如 "HRV下降提醒")
+    let narrative: String             // 主文案 (自然语言描述)
+    let recommendation: String?       // 建议
+    
+    // 元数据
+    let tags: [String]
+    let expiresAt: Date?              // 过期时间
+    let isRead: Bool
+    let userFeedback: String?         // 用户反馈 ("helpful", "not_helpful")
+}
+
+/// 日报洞察汇总
+struct DailyInsightSummary: Codable {
+    let date: Date
+    let overallStatus: String         // "optimal", "good", "attention", "warning"
+    let statusEmoji: String           // "🟢", "🟡", "🟠", "🔴"
+    let oneLiner: String              // 一句话总结
+    let insights: [InsightItem]
+    let topRecommendation: String?
+}
+```
+
+### 11.3 因果关联规则引擎
+
+```swift
+// MARK: - 因果关联分析器
+
+class CausalAnalyzer {
+    
+    private let dataStore: LocalDataStore
+    private let baselineManager: PersonalBaselineManager
+    
+    // MARK: - 活动影响分析
+    
+    /// 分析昨日活动对今日指标的影响
+    func analyzeActivityImpact(
+        todayMetrics: DailyMetrics,
+        yesterdayActivities: [ActivityRecord]
+    ) -> [InsightItem] {
+        
+        var insights: [InsightItem] = []
+        
+        // 获取基线
+        guard let baseline = baselineManager.getCurrentBaseline() else { return insights }
+        
+        // 计算今日HRV相对基线的变化
+        let hrvChange = calculateHRVChange(today: todayMetrics.hrvRMSSD, baseline: baseline)
+        
+        // 遍历昨日活动，寻找关联
+        for activity in yesterdayActivities {
+            if let insight = analyzeActivityHRVCorrelation(
+                activity: activity,
+                hrvChange: hrvChange,
+                todayMetrics: todayMetrics,
+                baseline: baseline
+            ) {
+                insights.append(insight)
+            }
+        }
+        
+        return insights
+    }
+    
+    /// 分析单个活动与HRV变化的关联
+    private func analyzeActivityHRVCorrelation(
+        activity: ActivityRecord,
+        hrvChange: MetricChange,
+        todayMetrics: DailyMetrics,
+        baseline: PersonalBaseline
+    ) -> InsightItem? {
+        
+        // 高强度活动 + HRV下降 = 强关联
+        let isHighIntensity = activity.intensity >= 0.7 || activity.trainingLoad >= 300
+        let isHRVDeclined = hrvChange.changeDirection == "down" && 
+                            abs(hrvChange.changePercent) >= 5
+        
+        guard isHighIntensity && isHRVDeclined else { return nil }
+        
+        // 构建因果证据
+        let cause = CausalEvidence(
+            factor: activity.type,
+            factorLabel: activityTypeLabel(activity.type),
+            timestamp: activity.endTime,
+            value: activity.duration,
+            source: activity.source
+        )
+        
+        // 生成自然语言文案
+        let narrative = generateActivityImpactNarrative(
+            activity: activity,
+            hrvChange: hrvChange,
+            baseline: baseline
+        )
+        
+        return InsightItem(
+            id: UUID().uuidString,
+            type: .activityImpact,
+            priority: abs(hrvChange.changePercent) >= 15 ? .high : .medium,
+            timestamp: Date(),
+            causes: [cause],
+            effects: [hrvChange],
+            correlationStrength: calculateCorrelationStrength(activity, hrvChange),
+            headline: "训练影响提醒",
+            narrative: narrative,
+            recommendation: generateActivityRecommendation(hrvChange),
+            tags: ["activity", "hrv", activity.type],
+            expiresAt: Calendar.current.date(byAdding: .hour, value: 24, to: Date()),
+            isRead: false,
+            userFeedback: nil
+        )
+    }
+    
+    // MARK: - 生活方式影响分析
+    
+    /// 分析生活方式因素对恢复的影响
+    func analyzeLifestyleImpact(
+        todayMetrics: DailyMetrics,
+        yesterdayJournal: JournalEntry?
+    ) -> [InsightItem] {
+        
+        var insights: [InsightItem] = []
+        guard let journal = yesterdayJournal else { return insights }
+        guard let baseline = baselineManager.getCurrentBaseline() else { return insights }
+        
+        // 检测各种生活方式因素
+        let lifestyleFactors: [(factor: String, label: String, value: Bool)] = [
+            ("alcohol", "饮酒", journal.alcoholConsumed),
+            ("late_caffeine", "晚间咖啡因", journal.lateCaffeine),
+            ("screen_before_bed", "睡前屏幕", journal.screenBeforeBed),
+            ("late_meal", "晚餐过晚", journal.lateMeal)
+        ]
+        
+        for (factor, label, occurred) in lifestyleFactors {
+            guard occurred else { continue }
+            
+            // 检查睡眠质量下降
+            let sleepChange = calculateSleepChange(today: todayMetrics.sleep, baseline: baseline)
+            
+            if sleepChange.changeDirection == "down" && abs(sleepChange.changePercent) >= 10 {
+                let cause = CausalEvidence(
+                    factor: factor,
+                    factorLabel: label,
+                    timestamp: journal.date,
+                    value: nil,
+                    source: "journal"
+                )
+                
+                let narrative = generateLifestyleImpactNarrative(
+                    factor: factor,
+                    factorLabel: label,
+                    sleepChange: sleepChange
+                )
+                
+                insights.append(InsightItem(
+                    id: UUID().uuidString,
+                    type: .lifestyleImpact,
+                    priority: .medium,
+                    timestamp: Date(),
+                    causes: [cause],
+                    effects: [sleepChange],
+                    correlationStrength: 0.6,
+                    headline: "生活习惯影响",
+                    narrative: narrative,
+                    recommendation: getLifestyleRecommendation(factor),
+                    tags: ["lifestyle", factor, "sleep"],
+                    expiresAt: nil,
+                    isRead: false,
+                    userFeedback: nil
+                ))
+            }
+        }
+        
+        return insights
+    }
+    
+    // MARK: - 趋势分析
+    
+    /// 分析多日趋势，预测风险
+    func analyzeTrend(last7DaysMetrics: [DailyMetrics]) -> [InsightItem] {
+        var insights: [InsightItem] = []
+        
+        // 检测连续下降趋势
+        let hrvTrend = detectTrend(values: last7DaysMetrics.compactMap { $0.hrvRMSSD })
+        let sleepTrend = detectTrend(values: last7DaysMetrics.map { $0.sleep.efficiency })
+        
+        // 连续3天HRV下降
+        if hrvTrend.consecutiveDeclines >= 3 {
+            insights.append(createTrendWarningInsight(
+                metric: "HRV",
+                trend: hrvTrend,
+                headline: "HRV连续下降",
+                narrative: "过去\(hrvTrend.consecutiveDeclines)天HRV持续走低，累计下降\(String(format: "%.1f", hrvTrend.totalChange))%。这可能预示着累积疲劳，建议安排恢复日。"
+            ))
+        }
+        
+        // 睡眠效率连续下降
+        if sleepTrend.consecutiveDeclines >= 3 {
+            insights.append(createTrendWarningInsight(
+                metric: "睡眠效率",
+                trend: sleepTrend,
+                headline: "睡眠质量下滑",
+                narrative: "睡眠效率已连续\(sleepTrend.consecutiveDeclines)天下降。检查最近的睡眠习惯是否有变化？"
+            ))
+        }
+        
+        return insights
+    }
+}
+```
+
+### 11.4 自然语言生成器
+
+```swift
+// MARK: - 洞察文案生成器
+
+class InsightNarrativeGenerator {
+    
+    // MARK: - 活动影响文案模板
+    
+    /// 生成活动影响的自然语言描述
+    func generateActivityImpactNarrative(
+        activity: ActivityRecord,
+        hrvChange: MetricChange,
+        baseline: PersonalBaseline
+    ) -> String {
+        
+        let activityName = activityTypeLabel(activity.type)
+        let timeAgo = formatTimeAgo(activity.endTime)
+        let durationText = formatDuration(activity.duration)
+        
+        // 根据变化幅度选择不同模板
+        let changeText: String
+        let hrvCurrent = Int(hrvChange.currentValue)
+        let hrvBaseline = Int(baseline.hrvRMSSDMean)
+        let changePercent = abs(hrvChange.changePercent)
+        
+        if changePercent >= 20 {
+            changeText = "明显下降"
+        } else if changePercent >= 10 {
+            changeText = "有所下降"
+        } else {
+            changeText = "略有波动"
+        }
+        
+        // 组合自然语言
+        var narrative = "\(timeAgo)你进行了\(durationText)的\(activityName)，"
+        narrative += "今天的HRV（\(hrvCurrent)ms）较你的基线（\(hrvBaseline)ms）\(changeText)"
+        
+        if changePercent >= 10 {
+            narrative += "（-\(String(format: "%.0f", changePercent))%）"
+        }
+        narrative += "。"
+        
+        // 添加解读
+        if changePercent >= 15 {
+            narrative += "这表明身体正在恢复中，建议今天以轻度活动为主。"
+        } else if changePercent >= 10 {
+            narrative += "属于正常的训练反应，注意补充营养和睡眠。"
+        }
+        
+        return narrative
+    }
+    
+    // MARK: - 生活方式影响文案
+    
+    func generateLifestyleImpactNarrative(
+        factor: String,
+        factorLabel: String,
+        sleepChange: MetricChange
+    ) -> String {
+        
+        let templates: [String: String] = [
+            "alcohol": "昨晚的饮酒可能影响了你的睡眠质量，睡眠效率下降了\(String(format: "%.0f", abs(sleepChange.changePercent)))%。酒精会干扰深度睡眠，建议控制饮酒频率。",
+            
+            "late_caffeine": "晚间摄入的咖啡因似乎影响了入睡，睡眠效率较基线低\(String(format: "%.0f", abs(sleepChange.changePercent)))%。建议下午2点后避免咖啡因。",
+            
+            "screen_before_bed": "睡前使用屏幕可能延迟了你的入睡时间，今天睡眠效率下降\(String(format: "%.0f", abs(sleepChange.changePercent)))%。尝试睡前1小时放下手机。",
+            
+            "late_meal": "晚餐时间偏晚可能影响了睡眠质量，效率下降\(String(format: "%.0f", abs(sleepChange.changePercent)))%。建议睡前3小时完成进食。"
+        ]
+        
+        return templates[factor] ?? "检测到\(factorLabel)与睡眠质量下降存在关联。"
+    }
+    
+    // MARK: - HRV趋势文案
+    
+    func generateHRVTrendNarrative(
+        currentHRV: Double,
+        baselineHRV: Double,
+        zScore: Double,
+        trend3Day: Double?,
+        trend7Day: Double?
+    ) -> String {
+        
+        var narrative = "今日HRV \(Int(currentHRV))ms，"
+        
+        // 与基线对比
+        let vsBaseline = ((currentHRV - baselineHRV) / baselineHRV) * 100
+        if abs(vsBaseline) < 5 {
+            narrative += "与你的基线（\(Int(baselineHRV))ms）基本持平。"
+        } else if vsBaseline > 0 {
+            narrative += "高于基线\(String(format: "%.0f", vsBaseline))%，恢复状态良好！"
+        } else {
+            narrative += "低于基线\(String(format: "%.0f", abs(vsBaseline)))%。"
+        }
+        
+        // Z分数解读
+        if zScore <= -1.5 {
+            narrative += "这是一个明显的低值，身体可能需要更多恢复时间。"
+        } else if zScore <= -0.5 {
+            narrative += "略低于正常范围，注意监测后续变化。"
+        } else if zScore >= 1.0 {
+            narrative += "状态极佳，是进行高强度训练的好时机！"
+        }
+        
+        // 趋势
+        if let d3 = trend3Day, d3 < -5 {
+            narrative += "近3天呈下降趋势，建议安排恢复。"
+        } else if let d7 = trend7Day, d7 > 5 {
+            narrative += "本周整体恢复良好，继续保持！"
+        }
+        
+        return narrative
+    }
+    
+    // MARK: - 睡眠洞察文案
+    
+    func generateSleepInsightNarrative(
+        sleep: SleepMetrics,
+        baseline: PersonalBaseline
+    ) -> String {
+        
+        let durationHours = sleep.totalMinutes / 60.0
+        let baselineDuration = baseline.sleepDurationMean / 60.0
+        
+        var narrative = "昨晚睡眠\(String(format: "%.1f", durationHours))小时，"
+        
+        // 时长对比
+        let durationDiff = durationHours - baselineDuration
+        if abs(durationDiff) < 0.3 {
+            narrative += "与平时相当。"
+        } else if durationDiff > 0 {
+            narrative += "比平时多睡了\(String(format: "%.1f", durationDiff))小时。"
+        } else {
+            narrative += "比平时少睡\(String(format: "%.1f", abs(durationDiff)))小时。"
+        }
+        
+        // 睡眠效率
+        let effPercent = Int(sleep.efficiency * 100)
+        if effPercent >= 90 {
+            narrative += "睡眠效率\(effPercent)%，非常高效！"
+        } else if effPercent >= 85 {
+            narrative += "效率\(effPercent)%，质量不错。"
+        } else if effPercent >= 75 {
+            narrative += "效率\(effPercent)%，还有提升空间。"
+        } else {
+            narrative += "效率仅\(effPercent)%，建议检查睡眠环境。"
+        }
+        
+        // 睡眠结构
+        let deepRatio = Double(sleep.deepSleepMinutes) / Double(sleep.totalMinutes)
+        let remRatio = Double(sleep.remSleepMinutes) / Double(sleep.totalMinutes)
+        
+        if deepRatio >= 0.20 {
+            narrative += "深度睡眠充足（\(Int(deepRatio * 100))%）。"
+        } else if deepRatio < 0.13 {
+            narrative += "深度睡眠偏少（\(Int(deepRatio * 100))%），可能影响身体恢复。"
+        }
+        
+        return narrative
+    }
+    
+    // MARK: - 综合日报一句话
+    
+    func generateDailyOneLiner(
+        readinessScore: Double,
+        hrvStatus: String,
+        sleepQuality: String,
+        topConcern: String?
+    ) -> String {
+        
+        let templates: [(range: ClosedRange<Double>, texts: [String])] = [
+            (80...100, [
+                "状态极佳！今天适合挑战高强度训练。",
+                "恢复充分，是突破个人记录的好时机！",
+                "身体状态在线，尽情享受运动吧！"
+            ]),
+            (60...79, [
+                "状态良好，可以进行正常训练计划。",
+                "恢复不错，保持节奏继续前进。",
+                "今天状态稳定，适合中等强度训练。"
+            ]),
+            (40...59, [
+                "恢复中等，建议适度降低训练强度。",
+                "身体需要更多恢复，今天轻松一点。",
+                "注意倾听身体信号，别勉强自己。"
+            ]),
+            (0...39, [
+                "身体发出休息信号，建议安排恢复日。",
+                "恢复不足，今天以放松为主。",
+                "累积疲劳明显，优先保证睡眠和营养。"
+            ])
+        ]
+        
+        for (range, texts) in templates {
+            if range.contains(readinessScore) {
+                var oneLiner = texts.randomElement()!
+                
+                // 如果有特别关注点，追加
+                if let concern = topConcern {
+                    oneLiner += "（\(concern)）"
+                }
+                
+                return oneLiner
+            }
+        }
+        
+        return "数据不足，继续佩戴设备获取更多信息。"
+    }
+    
+    // MARK: - 辅助函数
+    
+    private func activityTypeLabel(_ type: String) -> String {
+        let mapping: [String: String] = [
+            "basketball": "篮球",
+            "running": "跑步",
+            "cycling": "骑行",
+            "swimming": "游泳",
+            "strength": "力量训练",
+            "yoga": "瑜伽",
+            "hiit": "HIIT",
+            "walking": "步行",
+            "football": "足球",
+            "tennis": "网球"
+        ]
+        return mapping[type] ?? type
+    }
+    
+    private func formatTimeAgo(_ date: Date) -> String {
+        let hours = Int(-date.timeIntervalSinceNow / 3600)
+        if hours < 24 {
+            return "昨天"
+        } else if hours < 48 {
+            return "前天"
+        } else {
+            return "\(hours / 24)天前"
+        }
+    }
+    
+    private func formatDuration(_ minutes: Double) -> String {
+        let hours = Int(minutes / 60)
+        let mins = Int(minutes.truncatingRemainder(dividingBy: 60))
+        if hours > 0 {
+            return "\(hours)小时\(mins)分钟"
+        } else {
+            return "\(mins)分钟"
+        }
+    }
+}
+```
+
+### 11.5 日报洞察生成器
+
+```swift
+// MARK: - 日报洞察生成器
+
+class DailyInsightGenerator {
+    
+    private let causalAnalyzer: CausalAnalyzer
+    private let narrativeGenerator: InsightNarrativeGenerator
+    private let dataStore: LocalDataStore
+    
+    /// 生成今日洞察摘要
+    func generateDailyInsights() -> DailyInsightSummary {
+        
+        // 1. 获取今日和昨日数据
+        let today = Date()
+        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: today)!
+        
+        guard let todayMetrics = dataStore.getDailyMetrics(for: today),
+              let yesterdayData = dataStore.getDailyData(for: yesterday) else {
+            return createEmptyDaySummary()
+        }
+        
+        var allInsights: [InsightItem] = []
+        
+        // 2. 活动影响分析
+        let activityInsights = causalAnalyzer.analyzeActivityImpact(
+            todayMetrics: todayMetrics,
+            yesterdayActivities: yesterdayData.activities
+        )
+        allInsights.append(contentsOf: activityInsights)
+        
+        // 3. 生活方式影响分析
+        let lifestyleInsights = causalAnalyzer.analyzeLifestyleImpact(
+            todayMetrics: todayMetrics,
+            yesterdayJournal: yesterdayData.journal
+        )
+        allInsights.append(contentsOf: lifestyleInsights)
+        
+        // 4. 趋势分析
+        let last7Days = dataStore.getMetricsForLastDays(7)
+        let trendInsights = causalAnalyzer.analyzeTrend(last7DaysMetrics: last7Days)
+        allInsights.append(contentsOf: trendInsights)
+        
+        // 5. HRV状态洞察
+        if let hrvInsight = generateHRVInsight(todayMetrics: todayMetrics) {
+            allInsights.append(hrvInsight)
+        }
+        
+        // 6. 睡眠洞察
+        if let sleepInsight = generateSleepInsight(sleep: todayMetrics.sleep) {
+            allInsights.append(sleepInsight)
+        }
+        
+        // 7. 排序和筛选
+        allInsights.sort { $0.priority.rawValue < $1.priority.rawValue }
+        let topInsights = Array(allInsights.prefix(5)) // 最多显示5条
+        
+        // 8. 生成总体状态
+        let (status, emoji) = determineOverallStatus(
+            readinessScore: todayMetrics.readinessScore,
+            insights: topInsights
+        )
+        
+        // 9. 生成一句话总结
+        let oneLiner = narrativeGenerator.generateDailyOneLiner(
+            readinessScore: todayMetrics.readinessScore ?? 50,
+            hrvStatus: todayMetrics.hrvStatus,
+            sleepQuality: todayMetrics.sleepQuality,
+            topConcern: topInsights.first?.headline
+        )
+        
+        return DailyInsightSummary(
+            date: today,
+            overallStatus: status,
+            statusEmoji: emoji,
+            oneLiner: oneLiner,
+            insights: topInsights,
+            topRecommendation: topInsights.first?.recommendation
+        )
+    }
+    
+    // MARK: - 各类洞察生成
+    
+    private func generateHRVInsight(todayMetrics: DailyMetrics) -> InsightItem? {
+        guard let hrv = todayMetrics.hrvRMSSD,
+              let baseline = dataStore.getBaseline() else { return nil }
+        
+        let zScore = (hrv - baseline.hrvRMSSDMean) / baseline.hrvRMSSDStd
+        
+        // 只有显著变化才生成洞察
+        guard abs(zScore) >= 0.5 else { return nil }
+        
+        let narrative = narrativeGenerator.generateHRVTrendNarrative(
+            currentHRV: hrv,
+            baselineHRV: baseline.hrvRMSSDMean,
+            zScore: zScore,
+            trend3Day: todayMetrics.hrvTrend3Day,
+            trend7Day: todayMetrics.hrvTrend7Day
+        )
+        
+        let type: InsightType = zScore > 0 ? .hrvImproved : .hrvDecline
+        let priority: InsightPriority = abs(zScore) >= 1.5 ? .high : .medium
+        
+        return InsightItem(
+            id: UUID().uuidString,
+            type: type,
+            priority: priority,
+            timestamp: Date(),
+            causes: [],
+            effects: [MetricChange(
+                metric: "hrv_rmssd",
+                metricLabel: "HRV",
+                previousValue: baseline.hrvRMSSDMean,
+                currentValue: hrv,
+                baselineValue: baseline.hrvRMSSDMean,
+                changePercent: ((hrv - baseline.hrvRMSSDMean) / baseline.hrvRMSSDMean) * 100,
+                changeDirection: zScore > 0 ? "up" : "down",
+                significance: abs(zScore) >= 1.5 ? "significant" : "moderate"
+            )],
+            correlationStrength: 1.0,
+            headline: zScore > 0 ? "HRV状态良好" : "HRV下降提醒",
+            narrative: narrative,
+            recommendation: zScore < -1.0 ? "建议今天以恢复性活动为主，保证充足睡眠。" : nil,
+            tags: ["hrv", "recovery"],
+            expiresAt: nil,
+            isRead: false,
+            userFeedback: nil
+        )
+    }
+    
+    private func generateSleepInsight(sleep: SleepMetrics) -> InsightItem? {
+        guard let baseline = dataStore.getBaseline() else { return nil }
+        
+        let narrative = narrativeGenerator.generateSleepInsightNarrative(
+            sleep: sleep,
+            baseline: baseline
+        )
+        
+        // 判断是否需要生成洞察
+        let efficiencyDrop = (baseline.sleepEfficiencyMean - sleep.efficiency) / baseline.sleepEfficiencyMean
+        let durationDrop = (baseline.sleepDurationMean - Double(sleep.totalMinutes)) / baseline.sleepDurationMean
+        
+        guard efficiencyDrop >= 0.05 || durationDrop >= 0.1 else {
+            // 如果睡眠很好，也生成正面洞察
+            if sleep.efficiency >= 0.90 && Double(sleep.totalMinutes) >= baseline.sleepDurationMean {
+                return InsightItem(
+                    id: UUID().uuidString,
+                    type: .sleepQualityImproved,
+                    priority: .low,
+                    timestamp: Date(),
+                    causes: [],
+                    effects: [],
+                    correlationStrength: 1.0,
+                    headline: "睡眠质量优秀",
+                    narrative: narrative,
+                    recommendation: nil,
+                    tags: ["sleep", "positive"],
+                    expiresAt: nil,
+                    isRead: false,
+                    userFeedback: nil
+                )
+            }
+            return nil
+        }
+        
+        return InsightItem(
+            id: UUID().uuidString,
+            type: .sleepQualityDrop,
+            priority: efficiencyDrop >= 0.1 ? .high : .medium,
+            timestamp: Date(),
+            causes: [],
+            effects: [],
+            correlationStrength: 1.0,
+            headline: "睡眠质量下降",
+            narrative: narrative,
+            recommendation: "建议检查睡眠环境，保持固定作息时间。",
+            tags: ["sleep", "recovery"],
+            expiresAt: nil,
+            isRead: false,
+            userFeedback: nil
+        )
+    }
+    
+    private func determineOverallStatus(
+        readinessScore: Double?,
+        insights: [InsightItem]
+    ) -> (status: String, emoji: String) {
+        
+        let score = readinessScore ?? 50
+        let hasCritical = insights.contains { $0.priority == .critical }
+        let hasHigh = insights.contains { $0.priority == .high }
+        
+        if hasCritical || score < 30 {
+            return ("warning", "🔴")
+        } else if hasHigh || score < 50 {
+            return ("attention", "🟠")
+        } else if score < 70 {
+            return ("good", "🟡")
+        } else {
+            return ("optimal", "🟢")
+        }
+    }
+}
+```
+
+### 11.6 洞察UI展示示例
+
+```swift
+// MARK: - SwiftUI 洞察卡片
+
+struct InsightCardView: View {
+    let insight: InsightItem
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // 标题行
+            HStack {
+                priorityBadge
+                Text(insight.headline)
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                Spacer()
+                Text(timeAgo)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            // 主文案 (自然语言)
+            Text(insight.narrative)
+                .font(.body)
+                .foregroundColor(.primary)
+                .lineSpacing(4)
+            
+            // 因果关联 (如果有)
+            if !insight.causes.isEmpty {
+                HStack(spacing: 8) {
+                    ForEach(insight.causes, id: \.factor) { cause in
+                        CauseBadge(cause: cause)
+                    }
+                    Image(systemName: "arrow.right")
+                        .foregroundColor(.secondary)
+                    ForEach(insight.effects, id: \.metric) { effect in
+                        EffectBadge(effect: effect)
+                    }
+                }
+                .font(.caption)
+            }
+            
+            // 建议 (如果有)
+            if let recommendation = insight.recommendation {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "lightbulb.fill")
+                        .foregroundColor(.yellow)
+                    Text(recommendation)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.top, 4)
+            }
+        }
+        .padding()
+        .background(cardBackground)
+        .cornerRadius(16)
+    }
+    
+    private var priorityBadge: some View {
+        let (color, icon) = priorityStyle
+        return Image(systemName: icon)
+            .foregroundColor(color)
+    }
+    
+    private var priorityStyle: (Color, String) {
+        switch insight.priority {
+        case .critical: return (.red, "exclamationmark.triangle.fill")
+        case .high: return (.orange, "exclamationmark.circle.fill")
+        case .medium: return (.yellow, "info.circle.fill")
+        case .low: return (.green, "checkmark.circle.fill")
+        }
+    }
+    
+    private var cardBackground: Color {
+        switch insight.priority {
+        case .critical: return Color.red.opacity(0.1)
+        case .high: return Color.orange.opacity(0.1)
+        default: return Color(.systemBackground)
+        }
+    }
+    
+    private var timeAgo: String {
+        // 简化时间显示
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .short
+        return formatter.localizedString(for: insight.timestamp, relativeTo: Date())
+    }
+}
+
+struct CauseBadge: View {
+    let cause: CausalEvidence
+    
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: iconForFactor(cause.factor))
+            Text(cause.factorLabel)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Color.blue.opacity(0.15))
+        .cornerRadius(8)
+    }
+    
+    private func iconForFactor(_ factor: String) -> String {
+        switch factor {
+        case "basketball": return "basketball"
+        case "running": return "figure.run"
+        case "alcohol": return "wineglass"
+        case "late_caffeine": return "cup.and.saucer"
+        case "screen_before_bed": return "iphone"
+        default: return "circle.fill"
+        }
+    }
+}
+
+struct EffectBadge: View {
+    let effect: MetricChange
+    
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: effect.changeDirection == "down" ? "arrow.down" : "arrow.up")
+            Text("\(effect.metricLabel) \(String(format: "%.0f", abs(effect.changePercent)))%")
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(effect.changeDirection == "down" ? Color.red.opacity(0.15) : Color.green.opacity(0.15))
+        .cornerRadius(8)
+    }
+}
+
+// MARK: - 日报洞察页面
+
+struct DailyInsightsView: View {
+    @StateObject private var viewModel = DailyInsightsViewModel()
+    
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                // 顶部状态卡片
+                StatusHeaderCard(summary: viewModel.summary)
+                
+                // 一句话总结
+                Text(viewModel.summary.oneLiner)
+                    .font(.title3)
+                    .fontWeight(.medium)
+                    .padding(.horizontal)
+                
+                // 洞察列表
+                ForEach(viewModel.summary.insights) { insight in
+                    InsightCardView(insight: insight)
+                        .padding(.horizontal)
+                }
+                
+                // 如果没有洞察
+                if viewModel.summary.insights.isEmpty {
+                    EmptyInsightsView()
+                }
+            }
+            .padding(.vertical)
+        }
+        .navigationTitle("今日洞察")
+        .onAppear {
+            viewModel.loadInsights()
+        }
+    }
+}
+
+struct StatusHeaderCard: View {
+    let summary: DailyInsightSummary
+    
+    var body: some View {
+        HStack {
+            Text(summary.statusEmoji)
+                .font(.system(size: 48))
+            
+            VStack(alignment: .leading) {
+                Text(statusText)
+                    .font(.headline)
+                Text(Date(), style: .date)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+        }
+        .padding()
+        .background(statusBackgroundColor.opacity(0.2))
+        .cornerRadius(16)
+        .padding(.horizontal)
+    }
+    
+    private var statusText: String {
+        switch summary.overallStatus {
+        case "optimal": return "状态极佳"
+        case "good": return "状态良好"
+        case "attention": return "需要关注"
+        case "warning": return "注意休息"
+        default: return "数据收集中"
+        }
+    }
+    
+    private var statusBackgroundColor: Color {
+        switch summary.overallStatus {
+        case "optimal": return .green
+        case "good": return .yellow
+        case "attention": return .orange
+        case "warning": return .red
+        default: return .gray
+        }
+    }
+}
+```
+
+### 11.7 洞察触发规则汇总
+
+| 规则ID | 触发条件 | 洞察类型 | 优先级 | 文案示例 |
+|--------|---------|---------|--------|---------|
+| `ACT_HRV_01` | 昨日高强度活动 + 今日HRV下降≥10% | `activity_impact` | High | "昨天的篮球训练后，今天HRV较基线下降15%..." |
+| `ACT_HRV_02` | 昨日运动 + 今日HRV上升 | `recovery_optimal` | Low | "昨天的轻度跑步后恢复良好，HRV已回升至基线..." |
+| `LIFE_SLP_01` | 昨日饮酒 + 睡眠效率下降≥10% | `lifestyle_impact` | Medium | "昨晚的饮酒可能影响了睡眠质量..." |
+| `LIFE_SLP_02` | 睡前屏幕 + 入睡时间延迟 | `sleep_habit_impact` | Medium | "睡前使用屏幕可能延迟了入睡时间..." |
+| `TRD_HRV_01` | HRV连续3天下降 | `trend_warning` | High | "过去3天HRV持续走低，建议安排恢复日..." |
+| `TRD_SLP_01` | 睡眠效率连续下滑 | `trend_warning` | Medium | "睡眠效率已连续4天下降..." |
+| `LOAD_HIGH` | ACWR ≥ 1.3 | `training_load_high` | High | "训练负荷偏高，ACWR达到1.4..." |
+| `LOAD_LOW` | ACWR ≤ 0.6 持续3天 | `detraining` | Medium | "训练负荷过低，可能影响适应效果..." |
+| `CONF_01` | 主观疲劳高 + 客观指标正常 | `subjective_objective_conflict` | Medium | "虽然HRV正常，但主观感觉疲劳..." |
+| `REC_OPT` | Readiness ≥ 80 | `recovery_optimal` | Low | "恢复充分，今天适合挑战高强度！" |
+
+---
+
+## 十二、附录
+
+### 12.1 参考文档
 - 原 Python 代码: `Motivue-Backend/libs/`
 - SDK 头文件: `iOS-SDK1.0.45/phone/UTEBluetoothRYApi.framework/Headers/`
-- SDK数据优化计划: `iossdk/docs/SDK数据优化计划.md`
+- SDK数据优化计划: `docs/SDK数据优化计划.md`
 - Apple HealthKit 文档
 
-### 11.2 版本历史
+### 12.2 版本历史
 
 | 版本 | 日期 | 变更 |
 |-----|------|------|
 | 1.0 | 2025-12-10 | 初始版本 |
 | 1.1 | 2025-12-10 | 移除Apple Sleep Score，Journal不参与计算 |
 | 1.2 | 2025-12-10 | 整合SDK优化计划: 新增VO2max/恢复时间/PAI生理年龄指标; 新增device_recovery/training_effect CPT |
-| **1.3** | **2025-12-10** | **完整实现版**: 新增Swift完整数据模型定义; SDK睡眠解析逻辑; Core Data Schema; 生理年龄完整实现; 女性月经周期算法; iOS后台采集配置; 验证用例和单元测试; 个性化CPT云端同步API |
+| 1.3 | 2025-12-10 | 完整实现版: 新增Swift完整数据模型定义; SDK睡眠解析逻辑; Core Data Schema; 生理年龄完整实现; 女性月经周期算法; iOS后台采集配置; 验证用例和单元测试; 个性化CPT云端同步API |
+| **1.4** | **2025-12-10** | **新增洞察系统**: WHOOP风格因果关联洞察; 自然语言生成器; 日报洞察生成器; SwiftUI展示组件; 完整触发规则表 |
 
-### 11.3 联系方式
+### 12.3 联系方式
 - 技术负责人: [填写]
 - 文档维护: [填写]
 
