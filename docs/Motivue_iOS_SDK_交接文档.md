@@ -1595,10 +1595,71 @@ struct WeeklyReportPayload: Codable {
     
     // 用户基线
     let userBaseline: BaselineResult
+    
+    // 🆕 因果分析结果 (来自CausalEngine)
+    let causalAnalysis: CausalAnalysisResult?
 }
 ```
 
-### 7.2 周报 API 端点
+### 7.2 周报与因果引擎集成
+
+> **重要**: 周报提交前，应调用 `CausalEngine` 获取因果分析结果，一并上传给服务端。
+
+```swift
+class WeeklyReportService {
+    
+    private let causalEngine: CausalEngine
+    private let dataStore: LocalDataStore
+    
+    /// 准备周报数据 (包含因果分析)
+    func prepareWeeklyPayload(weekStart: Date, weekEnd: Date) -> WeeklyReportPayload {
+        
+        // 1. 获取本周数据
+        let weekData = dataStore.getDailyData(from: weekStart, to: weekEnd)
+        
+        // 2. 🆕 调用统一因果引擎分析
+        let causalResult = causalEngine.analyze(data: weekData, period: .weekly)
+        
+        // 3. 打包上传
+        return WeeklyReportPayload(
+            userId: currentUserId,
+            weekStartDate: weekStart.formatted(),
+            weekEndDate: weekEnd.formatted(),
+            dailyReadiness: weekData.map { $0.toReadinessRecord() },
+            sleepSummary: buildSleepSummary(weekData),
+            hrvSummary: buildHRVSummary(weekData),
+            trainingLoadSummary: buildTrainingSummary(weekData),
+            userBaseline: baselineManager.getCurrentBaseline(),
+            causalAnalysis: causalResult  // 🆕 因果分析结果
+        )
+    }
+}
+```
+
+**服务端处理流程：**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     周报生成流程                                 │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  iOS端:                                                         │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐         │
+│  │ 本地数据    │───▶│ CausalEngine│───▶│ 打包上传    │         │
+│  │ 7天DailyData│    │  .weekly    │    │ Payload     │         │
+│  └─────────────┘    └─────────────┘    └──────┬──────┘         │
+│                                               │                 │
+│  ───────────────────────────────────────────────────────────── │
+│                                               │ Network         │
+│  服务端:                                      ▼                 │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐         │
+│  │ 接收Payload │───▶│ LLM分析     │───▶│ 生成报告    │         │
+│  │ + causal    │    │ 结合因果    │    │ Markdown    │         │
+│  └─────────────┘    └─────────────┘    └─────────────┘         │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 7.3 周报 API 端点
 
 ```
 POST /api/v1/weekly-report/generate
@@ -2694,123 +2755,160 @@ class ReadinessEngineTests: XCTestCase {
 
 ---
 
-## 十一、洞察系统 (Insights Engine)
+## 十一、洞察与因果分析系统 (Unified Insights Engine)
 
-> 参考 WHOOP 风格的因果关联洞察，将用户行为与指标变化关联，用自然语言输出。
+> **核心设计原则**: 统一因果引擎 (CausalEngine) 作为单一入口，供日报洞察、周报分析、仪表盘图表共同调用。避免重复实现因果分析逻辑。
 
-### 11.1 洞察系统架构
+### 11.1 统一因果引擎架构
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        iOS 本地洞察系统                          │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐       │
-│  │  数据采集层   │───▶│  关联分析层   │───▶│  文案生成层   │       │
-│  └──────────────┘    └──────────────┘    └──────────────┘       │
-│         │                   │                   │                │
-│         ▼                   ▼                   ▼                │
-│  • SDK原始数据         • 因果推断           • 模板渲染           │
-│  • 用户行为记录        • 趋势检测           • 自然语言化          │
-│  • 历史基线           • 异常识别           • 多语言支持          │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼ (可选: 复杂问答/周报)
-┌─────────────────────────────────────────────────────────────────┐
-│                        云端 AI 服务                              │
-├─────────────────────────────────────────────────────────────────┤
-│  • AI教练对话 (GPT-4o/Claude)                                    │
-│  • 周报生成 (LangChain Pipeline)                                 │
-│  • 个性化洞察学习                                                │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         CausalEngine (统一因果引擎)                          │
+│                           ═══════════════════════                           │
+│                            单一入口，多场景复用                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│   输入: [DailyData] + PersonalBaseline + AnalysisPeriod                     │
+│                                                                              │
+│   ┌────────────────────────────────────────────────────────────────────┐    │
+│   │  Step 1: collectCauses()                                           │    │
+│   │    • 运动记录 (任意类型，不写死)                                    │    │
+│   │    • Journal字段 (通用扫描，新字段自动参与)                         │    │
+│   │    • SDK额外数据 (device_stress, mood等)                           │    │
+│   ├────────────────────────────────────────────────────────────────────┤    │
+│   │  Step 2: collectEffects()                                          │    │
+│   │    • HRV变化 (相对基线%)                                           │    │
+│   │    • 睡眠效率变化                                                   │    │
+│   │    • 睡眠时长变化                                                   │    │
+│   │    • 准备度分数                                                     │    │
+│   ├────────────────────────────────────────────────────────────────────┤    │
+│   │  Step 3: discoverCorrelations()                                    │    │
+│   │    • 分组: 有cause时的effect vs 无cause时的effect                  │    │
+│   │    • Cohen's d 显著性检验                                          │    │
+│   │    • 只输出 significance ≥ 0.5 的关联                              │    │
+│   └────────────────────────────────────────────────────────────────────┘    │
+│                                                                              │
+│   输出: CausalAnalysisResult                                                │
+│     • correlations: [DiscoveredCorrelation]                                 │
+│     • patterns: [DetectedPattern]                                           │
+│     • summary: StatsSummary                                                 │
+│                                                                              │
+└────────────────────────────────────┬────────────────────────────────────────┘
+                                     │
+         ┌───────────────────────────┼───────────────────────────┐
+         │                           │                           │
+         ▼                           ▼                           ▼
+┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐
+│  📱 日报洞察     │       │  📊 周报系统     │       │  📈 仪表盘图表  │
+│                 │       │                 │       │                 │
+│ engine.analyze( │       │ engine.analyze( │       │ 直接使用        │
+│   period: .daily│       │   period: .week │       │ correlations +  │
+│   data: 1-3天   │       │   data: 7天     │       │ trends 渲染     │
+│ )               │       │ )               │       │                 │
+│ + 小模型文案    │       │ → 云端LLM报告   │       │                 │
+└─────────────────┘       └─────────────────┘       └─────────────────┘
 ```
 
-### 11.2 洞察数据模型
+#### 设计优势
+
+| 特性 | 说明 |
+|------|------|
+| **单一入口** | 所有因果分析通过 `CausalEngine.analyze()` 调用 |
+| **零重复** | 日报/周报/图表共用同一套分析逻辑 |
+| **通用性** | 不写死字段，任何有值记录都参与分析 |
+| **可扩展** | Journal新增字段自动参与因果发现 |
+| **多周期** | 支持 daily(1-3天) / weekly(7天) / monthly(28天) |
+
+### 11.2 统一数据模型 (CausalEngine)
 
 ```swift
-// MARK: - 洞察数据模型
+// MARK: - 因果引擎核心数据模型
 
-/// 洞察类型枚举
-enum InsightType: String, Codable {
-    // 恢复相关
-    case hrvDecline = "hrv_decline"
-    case hrvImproved = "hrv_improved"
-    case sleepQualityDrop = "sleep_quality_drop"
-    case sleepQualityImproved = "sleep_quality_improved"
-    case recoveryLow = "recovery_low"
-    case recoveryOptimal = "recovery_optimal"
-    
-    // 训练相关
-    case trainingLoadHigh = "training_load_high"
-    case trainingLoadLow = "training_load_low"
-    case overreaching = "overreaching"
-    case detraining = "detraining"
-    
-    // 生活方式关联
-    case activityImpact = "activity_impact"
-    case lifestyleImpact = "lifestyle_impact"
-    case sleepHabitImpact = "sleep_habit_impact"
-    
-    // 趋势预警
-    case trendWarning = "trend_warning"
-    case trendPositive = "trend_positive"
-    
-    // 主客观冲突
-    case subjectiveObjectiveConflict = "subjective_objective_conflict"
+/// 分析周期
+enum AnalysisPeriod: String, Codable {
+    case daily = "daily"      // 1-3天，用于日报一句话洞察
+    case weekly = "weekly"    // 7天，用于周报
+    case monthly = "monthly"  // 28天，用于月度趋势
 }
 
-/// 洞察优先级
-enum InsightPriority: Int, Codable {
-    case critical = 1   // 需立即关注
-    case high = 2       // 重要提示
-    case medium = 3     // 一般建议
-    case low = 4        // 信息性
+// MARK: - 输入模型
+
+/// 因记录 (Cause)
+struct CauseRecord: Codable {
+    let category: String          // "activity", "journal", "sdk_extra"
+    let key: String               // 字段key (如 "running", "alcohol_consumed")
+    let label: String             // 显示名称 (如 "跑步", "饮酒")
+    let value: Double             // 量化值
+    let date: Date                // 发生日期
+    let daysAgo: Int              // 距今天数
+    let metadata: [String: Any]?  // 额外信息
 }
 
-/// 因果证据
-struct CausalEvidence: Codable {
-    let factor: String           // 因素名称 (如 "basketball", "alcohol")
-    let factorLabel: String      // 显示名称 (如 "打篮球", "饮酒")
-    let timestamp: Date          // 发生时间
-    let value: Double?           // 量化值 (如训练时长、饮酒量)
-    let source: String           // 数据来源 ("sdk", "manual", "journal")
+/// 果记录 (Effect)
+struct EffectRecord: Codable {
+    let key: String               // "hrv_change", "sleep_efficiency_change" 等
+    let value: Double             // 变化值 (百分比或绝对值)
+    let date: Date                // 发生日期
 }
 
-/// 指标变化
-struct MetricChange: Codable {
-    let metric: String           // 指标名称
-    let metricLabel: String      // 显示名称
-    let previousValue: Double    // 之前值
-    let currentValue: Double     // 当前值
-    let baselineValue: Double?   // 基线值
-    let changePercent: Double    // 变化百分比
-    let changeDirection: String  // "up", "down", "stable"
-    let significance: String     // "significant", "moderate", "minor"
+/// 发现的相关性 (核心输出)
+struct DiscoveredCorrelation: Codable {
+    let causeKey: String          // 因的key
+    let causeLabel: String        // 因的显示名称
+    let effectKey: String         // 果的key
+    let avgEffectWithCause: Double    // 有该因时的平均果值
+    let avgEffectWithoutCause: Double // 无该因时的平均果值
+    let difference: Double        // 差异
+    let significance: Double      // 显著性 (0-1, Cohen's d 归一化)
+    let sampleSize: Int           // 样本量
+    let isSignificant: Bool       // 是否显著 (>= 0.5)
 }
 
-/// 洞察项
+/// 检测到的模式
+struct DetectedPattern: Codable {
+    let patternType: String       // "consecutive_high_load", "sleep_debt", "weekend_effect"
+    let description: String       // 模式描述
+    let occurrences: Int          // 发生次数
+    let avgImpact: Double         // 平均影响
+}
+
+// MARK: - 输出模型
+
+/// 因果分析结果 (CausalEngine的统一输出)
+struct CausalAnalysisResult: Codable {
+    let period: AnalysisPeriod
+    let correlations: [DiscoveredCorrelation]  // 发现的相关性
+    let patterns: [DetectedPattern]            // 发现的模式
+    let summary: StatsSummary                  // 统计摘要
+    let generatedAt: Date
+}
+
+/// 统计摘要
+struct StatsSummary: Codable {
+    let totalCauses: Int          // 分析的因数量
+    let totalEffects: Int         // 分析的果数量
+    let significantCorrelations: Int // 显著相关性数量
+    let topCauseKey: String?      // 影响最大的因
+    let topEffectKey: String?     // 变化最明显的果
+}
+
+// MARK: - 洞察展示模型
+
+/// 洞察项 (用于UI展示)
 struct InsightItem: Codable, Identifiable {
     let id: String
-    let type: InsightType
-    let priority: InsightPriority
-    let timestamp: Date
-    
-    // 因果关联
-    let causes: [CausalEvidence]      // 可能的原因
-    let effects: [MetricChange]       // 观察到的效果
-    let correlationStrength: Double   // 关联强度 0-1
-    
-    // 输出文案
-    let headline: String              // 标题 (如 "HRV下降提醒")
-    let narrative: String             // 主文案 (自然语言描述)
-    let recommendation: String?       // 建议
-    
-    // 元数据
-    let tags: [String]
-    let expiresAt: Date?              // 过期时间
-    let isRead: Bool
-    let userFeedback: String?         // 用户反馈 ("helpful", "not_helpful")
+    let period: AnalysisPeriod
+    let correlation: DiscoveredCorrelation
+    let narrative: String         // 自然语言文案 (小模型生成)
+    let generatedAt: Date
+}
+
+/// 一句话洞察 (日报专用)
+struct OneLinerInsight: Codable {
+    let headline: String          // "📉 HRV下降提醒"
+    let body: String              // "昨天打篮球后，今天HRV下降了8%..."
+    let recommendation: String?   // "建议今天安排轻度恢复"
+    let priority: Int             // 1=高, 2=中, 3=低
 }
 
 /// 日报洞察汇总
@@ -2818,18 +2916,295 @@ struct DailyInsightSummary: Codable {
     let date: Date
     let overallStatus: String         // "optimal", "good", "attention", "warning"
     let statusEmoji: String           // "🟢", "🟡", "🟠", "🔴"
-    let oneLiner: String              // 一句话总结
-    let insights: [InsightItem]
-    let topRecommendation: String?
+    let oneLiner: OneLinerInsight?    // 主洞察
+    let insights: [InsightItem]       // 其他洞察
 }
 ```
 
-### 11.3 因果关联规则引擎
+### 11.3 CausalEngine 核心实现
+
+> **⚠️ 重要**: 以下是统一因果引擎的核心实现，取代了之前分散的规则引擎。所有因果分析都应通过 `CausalEngine.analyze()` 调用。
 
 ```swift
-// MARK: - 因果关联分析器
+// MARK: - CausalEngine (统一因果分析引擎)
 
-class CausalAnalyzer {
+class CausalEngine {
+    
+    private let baselineManager: PersonalBaselineManager
+    private let fieldLabelConfig: FieldLabelConfig
+    
+    init(baselineManager: PersonalBaselineManager) {
+        self.baselineManager = baselineManager
+        self.fieldLabelConfig = FieldLabelConfig.shared
+    }
+    
+    // MARK: - 公开接口 (唯一入口)
+    
+    /// 执行因果分析 - 日报/周报/仪表盘统一调用此方法
+    func analyze(data: [DailyData], period: AnalysisPeriod) -> CausalAnalysisResult {
+        
+        guard let baseline = baselineManager.getCurrentBaseline() else {
+            return CausalAnalysisResult.empty(period: period)
+        }
+        
+        // Step 1: 收集所有"因"
+        let causes = collectAllCauses(data: data)
+        
+        // Step 2: 收集所有"果"
+        let effects = collectAllEffects(data: data, baseline: baseline)
+        
+        // Step 3: 发现相关性
+        let correlations = discoverCorrelations(causes: causes, effects: effects)
+        
+        // Step 4: 检测模式
+        let patterns = detectPatterns(data: data, correlations: correlations)
+        
+        // Step 5: 构建摘要
+        let summary = buildSummary(
+            causes: causes,
+            effects: effects,
+            correlations: correlations
+        )
+        
+        return CausalAnalysisResult(
+            period: period,
+            correlations: correlations,
+            patterns: patterns,
+            summary: summary,
+            generatedAt: Date()
+        )
+    }
+    
+    // MARK: - Step 1: 收集所有因 (通用，不写死字段)
+    
+    private func collectAllCauses(data: [DailyData]) -> [CauseRecord] {
+        
+        var causes: [CauseRecord] = []
+        
+        for (dayIndex, day) in data.enumerated() {
+            let daysAgo = dayIndex + 1
+            
+            // === 运动记录 (任意类型) ===
+            for activity in day.activities {
+                causes.append(CauseRecord(
+                    category: "activity",
+                    key: activity.type,
+                    label: activity.type,
+                    value: activity.trainingLoad,
+                    date: day.date,
+                    daysAgo: daysAgo,
+                    metadata: [
+                        "duration": activity.duration,
+                        "intensity": activity.intensity
+                    ]
+                ))
+            }
+            
+            // === Journal记录 (通用扫描) ===
+            if let journal = day.journal {
+                causes.append(contentsOf: extractJournalCauses(journal: journal, daysAgo: daysAgo))
+            }
+            
+            // === SDK额外数据 ===
+            if let sdkExtras = day.sdkExtras {
+                causes.append(contentsOf: extractSDKCauses(extras: sdkExtras, date: day.date, daysAgo: daysAgo))
+            }
+        }
+        
+        return causes
+    }
+    
+    /// 通用Journal字段提取 - 自动扫描所有非空字段
+    private func extractJournalCauses(journal: JournalEntry, daysAgo: Int) -> [CauseRecord] {
+        
+        var causes: [CauseRecord] = []
+        let journalDict = journal.toDictionary()
+        
+        for (key, value) in journalDict {
+            // 跳过空值和元数据
+            guard !isEmptyValue(value), !isMetadataField(key) else { continue }
+            
+            causes.append(CauseRecord(
+                category: "journal",
+                key: key,
+                label: fieldLabelConfig.getLabel(for: key),
+                value: normalizeValue(value),
+                date: journal.date,
+                daysAgo: daysAgo,
+                metadata: ["raw_value": "\(value)"]
+            ))
+        }
+        
+        return causes
+    }
+    
+    // MARK: - Step 2: 收集所有果
+    
+    private func collectAllEffects(data: [DailyData], baseline: PersonalBaseline) -> [EffectRecord] {
+        
+        var effects: [EffectRecord] = []
+        
+        for day in data {
+            guard let metrics = day.metrics else { continue }
+            
+            // HRV变化 (相对基线%)
+            if let hrv = metrics.hrvRMSSD {
+                let change = ((hrv - baseline.hrvRMSSDMean) / baseline.hrvRMSSDMean) * 100
+                effects.append(EffectRecord(key: "hrv_change", value: change, date: day.date))
+            }
+            
+            // 睡眠效率变化
+            let sleepEffChange = ((metrics.sleep.efficiency - baseline.sleepEfficiencyMean) 
+                                  / baseline.sleepEfficiencyMean) * 100
+            effects.append(EffectRecord(key: "sleep_efficiency_change", value: sleepEffChange, date: day.date))
+            
+            // 睡眠时长变化
+            let durationChange = ((Double(metrics.sleep.totalMinutes) - baseline.sleepDurationMean) 
+                                  / baseline.sleepDurationMean) * 100
+            effects.append(EffectRecord(key: "sleep_duration_change", value: durationChange, date: day.date))
+            
+            // 准备度分数
+            if let readiness = metrics.readinessScore {
+                effects.append(EffectRecord(key: "readiness_score", value: readiness, date: day.date))
+            }
+        }
+        
+        return effects
+    }
+    
+    // MARK: - Step 3: 发现相关性 (Cohen's d 显著性检验)
+    
+    private func discoverCorrelations(
+        causes: [CauseRecord],
+        effects: [EffectRecord]
+    ) -> [DiscoveredCorrelation] {
+        
+        var correlations: [DiscoveredCorrelation] = []
+        
+        let causesByKey = Dictionary(grouping: causes) { $0.key }
+        let effectsByKey = Dictionary(grouping: effects) { $0.key }
+        
+        for (causeKey, causeRecords) in causesByKey {
+            let causeDates = Set(causeRecords.map { $0.date })
+            
+            for (effectKey, effectRecords) in effectsByKey {
+                
+                // 分组: 有cause时 vs 无cause时
+                var effectsWithCause: [Double] = []
+                var effectsWithoutCause: [Double] = []
+                
+                for effect in effectRecords {
+                    let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: effect.date)!
+                    let dayBefore = Calendar.current.date(byAdding: .day, value: -2, to: effect.date)!
+                    
+                    if causeDates.contains(yesterday) || causeDates.contains(dayBefore) {
+                        effectsWithCause.append(effect.value)
+                    } else {
+                        effectsWithoutCause.append(effect.value)
+                    }
+                }
+                
+                // 样本量检查
+                guard effectsWithCause.count >= 3, effectsWithoutCause.count >= 3 else { continue }
+                
+                // 计算差异
+                let avgWith = effectsWithCause.reduce(0, +) / Double(effectsWithCause.count)
+                let avgWithout = effectsWithoutCause.reduce(0, +) / Double(effectsWithoutCause.count)
+                let difference = avgWith - avgWithout
+                
+                // Cohen's d 显著性
+                let pooledStd = calculatePooledStd(effectsWithCause, effectsWithoutCause)
+                let effectSize = pooledStd > 0 ? abs(difference) / pooledStd : 0
+                let significance = min(effectSize / 0.8, 1.0)
+                
+                guard significance >= 0.3 else { continue }
+                
+                correlations.append(DiscoveredCorrelation(
+                    causeKey: causeKey,
+                    causeLabel: causeRecords.first?.label ?? causeKey,
+                    effectKey: effectKey,
+                    avgEffectWithCause: avgWith,
+                    avgEffectWithoutCause: avgWithout,
+                    difference: difference,
+                    significance: significance,
+                    sampleSize: effectsWithCause.count,
+                    isSignificant: significance >= 0.5
+                ))
+            }
+        }
+        
+        return correlations.sorted { $0.significance > $1.significance }
+    }
+    
+    // MARK: - Step 4: 模式检测
+    
+    private func detectPatterns(data: [DailyData], correlations: [DiscoveredCorrelation]) -> [DetectedPattern] {
+        
+        var patterns: [DetectedPattern] = []
+        
+        // 检测连续高负荷模式
+        if let highLoadPattern = detectConsecutiveHighLoad(data: data) {
+            patterns.append(highLoadPattern)
+        }
+        
+        // 检测睡眠债务模式
+        if let sleepDebtPattern = detectSleepDebt(data: data) {
+            patterns.append(sleepDebtPattern)
+        }
+        
+        // 检测周末效应
+        if let weekendPattern = detectWeekendEffect(data: data) {
+            patterns.append(weekendPattern)
+        }
+        
+        return patterns
+    }
+    
+    // MARK: - 辅助方法
+    
+    private func calculatePooledStd(_ a: [Double], _ b: [Double]) -> Double {
+        let n1 = Double(a.count)
+        let n2 = Double(b.count)
+        let mean1 = a.reduce(0, +) / n1
+        let mean2 = b.reduce(0, +) / n2
+        let var1 = a.map { pow($0 - mean1, 2) }.reduce(0, +) / n1
+        let var2 = b.map { pow($0 - mean2, 2) }.reduce(0, +) / n2
+        return sqrt((var1 + var2) / 2)
+    }
+    
+    private func isEmptyValue(_ value: Any) -> Bool {
+        if let b = value as? Bool { return !b }
+        if let s = value as? String { return s.isEmpty }
+        if let a = value as? [Any] { return a.isEmpty }
+        return false
+    }
+    
+    private func isMetadataField(_ key: String) -> Bool {
+        ["id", "date", "created_at", "updated_at", "user_id"].contains(key)
+    }
+    
+    private func normalizeValue(_ value: Any) -> Double {
+        if let d = value as? Double { return d }
+        if let i = value as? Int { return Double(i) }
+        if let b = value as? Bool { return b ? 1.0 : 0.0 }
+        return 1.0
+    }
+}
+```
+
+---
+
+> **📝 以下是旧版规则引擎代码 (已废弃，仅作参考)**
+> 
+> 新代码应使用上面的 `CausalEngine`，以下代码保留是为了帮助理解旧系统逻辑。
+
+<details>
+<summary>点击展开旧版规则引擎代码 (已废弃)</summary>
+
+```swift
+// MARK: - [已废弃] 旧版因果关联分析器
+
+class CausalAnalyzer_Legacy {
     
     private let dataStore: LocalDataStore
     private let baselineManager: PersonalBaselineManager
@@ -3699,9 +4074,351 @@ struct StatusHeaderCard: View {
 | `CONF_01` | 主观疲劳高 + 客观指标正常 | `subjective_objective_conflict` | Medium | "虽然HRV正常，但主观感觉疲劳..." |
 | `REC_OPT` | Readiness ≥ 80 | `recovery_optimal` | Low | "恢复充分，今天适合挑战高强度！" |
 
-### 11.8 通用因果发现系统
+</details>
 
-> **核心原则**: 不写死具体字段，任何运动记录、任何Journal字段都自动参与相关性分析。
+---
+
+### 11.4 洞察生成与展示
+
+> 基于 `CausalEngine` 的输出生成自然语言洞察。
+
+```swift
+// MARK: - 洞察生成器
+
+class InsightGenerator {
+    
+    private let causalEngine: CausalEngine
+    private let narrativeGen: NarrativeGenerator
+    
+    init(causalEngine: CausalEngine) {
+        self.causalEngine = causalEngine
+        self.narrativeGen = NarrativeGenerator()
+    }
+    
+    // MARK: - 日报一句话洞察 (最常用场景)
+    
+    /// 生成日报洞察 - 用于首页展示一句话
+    func generateDailyOneLiner(recentData: [DailyData]) -> OneLinerInsight? {
+        
+        // 调用统一因果引擎
+        let result = causalEngine.analyze(data: recentData, period: .daily)
+        
+        // 取最显著的相关性
+        guard let top = result.correlations.first(where: { $0.isSignificant }) else {
+            return nil
+        }
+        
+        // 生成文案
+        return narrativeGen.generateOneLiner(correlation: top)
+    }
+    
+    // MARK: - 周报洞察列表
+    
+    /// 生成周报洞察 - 返回多条供周报使用
+    func generateWeeklyInsights(weekData: [DailyData]) -> [InsightItem] {
+        
+        let result = causalEngine.analyze(data: weekData, period: .weekly)
+        
+        return result.correlations
+            .filter { $0.isSignificant }
+            .prefix(5)  // 最多5条
+            .map { correlation in
+                InsightItem(
+                    id: UUID().uuidString,
+                    period: .weekly,
+                    correlation: correlation,
+                    narrative: narrativeGen.generateNarrative(correlation: correlation),
+                    generatedAt: Date()
+                )
+            }
+    }
+}
+
+// MARK: - 自然语言生成器
+
+class NarrativeGenerator {
+    
+    private let localLLM: LocalLLMEngine?
+    
+    init() {
+        self.localLLM = try? LocalLLMEngine()
+    }
+    
+    /// 生成一句话洞察
+    func generateOneLiner(correlation: DiscoveredCorrelation) -> OneLinerInsight {
+        
+        // 确定方向
+        let direction = correlation.difference > 0 ? "上升" : "下降"
+        let absChange = abs(correlation.difference)
+        
+        // 优先使用小模型
+        if let llm = localLLM {
+            let prompt = buildPrompt(correlation: correlation)
+            let response = llm.generate(prompt: prompt, maxTokens: 100)
+            return parseOneLinerResponse(response, correlation: correlation)
+        }
+        
+        // 回退到模板
+        return OneLinerInsight(
+            headline: "📊 发现关联",
+            body: "你\(correlation.causeLabel)后，\(effectLabel(correlation.effectKey))平均\(direction)\(String(format: "%.1f", absChange))%。",
+            recommendation: generateRecommendation(correlation: correlation),
+            priority: correlation.significance >= 0.7 ? 1 : 2
+        )
+    }
+    
+    /// 生成完整文案 (周报用)
+    func generateNarrative(correlation: DiscoveredCorrelation) -> String {
+        
+        let direction = correlation.difference > 0 ? "上升" : "下降"
+        let absChange = abs(correlation.difference)
+        
+        return """
+        分析发现，当你\(correlation.causeLabel)时，次日\(effectLabel(correlation.effectKey))平均\(direction)\(String(format: "%.1f", absChange))%。\
+        这一关联基于\(correlation.sampleSize)次观察，统计显著性为\(String(format: "%.0f", correlation.significance * 100))%。
+        """
+    }
+    
+    private func effectLabel(_ key: String) -> String {
+        switch key {
+        case "hrv_change": return "HRV"
+        case "sleep_efficiency_change": return "睡眠效率"
+        case "sleep_duration_change": return "睡眠时长"
+        case "readiness_score": return "准备度"
+        default: return key
+        }
+    }
+    
+    private func generateRecommendation(correlation: DiscoveredCorrelation) -> String? {
+        if correlation.effectKey == "hrv_change" && correlation.difference < -5 {
+            return "建议今天安排轻度恢复活动"
+        }
+        if correlation.effectKey == "sleep_efficiency_change" && correlation.difference < -10 {
+            return "注意调整睡前习惯"
+        }
+        return nil
+    }
+}
+```
+
+#### 使用示例
+
+```swift
+// 任何需要洞察的地方
+class HomeViewController {
+    
+    let insightGenerator: InsightGenerator
+    
+    func loadDailyInsight() {
+        let recentData = dataStore.getRecentDays(count: 3)
+        
+        if let oneLiner = insightGenerator.generateDailyOneLiner(recentData: recentData) {
+            // 显示一句话洞察
+            insightLabel.text = oneLiner.body
+            recommendationLabel.text = oneLiner.recommendation
+        }
+    }
+}
+
+// 周报提交时
+class WeeklyReportService {
+    
+    let insightGenerator: InsightGenerator
+    
+    func prepareWeeklyReport(weekData: [DailyData]) -> WeeklyReportPayload {
+        
+        let insights = insightGenerator.generateWeeklyInsights(weekData: weekData)
+        
+        return WeeklyReportPayload(
+            // ... 其他数据 ...
+            causalInsights: insights
+        )
+    }
+}
+```
+
+---
+
+### 11.5 趋势图表展示规范
+
+> 适用于仪表盘和周报的趋势图表渲染。
+
+#### 图表类型枚举
+
+```swift
+enum ChartType: String, Codable {
+    case line = "line"                    // 折线图 (HRV, 睡眠时长, 准备度)
+    case bar = "bar"                      // 柱状图 (训练负荷AU)
+    case stackedBar = "stacked_bar"       // 堆叠柱状图 (睡眠结构)
+    case multiAxisLine = "multi_axis_line" // 双轴折线图 (准备度vs HRV)
+    case radar = "radar"                  // 雷达图 (Hooper主观评分)
+    case timeline = "timeline"            // 时间线 (生活方式事件)
+}
+```
+
+#### 图表数据规范
+
+```swift
+/// 通用图表数据结构
+struct ChartData: Codable {
+    let chartId: String               // 图表标识
+    let chartType: ChartType          // 图表类型
+    let title: String                 // 标题
+    let dates: [String]               // X轴日期 ["2025-12-01", ...]
+    let series: [ChartSeries]         // 数据系列
+    let baseline: [String: Double]?   // 基线值 (可选)
+    let thresholds: [String: ChartThreshold]? // 阈值/安全区间 (可选)
+    let notes: String?                // 图表说明
+}
+
+struct ChartSeries: Codable {
+    let name: String                  // 系列名称
+    let key: String                   // 数据key
+    let type: String                  // "line", "bar"
+    let data: [Double?]               // 数据点 (null表示缺失)
+    let yAxisIndex: Int?              // 双轴时指定Y轴
+    let smooth: Bool?                 // 是否平滑
+    let stack: String?                // 堆叠组名
+}
+
+struct ChartThreshold: Codable {
+    let low: Double?                  // 下限
+    let high: Double?                 // 上限
+}
+```
+
+#### 标准图表清单
+
+| 图表ID | 类型 | 数据来源 | 用途 | 渲染建议 |
+|--------|------|---------|------|---------|
+| `readiness_trend` | line | readiness_score | 准备度7天趋势 | 平滑曲线，参考区间70-100 |
+| `readiness_vs_hrv` | multiAxisLine | readiness + hrv_rmssd | 准备度与HRV对比 | 双Y轴，颜色区分 |
+| `hrv_trend` | line | hrv_rmssd | HRV 28天趋势 | 显示基线虚线 |
+| `sleep_duration` | line | sleep_duration_hours | 睡眠时长趋势 | 显示基线虚线 |
+| `sleep_structure` | stackedBar | deep/rem/light | 睡眠结构 | 堆叠显示三种睡眠阶段 |
+| `training_load` | bar | daily_au | 训练负荷 | 柱状图，过滤>2000异常值 |
+| `hooper_radar` | radar | hooper scores | 主观疲劳雷达 | 四维雷达图 |
+| `lifestyle_timeline` | timeline | lifestyle_events | 生活事件标注 | 时间线+标签 |
+
+#### SwiftUI 图表渲染示例
+
+```swift
+import Charts
+
+struct ReadinessTrendChart: View {
+    let chartData: ChartData
+    
+    var body: some View {
+        Chart {
+            ForEach(Array(chartData.dates.enumerated()), id: \.offset) { index, date in
+                if let value = chartData.series.first?.data[index] {
+                    LineMark(
+                        x: .value("日期", date),
+                        y: .value("准备度", value)
+                    )
+                    .interpolationMethod(.catmullRom) // 平滑曲线
+                    .foregroundStyle(.blue)
+                }
+            }
+            
+            // 参考区间
+            if let threshold = chartData.thresholds?["readiness_score"] {
+                RectangleMark(
+                    yStart: .value("", threshold.low ?? 70),
+                    yEnd: .value("", threshold.high ?? 100)
+                )
+                .foregroundStyle(.green.opacity(0.1))
+            }
+            
+            // 基线
+            if let baseline = chartData.baseline?["readiness_score"] {
+                RuleMark(y: .value("基线", baseline))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [5, 5]))
+                    .foregroundStyle(.gray)
+            }
+        }
+        .chartYScale(domain: 0...100)
+        .frame(height: 200)
+    }
+}
+
+// 双轴图表
+struct ReadinessHRVComboChart: View {
+    let chartData: ChartData
+    
+    var body: some View {
+        Chart {
+            // 准备度 (左Y轴)
+            ForEach(Array(chartData.dates.enumerated()), id: \.offset) { index, date in
+                if let series = chartData.series.first(where: { $0.key == "readiness_score" }),
+                   let value = series.data[index] {
+                    LineMark(
+                        x: .value("日期", date),
+                        y: .value("准备度", value)
+                    )
+                    .foregroundStyle(.blue)
+                }
+            }
+            
+            // HRV (右Y轴 - 需要归一化或使用双轴库)
+            ForEach(Array(chartData.dates.enumerated()), id: \.offset) { index, date in
+                if let series = chartData.series.first(where: { $0.key == "hrv_rmssd" }),
+                   let value = series.data[index] {
+                    LineMark(
+                        x: .value("日期", date),
+                        y: .value("HRV", value)
+                    )
+                    .foregroundStyle(.orange)
+                }
+            }
+        }
+        .chartLegend(position: .bottom)
+    }
+}
+```
+
+#### 图表构建器 (复用CausalEngine数据)
+
+```swift
+class ChartBuilder {
+    
+    /// 从CausalAnalysisResult构建相关性图表
+    static func buildCorrelationChart(
+        result: CausalAnalysisResult,
+        topN: Int = 5
+    ) -> ChartData {
+        
+        let topCorrelations = Array(result.correlations.prefix(topN))
+        
+        return ChartData(
+            chartId: "causal_correlations",
+            chartType: .bar,
+            title: "发现的因果关联",
+            dates: topCorrelations.map { $0.causeLabel },
+            series: [
+                ChartSeries(
+                    name: "影响强度",
+                    key: "significance",
+                    type: "bar",
+                    data: topCorrelations.map { $0.significance * 100 },
+                    yAxisIndex: nil,
+                    smooth: nil,
+                    stack: nil
+                )
+            ],
+            baseline: nil,
+            thresholds: ["significance": ChartThreshold(low: 50, high: nil)],
+            notes: "显著性≥50%的关联"
+        )
+    }
+}
+```
+
+---
+
+### 11.6 通用因果发现原则 (已整合到11.3)
+
+> ⚠️ **注意**: 以下内容已整合到 **11.3 CausalEngine 核心实现** 中，此处保留原设计文档供参考。
 
 #### 设计原则
 
