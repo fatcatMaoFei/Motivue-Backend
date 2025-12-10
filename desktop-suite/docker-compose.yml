@@ -1,0 +1,63 @@
+version: "3.9"
+
+services:
+  readiness:
+    build:
+      context: ".."
+      dockerfile: "infra/docker/Dockerfile.readiness"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: "sqlite:////data/local.db"
+      BASELINE_SERVICE_URL: "http://baseline:8001"
+      RABBITMQ_URL: "${RABBITMQ_URL:-}"
+    volumes:
+      - ./data:/data
+    ports:
+      - "8000:8000"
+    depends_on:
+      - baseline
+
+  baseline:
+    build:
+      context: ".."
+      dockerfile: "infra/docker/Dockerfile.baseline"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: "sqlite:////data/local.db"
+    volumes:
+      - ./data:/data
+    ports:
+      - "8001:8001"
+
+  physio_age:
+    build:
+      context: ".."
+      dockerfile: "infra/docker/Dockerfile.physio_age"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: "sqlite:////data/local.db"
+    volumes:
+      - ./data:/data
+    ports:
+      - "8002:8002"
+
+  weekly_report:
+    build:
+      context: ".."
+      dockerfile: "infra/docker/Dockerfile.weekly_report"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: "sqlite:////data/local.db"
+      GOOGLE_API_KEY: "${GOOGLE_API_KEY:-}"
+      READINESS_LLM_MODEL: "${READINESS_LLM_MODEL:-}"
+      READINESS_LLM_FALLBACK_MODELS: "${READINESS_LLM_FALLBACK_MODELS:-}"
+    volumes:
+      - ./data:/data
+    ports:
+      - "8003:8000"
+    depends_on:
+      - readiness

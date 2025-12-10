@@ -8,6 +8,7 @@ Maps numeric inputs to model enums when explicit enums are missing:
 Notes:
 - Duration uses personalized thresholds when baseline is provided.
 - Efficiency and restorative use fixed thresholds by default; personalization can be toggled via module flags.
+- 苹果睡眠评分 (apple_sleep_score) 已移除，只使用原始睡眠数据
 """
 
 from __future__ import annotations
@@ -24,45 +25,24 @@ EFFICIENCY_GOOD = 0.85
 EFFICIENCY_MED = 0.75
 RESTORATIVE_HIGH = 0.35
 RESTORATIVE_MED = 0.25
+
 def map_inputs_to_states(raw_inputs: Dict[str, Any]) -> Dict[str, Any]:
     """Map raw inputs to EMISSION_CPT variables.
 
     - Hooper (1..7) -> low/medium/high for subjective_* variables
     - Direct categorical passthrough for sleep/HRV/nutrition/GI/fatigue_3day_state
     - Direct booleans for journal keys (is_sick/is_injured/high_stress_event_today/meditation_done_today)
+    
+    注意：苹果睡眠评分已移除，只使用原始睡眠数据 (sleep_duration + sleep_efficiency)
     """
     mapped: Dict[str, Any] = {}
 
-    # ===== 苹果睡眠评分优先处理（仅当 iOS 版本 >= 26 时启用）=====
-    apple_sleep_score = raw_inputs.get('apple_sleep_score')
-    ios_version = raw_inputs.get('ios_version')
-    try:
-        ios_ver_int = int(ios_version) if ios_version is not None else None
-    except Exception:
-        ios_ver_int = None
-
-    if apple_sleep_score is not None and ios_ver_int is not None and ios_ver_int >= 26:
-        # 使用苹果原生睡眠评分，跳过传统的时长+效率计算
-        try:
-            score = float(apple_sleep_score)
-            if score >= 80:
-                mapped['apple_sleep_score'] = 'excellent'
-            elif score >= 70:
-                mapped['apple_sleep_score'] = 'good'
-            elif score >= 60:
-                mapped['apple_sleep_score'] = 'fair'
-            elif score >= 40:
-                mapped['apple_sleep_score'] = 'poor'
-            else:
-                mapped['apple_sleep_score'] = 'very_poor'
-            # 鏍囪浣跨敤浜嗚嫻鏋滆瘎鍒嗭紝璺宠繃浼犵粺鐫＄湢璁＄畻
-            mapped['_using_apple_sleep_score'] = True
-        except Exception:
-            pass
-            # Parsing failed; fallback to traditional mapping
-            pass
+    # ===== 苹果睡眠评分已移除，只使用原始睡眠数据 =====
+    # 不再使用 apple_sleep_score，统一使用传统的 sleep_duration + sleep_efficiency 计算
+    # -----------------------------------------------------------
+    
     # 1) Sleep performance: duration + efficiency (duration personalized; efficiency fixed by default)
-    if 'sleep_performance_state' not in raw_inputs and not mapped.get('_using_apple_sleep_score', False):
+    if 'sleep_performance_state' not in raw_inputs:
         if raw_inputs.get('sleep_duration_hours') is not None:
             try:
                 duration_hours = float(raw_inputs['sleep_duration_hours'])
@@ -73,6 +53,8 @@ def map_inputs_to_states(raw_inputs: Dict[str, Any]) -> Dict[str, Any]:
                 duration_hours = float(raw_inputs['total_sleep_minutes']) / 60.0
             except Exception:
                 duration_hours = None
+        else:
+            duration_hours = None
 
         eff = None
         if raw_inputs.get('sleep_efficiency') is not None:
@@ -153,7 +135,7 @@ def map_inputs_to_states(raw_inputs: Dict[str, Any]) -> Dict[str, Any]:
             else:
                 mapped['restorative_sleep'] = 'low'
 
-    # 3) HRV 瓒嬪娍 hrv_trend锛堜紭鍏堝熀绾?z 鍒嗘暟锛涚己澶卞熀绾挎椂閫€鍥?3/7 澶╃浉瀵瑰彉鍖栵級
+    # 3) HRV 趋势 hrv_trend（优先基线 z 分数；缺少基线时退回 3/7 天相对变化）
     if 'hrv_trend' not in raw_inputs and 'hrv_trend' not in mapped:
         today = None
         mu = None
@@ -212,9 +194,9 @@ def map_inputs_to_states(raw_inputs: Dict[str, Any]) -> Dict[str, Any]:
                 else:
                     mapped['hrv_trend'] = 'stable'
 
-    # --- HealthKit numeric 鈫?enum mapping (only if enum not already present) ---
+    # --- HealthKit numeric → enum mapping (only if enum not already present) ---
     # Sleep performance: duration (hours or minutes) + efficiency (0..1 or 0..100)
-    if 'sleep_performance_state' not in raw_inputs and not mapped.get('_using_apple_sleep_score', False) and 'sleep_performance' not in mapped:
+    if 'sleep_performance_state' not in raw_inputs and 'sleep_performance' not in mapped:
         duration_hours = None
         if raw_inputs.get('sleep_duration_hours') is not None:
             try:
@@ -261,10 +243,10 @@ def map_inputs_to_states(raw_inputs: Dict[str, Any]) -> Dict[str, Any]:
             except Exception:
                 rest_ratio = None
         if rest_ratio is not None:
-            # 绉戝鍖栫殑鎭㈠鎬х潯鐪犺瘎鍒ゆ爣鍑嗭紙鏃犲熀绾挎椂浣跨敤鍥哄畾闃堝€硷級
-            if rest_ratio >= RESTORATIVE_HIGH:  # 鎻愰珮high鏍囧噯浠?5%鍒?5%
+            # 科学化的恢复性睡眠评判标准（无基线时使用固定阈值）
+            if rest_ratio >= RESTORATIVE_HIGH:  # 提高high标准从35%到35%
                 mapped['restorative_sleep'] = 'high'
-            elif rest_ratio >= RESTORATIVE_MED:  # 鎻愰珮medium鏍囧噯浠?0%鍒?5%
+            elif rest_ratio >= RESTORATIVE_MED:  # 提高medium标准从20%到25%
                 mapped['restorative_sleep'] = 'medium'
             else:
                 mapped['restorative_sleep'] = 'low'
@@ -318,16 +300,10 @@ def map_inputs_to_states(raw_inputs: Dict[str, Any]) -> Dict[str, Any]:
                 'nutrition', 'gi_symptoms', 'fatigue_3day_state',
                 'device_recovery_state']:
         if key in raw_inputs and raw_inputs[key] is not None:
-            # If Apple sleep score is present, enforce either-or: drop traditional sleep_performance
-            if key == 'sleep_performance_state' and mapped.get('_using_apple_sleep_score', False):
-                continue
             mapped[key.replace('_state', '')] = raw_inputs[key]
 
-    # Enforce either-or at the end defensively: if Apple score is used, drop any sleep_performance that may have slipped in
-    if mapped.get('_using_apple_sleep_score', False):
-        mapped.pop('sleep_performance', None)
-
-    # Direct boolean journal evidence
+    # Direct boolean journal evidence (保留但不再参与准备度计算，仅用于记录)
+    # 注意：这些证据现在只做记录，不影响 readiness score
     for key in ['is_sick', 'is_injured', 'high_stress_event_today', 'meditation_done_today']:
         if key in raw_inputs and raw_inputs[key] is not None:
             mapped[key] = raw_inputs[key]

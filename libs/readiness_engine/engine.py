@@ -130,26 +130,26 @@ class ReadinessEngine:
         # 2) Traditional causal inputs (training load, streak penalty)
         prior = self._apply_traditional_causal_inputs(prior, causal_inputs)
 
-        # 3) Yesterday journal prior impacts (alcohol/screen/caffeine/late meal; sickness/injury; menstrual phase)
-        y_journal = self.journal_manager.get_yesterdays_journal(self.user_id, self.date)
-        if y_journal and any(y_journal.values()):
-            training_load = causal_inputs.get('training_load', '中')
-            # 昨日短期行为影响今日先验（酒精/咖啡因/屏幕/进食）
-            prior = self._apply_journal_prior_impacts(prior, y_journal, training_load)
-            # 持续状态（生病/受伤）按你的新规则：仅影响当日后验，不进入先验。
-            # 但会自动“继承”到今天的 journal（可手动取消后重新计算）。
-            carry = {}
-            persistent = y_journal.get('persistent_status', {})
-            if persistent.get('is_sick'):
-                carry['is_sick'] = True
-            if persistent.get('is_injured'):
-                carry['is_injured'] = True
-            if carry:
-                self.journal_manager.add_journal_entry(self.user_id, self.date, 'persistent_status', carry)
-
-        # 4) Auto-clear yesterday short-term flags
-        y_date = self.journal_manager._get_previous_date(self.date)
-        self.journal_manager.auto_clear_short_term_flags(self.user_id, y_date)
+        # 3) Journal 不再参与准备度计算 (类似WHOOP，仅做记录用途)
+        # 以下逻辑已移除：昨日短期行为（酒精/咖啡因/屏幕/进食）不再影响先验
+        # Journal 数据仅用于用户回顾查看，不影响 readiness score
+        # -----------------------------------------------------------
+        # 旧逻辑已注释:
+        # y_journal = self.journal_manager.get_yesterdays_journal(self.user_id, self.date)
+        # if y_journal and any(y_journal.values()):
+        #     training_load = causal_inputs.get('training_load', '中')
+        #     prior = self._apply_journal_prior_impacts(prior, y_journal, training_load)
+        #     carry = {}
+        #     persistent = y_journal.get('persistent_status', {})
+        #     if persistent.get('is_sick'):
+        #         carry['is_sick'] = True
+        #     if persistent.get('is_injured'):
+        #         carry['is_injured'] = True
+        #     if carry:
+        #         self.journal_manager.add_journal_entry(self.user_id, self.date, 'persistent_status', carry)
+        # y_date = self.journal_manager._get_previous_date(self.date)
+        # self.journal_manager.auto_clear_short_term_flags(self.user_id, y_date)
+        # -----------------------------------------------------------
 
         self.today_prior_probs = prior
         self.today_posterior_probs = dict(prior)
@@ -322,11 +322,17 @@ class ReadinessEngine:
         if not self.prior_calculated or self.today_prior_probs is None:
             raise RuntimeError('calculate_today_prior() must be called first')
 
-        # 先合并今日 Journal 证据（自动继承的 is_sick/is_injured 也在其中），随后让新证据覆盖它们（支持“取消”）。
-        today_ev = self.journal_manager.get_today_journal_evidence(self.user_id, self.date)
-        if today_ev:
-            for k, v in today_ev.items():
-                self.evidence_pool[k] = v
+        # Journal 不再参与准备度计算 (类似WHOOP，仅做记录用途)
+        # 以下逻辑已移除：Journal 证据 (is_sick/is_injured/high_stress_event_today/meditation_done_today) 不再影响后验
+        # -----------------------------------------------------------
+        # 旧逻辑已注释:
+        # today_ev = self.journal_manager.get_today_journal_evidence(self.user_id, self.date)
+        # if today_ev:
+        #     for k, v in today_ev.items():
+        #         self.evidence_pool[k] = v
+        # -----------------------------------------------------------
+        
+        # 只处理客观证据（睡眠、HRV、Hooper主观评分等）
         for k, v in new_evidence.items():
             if v is not None:
                 self.evidence_pool[k] = v

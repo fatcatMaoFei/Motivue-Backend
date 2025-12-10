@@ -1,0 +1,30 @@
+{
+  "package": {
+    "productName": "Motivue Desktop Suite",
+    "version": "0.1.0"
+  },
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devPath": "http://localhost:5173",
+    "distDir": "../dist"
+  },
+  "tauri": {
+    "bundle": {
+      "identifier": "com.motivue.desktop",
+      "icon": [],
+      "targets": "all"
+    },
+    "windows": [
+      {
+        "title": "Motivue",
+        "width": 1280,
+        "height": 800,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  }
+}
