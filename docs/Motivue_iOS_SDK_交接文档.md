@@ -3701,15 +3701,1184 @@ struct StatusHeaderCard: View {
 
 ---
 
-## 十二、附录
+## 十二、AI Coach 系统 (本地LLM + RAG)
 
-### 12.1 参考文档
+> 参考WHOOP Coach，实现本地AI教练功能。支持离线问答，结合用户数据+知识库进行个性化推理。
+
+### 12.1 系统架构概览
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           AI Coach 系统架构                                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                         iOS 本地层                                   │    │
+│  ├─────────────────────────────────────────────────────────────────────┤    │
+│  │                                                                      │    │
+│  │   ┌──────────────┐    ┌──────────────┐    ┌──────────────┐          │    │
+│  │   │  用户数据层   │    │   RAG引擎    │    │  本地LLM     │          │    │
+│  │   │              │    │              │    │              │          │    │
+│  │   │ • HRV历史    │    │ • 向量检索   │    │ • Phi-3-mini │          │    │
+│  │   │ • 睡眠记录   │───▶│ • 知识匹配   │───▶│ • Gemma 2B   │          │    │
+│  │   │ • 训练记录   │    │ • 上下文构建 │    │ • Llama 3.2  │          │    │
+│  │   │ • 洞察历史   │    │              │    │   (1B/3B)    │          │    │
+│  │   └──────────────┘    └──────────────┘    └──────────────┘          │    │
+│  │                              │                   │                  │    │
+│  │   ┌──────────────────────────┴───────────────────┴───────────┐      │    │
+│  │   │                    Prompt 组装器                          │      │    │
+│  │   │  [系统提示] + [用户数据摘要] + [RAG知识] + [用户问题]     │      │    │
+│  │   └──────────────────────────────────────────────────────────┘      │    │
+│  │                              │                                      │    │
+│  │                              ▼                                      │    │
+│  │                       响应生成 & 后处理                             │    │
+│  │                                                                      │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                      │                                      │
+│                                      │ (复杂问题/云端增强)                  │
+│                                      ▼                                      │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                         云端服务 (可选)                              │    │
+│  ├─────────────────────────────────────────────────────────────────────┤    │
+│  │  • GPT-4o / Claude 备选 (复杂问题)                                  │    │
+│  │  • 知识库更新推送 (论文/规则)                                       │    │
+│  │  • 调用次数限制管理                                                 │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 12.2 与WHOOP Coach对比
+
+| 维度 | WHOOP Coach | 我们的方案 | 优势 |
+|------|------------|-----------|------|
+| **模型** | 云端 GPT-4 | 本地小模型 + 云端备选 | 离线可用，成本低 |
+| **知识库** | OpenAI训练数据 | 本地RAG (论文/书籍) | 知识可控，可持续更新 |
+| **用户数据** | 云端处理 | 本地处理 | 隐私保护 |
+| **更新方式** | 依赖OpenAI | 我们主动推送 | 自主可控 |
+| **离线能力** | ❌ 需联网 | ✅ 支持离线 | 用户体验好 |
+| **成本** | 高 (API调用) | 低 (本地推理) | 可规模化 |
+
+### 12.3 核心推理流程
+
+用户问题 + 用户数据 + RAG知识 = 个性化回答
+
+```
+用户问: "今天适合高强度训练吗?"
+                ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                        Prompt 组装                               │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  [系统提示] 你是AI健康教练...                                    │
+│                                                                  │
+│  [用户数据] ← 从本地数据库实时读取                               │
+│  • 今日HRV: 48ms (基线62ms, 下降22%)                            │
+│  • 昨晚睡眠: 5.5小时，效率72%                                   │
+│  • 准备度: 45分                                                 │
+│  • 昨日训练: 篮球1.5小时                                        │
+│  • ACWR: 1.4 (偏高)                                             │
+│                                                                  │
+│  [RAG知识] ← 向量检索相关论文/书籍片段                           │
+│  • "HRV下降超过15%时,建议避免高强度训练" (ACSM 2023)            │
+│  • "ACWR>1.3时过度训练风险增加" (Gabbett 2016)                  │
+│  • "睡眠不足会降低运动表现和恢复能力" (睡眠科学)                │
+│                                                                  │
+│  [用户问题] 今天适合高强度训练吗?                                │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+                ↓
+┌─────────────────────────────────────────────────────────────────┐
+│  LLM推理输出 (结合数据+知识)                                     │
+│                                                                  │
+│  "根据你今天的状态，不建议进行高强度训练。                       │
+│                                                                  │
+│   原因：                                                         │
+│   1. HRV较基线下降22%，身体还在恢复中                           │
+│   2. 昨晚只睡了5.5小时，低于你平时的7小时                       │
+│   3. ACWR达到1.4，训练负荷已经偏高                              │
+│                                                                  │
+│   建议：今天以轻度恢复性活动为主，比如30分钟散步或瑜伽。         │
+│   好好休息一晚，明天状态应该会好转。"                           │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 12.4 本地LLM选型与集成
+
+#### 推荐模型
+
+| 模型 | 大小 | 特点 | iOS适配 |
+|------|------|------|---------|
+| **Phi-3-mini** | 3.8B | 微软出品，推理快，质量高 | ⭐ 首选 |
+| **Gemma 2B** | 2B | Google出品，轻量 | 低端设备备选 |
+| **Llama 3.2 1B/3B** | 1-3B | Meta最新，边缘设备优化 | 备选 |
+| **Qwen2 1.5B** | 1.5B | 阿里，中文友好 | 中文场景 |
+
+#### iOS运行方式
+
+```swift
+// MARK: - 本地LLM引擎 (基于llama.cpp)
+
+class LocalLLMEngine {
+    
+    private var llamaContext: OpaquePointer?  // llama.cpp上下文
+    private let modelPath: String
+    private let maxTokens: Int
+    private var isLoaded = false
+    
+    init(modelPath: String, maxTokens: Int = 512) {
+        self.modelPath = modelPath
+        self.maxTokens = maxTokens
+    }
+    
+    /// 加载模型 (App启动时异步调用)
+    func loadModel() async throws {
+        // 模型参数配置
+        var params = llama_model_default_params()
+        params.n_gpu_layers = 0  // iOS不使用GPU层
+        
+        // 加载GGUF格式模型
+        guard let model = llama_load_model_from_file(modelPath, params) else {
+            throw LLMError.modelLoadFailed
+        }
+        
+        // 创建上下文
+        var ctxParams = llama_context_default_params()
+        ctxParams.n_ctx = 4096       // 上下文长度
+        ctxParams.n_batch = 512      // 批处理大小
+        ctxParams.n_threads = 4      // CPU线程数
+        
+        llamaContext = llama_new_context_with_model(model, ctxParams)
+        isLoaded = true
+        
+        print("✅ 本地LLM加载完成，模型大小: \(getModelSize())MB")
+    }
+    
+    /// 生成回答
+    func generate(prompt: String) async throws -> String {
+        guard isLoaded, let ctx = llamaContext else {
+            throw LLMError.modelNotLoaded
+        }
+        
+        // 分词
+        let tokens = tokenize(prompt)
+        
+        // 推理生成
+        var output = ""
+        var generatedTokens = 0
+        
+        while generatedTokens < maxTokens {
+            // 获取下一个token
+            let nextToken = llama_sample_token(ctx, /* sampling params */)
+            
+            // 检查结束标记
+            if nextToken == llama_token_eos(ctx) {
+                break
+            }
+            
+            // 解码token为文本
+            let tokenText = decodeToken(nextToken)
+            output += tokenText
+            generatedTokens += 1
+        }
+        
+        return output.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    
+    /// 流式生成 (UI实时显示)
+    func generateStream(prompt: String) -> AsyncThrowingStream<String, Error> {
+        AsyncThrowingStream { continuation in
+            Task {
+                guard isLoaded else {
+                    continuation.finish(throwing: LLMError.modelNotLoaded)
+                    return
+                }
+                
+                let tokens = tokenize(prompt)
+                var generatedTokens = 0
+                
+                while generatedTokens < maxTokens {
+                    let nextToken = sampleNextToken()
+                    
+                    if isEndOfSequence(nextToken) {
+                        break
+                    }
+                    
+                    let tokenText = decodeToken(nextToken)
+                    continuation.yield(tokenText)
+                    generatedTokens += 1
+                }
+                
+                continuation.finish()
+            }
+        }
+    }
+    
+    // MARK: - 辅助方法
+    
+    private func tokenize(_ text: String) -> [Int32] {
+        // 使用llama.cpp的分词器
+        // ...
+        return []
+    }
+    
+    private func decodeToken(_ token: Int32) -> String {
+        // 将token解码为文本
+        // ...
+        return ""
+    }
+    
+    private func getModelSize() -> Int {
+        // 获取模型文件大小
+        let fileManager = FileManager.default
+        if let attrs = try? fileManager.attributesOfItem(atPath: modelPath),
+           let size = attrs[.size] as? Int {
+            return size / 1024 / 1024
+        }
+        return 0
+    }
+}
+
+enum LLMError: Error {
+    case modelLoadFailed
+    case modelNotLoaded
+    case generationFailed
+}
+```
+
+### 12.5 RAG知识库系统
+
+#### 知识库架构
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      RAG 知识库架构                              │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│   知识来源                          本地存储                     │
+│   ─────────                         ─────────                    │
+│                                                                  │
+│   ┌─────────────┐                  ┌─────────────────────────┐  │
+│   │ 科学论文     │   chunk+embed   │                         │  │
+│   │ • HRV研究   │────────────────▶│   SQLite + sqlite-vss   │  │
+│   │ • 睡眠科学  │                  │   (向量搜索扩展)        │  │
+│   │ • 训练理论  │                  │                         │  │
+│   │ • ACSM指南  │                  │   knowledge.db (~50MB)  │  │
+│   └─────────────┘                  │   • chunks表 (文本)     │  │
+│                                    │   • vectors表 (向量)    │  │
+│   ┌─────────────┐                  │                         │  │
+│   │ 专业书籍    │   chunk+embed   │                         │  │
+│   │ • 运动生理  │────────────────▶│                         │  │
+│   │ • 营养学    │                  └─────────────────────────┘  │
+│   │ • 睡眠科学  │                             │                 │
+│   └─────────────┘                             │                 │
+│                                               ▼                 │
+│   ┌─────────────┐                  ┌─────────────────────────┐  │
+│   │ 规则知识    │                  │     向量相似度检索       │  │
+│   │ • 训练原则  │───直接存储─────▶│     Top-K匹配           │  │
+│   │ • 恢复建议  │                  │     阈值过滤            │  │
+│   └─────────────┘                  └─────────────────────────┘  │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### 知识分类
+
+| 类别 | 内容示例 | 条目数 | 更新频率 |
+|------|---------|--------|---------|
+| **核心论文** | HRV与恢复关系、ACWR理论、睡眠阶段研究 | ~500条 | 季度 |
+| **指南标准** | ACSM运动指南、WHO睡眠建议 | ~100条 | 年度 |
+| **训练原则** | 周期化训练、超量恢复、减量策略 | ~150条 | 稳定 |
+| **营养知识** | 运动前后营养、睡眠营养、补剂建议 | ~200条 | 季度 |
+| **规则知识** | 阈值判断、状态映射、建议模板 | ~150条 | 按需 |
+| **最新研究** | 新发表论文摘要 | ~100条 | 月度 |
+
+#### RAG引擎实现
+
+```swift
+// MARK: - RAG检索引擎
+
+class RAGEngine {
+    
+    private let db: Connection           // SQLite连接
+    private let embedder: TextEmbedder   // 文本嵌入 (MiniLM)
+    
+    init(databasePath: String) throws {
+        db = try Connection(databasePath)
+        embedder = try TextEmbedder()
+        
+        // 加载sqlite-vss向量搜索扩展
+        try db.execute("SELECT load_extension('vss0')")
+    }
+    
+    /// 检索相关知识
+    func retrieve(query: String, topK: Int = 3, threshold: Float = 0.7) -> [KnowledgeChunk] {
+        
+        // 1. 将查询文本向量化
+        let queryVector = embedder.embed(query)
+        
+        // 2. 向量相似度搜索
+        let sql = """
+            SELECT c.id, c.content, c.source, c.category, v.distance
+            FROM knowledge_chunks c
+            JOIN knowledge_vectors v ON c.id = v.chunk_id
+            WHERE vss_search(v.embedding, ?)
+            ORDER BY v.distance ASC
+            LIMIT ?
+        """
+        
+        var results: [KnowledgeChunk] = []
+        
+        for row in try! db.prepare(sql, queryVector.data, topK) {
+            let distance = row[4] as! Float
+            
+            // 相似度阈值过滤
+            let similarity = 1.0 - distance
+            guard similarity >= threshold else { continue }
+            
+            results.append(KnowledgeChunk(
+                id: row[0] as! String,
+                content: row[1] as! String,
+                source: row[2] as! String,
+                category: row[3] as! String,
+                similarity: similarity
+            ))
+        }
+        
+        return results
+    }
+    
+    /// 格式化检索结果为Prompt上下文
+    func formatAsContext(_ chunks: [KnowledgeChunk]) -> String {
+        guard !chunks.isEmpty else {
+            return "暂无相关参考资料"
+        }
+        
+        var context = ""
+        for (index, chunk) in chunks.enumerated() {
+            context += """
+            
+            【参考\(index + 1)】\(chunk.source)
+            \(chunk.content)
+            
+            """
+        }
+        return context
+    }
+    
+    /// 添加新知识片段
+    func addChunk(_ chunk: KnowledgeChunk) throws {
+        // 1. 存储文本
+        try db.run("""
+            INSERT INTO knowledge_chunks (id, content, source, category)
+            VALUES (?, ?, ?, ?)
+        """, chunk.id, chunk.content, chunk.source, chunk.category)
+        
+        // 2. 生成并存储向量
+        let vector = embedder.embed(chunk.content)
+        try db.run("""
+            INSERT INTO knowledge_vectors (chunk_id, embedding)
+            VALUES (?, ?)
+        """, chunk.id, vector.data)
+    }
+}
+
+// MARK: - 知识片段模型
+
+struct KnowledgeChunk: Codable {
+    let id: String
+    let content: String          // 文本内容 (通常200-500字)
+    let source: String           // 来源 (论文标题/书名/章节)
+    let category: String         // 分类 (hrv/sleep/training/nutrition/rules)
+    var similarity: Float = 0    // 检索相似度
+}
+
+// MARK: - 文本嵌入模型 (MiniLM)
+
+class TextEmbedder {
+    
+    private let model: MLModel  // CoreML模型
+    
+    init() throws {
+        // 加载MiniLM CoreML模型 (384维向量)
+        let config = MLModelConfiguration()
+        config.computeUnits = .cpuOnly
+        model = try MiniLMEmbedder(configuration: config).model
+    }
+    
+    func embed(_ text: String) -> EmbeddingVector {
+        // 1. 分词
+        let tokens = tokenize(text)
+        
+        // 2. 模型推理
+        let input = try! MLMultiArray(shape: [1, 128], dataType: .int32)
+        for (i, token) in tokens.prefix(128).enumerated() {
+            input[i] = NSNumber(value: token)
+        }
+        
+        let output = try! model.prediction(from: MiniLMInput(input_ids: input))
+        
+        // 3. 提取向量 (384维)
+        return EmbeddingVector(data: output.embeddings)
+    }
+    
+    private func tokenize(_ text: String) -> [Int32] {
+        // 使用预训练的分词器
+        // ...
+        return []
+    }
+}
+
+struct EmbeddingVector {
+    let data: [Float]  // 384维向量
+}
+```
+
+### 12.6 用户数据上下文构建
+
+```swift
+// MARK: - 用户数据上下文生成器
+
+class UserContextBuilder {
+    
+    private let dataStore: LocalDataStore
+    
+    /// 构建用户数据摘要，注入到Prompt中
+    func buildUserContext() -> String {
+        
+        let today = Date()
+        let baseline = dataStore.getBaseline()
+        let todayMetrics = dataStore.getDailyMetrics(for: today)
+        let last7Days = dataStore.getMetricsForLastDays(7)
+        let recentInsights = dataStore.getRecentInsights(days: 3)
+        
+        var context = """
+        ## 用户当前状态
+        
+        ### 今日数据
+        - 准备度分数: \(formatOptional(todayMetrics?.readinessScore, format: "%.0f"))/100
+        - HRV (RMSSD): \(formatOptional(todayMetrics?.hrvRMSSD, format: "%.0f")) ms
+        - 静息心率: \(formatOptional(todayMetrics?.restingHR, format: "%.0f")) bpm
+        - 昨晚睡眠: \(formatSleep(todayMetrics?.sleep))
+        - 训练负荷(ACWR): \(formatOptional(todayMetrics?.acwr, format: "%.2f"))
+        
+        ### 个人基线 (过去30天平均)
+        - HRV基线: \(formatOptional(baseline?.hrvRMSSDMean, format: "%.0f")) ms
+        - 睡眠时长基线: \(formatOptional(baseline?.sleepDurationMean.map { $0 / 60 }, format: "%.1f")) 小时
+        - 睡眠效率基线: \(formatOptional(baseline?.sleepEfficiencyMean.map { $0 * 100 }, format: "%.0f"))%
+        
+        ### 近7天变化趋势
+        \(format7DayTrend(last7Days))
+        
+        ### 近期洞察记录
+        \(formatRecentInsights(recentInsights))
+        """
+        
+        // 添加用户档案信息
+        if let profile = dataStore.getUserProfile() {
+            context += """
+            
+            ### 用户档案
+            - 年龄: \(profile.age)岁
+            - 生理年龄: \(formatOptional(profile.physiologicalAge, format: "%.1f"))岁
+            - 运动目标: \(profile.fitnessGoal)
+            - 运动水平: \(profile.activityLevel)
+            """
+            
+            if profile.isFemale, let cycleDay = profile.menstrualCycleDay {
+                context += "\n- 月经周期: 第\(cycleDay)天"
+            }
+        }
+        
+        return context
+    }
+    
+    // MARK: - 格式化辅助
+    
+    private func formatOptional<T>(_ value: T?, format: String) -> String {
+        guard let v = value else { return "未知" }
+        if let d = v as? Double {
+            return String(format: format, d)
+        }
+        return "\(v)"
+    }
+    
+    private func formatSleep(_ sleep: SleepMetrics?) -> String {
+        guard let s = sleep else { return "无数据" }
+        let hours = String(format: "%.1f", Double(s.totalMinutes) / 60)
+        let efficiency = Int(s.efficiency * 100)
+        return "\(hours)小时，效率\(efficiency)%"
+    }
+    
+    private func format7DayTrend(_ metrics: [DailyMetrics]) -> String {
+        guard metrics.count >= 3 else { return "数据不足，无法分析趋势" }
+        
+        // 计算HRV趋势
+        let hrvValues = metrics.compactMap { $0.hrvRMSSD }
+        let hrvTrend = calculateTrendDirection(hrvValues)
+        
+        // 计算睡眠趋势
+        let sleepValues = metrics.map { Double($0.sleep.totalMinutes) }
+        let sleepTrend = calculateTrendDirection(sleepValues)
+        
+        return """
+        - HRV趋势: \(hrvTrend)
+        - 睡眠趋势: \(sleepTrend)
+        - 本周平均准备度: \(calculateAverage(metrics.compactMap { $0.readinessScore }))分
+        """
+    }
+    
+    private func calculateTrendDirection(_ values: [Double]) -> String {
+        guard values.count >= 3 else { return "数据不足" }
+        
+        let recent3 = Array(values.suffix(3))
+        let earlier3 = Array(values.prefix(3))
+        
+        let recentAvg = recent3.reduce(0, +) / Double(recent3.count)
+        let earlierAvg = earlier3.reduce(0, +) / Double(earlier3.count)
+        
+        let change = (recentAvg - earlierAvg) / earlierAvg * 100
+        
+        if change > 5 {
+            return "上升 (+\(String(format: "%.0f", change))%)"
+        } else if change < -5 {
+            return "下降 (\(String(format: "%.0f", change))%)"
+        } else {
+            return "稳定"
+        }
+    }
+}
+```
+
+### 12.7 Prompt模板设计
+
+```swift
+// MARK: - AI Coach Prompt模板
+
+struct AICoachPromptTemplate {
+    
+    /// 系统提示词
+    static let systemPrompt = """
+    你是Motivue AI健康教练，专注于运动恢复、睡眠优化和训练指导。
+
+    ## 你的能力
+    1. 基于用户的生理数据（HRV、睡眠、训练负荷）提供个性化建议
+    2. 解释数据背后的科学原理
+    3. 提供具体可行的行动建议
+    4. 回答运动科学、恢复、营养相关问题
+
+    ## 回答原则
+    1. 简洁明了，控制在200字以内
+    2. 必须结合用户当前数据给出针对性建议
+    3. 引用知识库内容时要准确
+    4. 承认不确定性，不做过度承诺
+    5. 涉及医疗问题建议咨询专业人士
+
+    ## 回答格式
+    - 先直接回答问题
+    - 再简要解释原因
+    - 最后给出1-2条具体建议
+    """
+    
+    /// 构建完整Prompt
+    static func buildPrompt(
+        userQuestion: String,
+        userContext: String,
+        ragContext: String
+    ) -> String {
+        
+        return """
+        \(systemPrompt)
+        
+        ---
+        
+        \(userContext)
+        
+        ---
+        
+        ## 相关知识参考
+        \(ragContext)
+        
+        ---
+        
+        ## 用户问题
+        \(userQuestion)
+        
+        请基于用户当前状态和相关知识，给出个性化的回答:
+        """
+    }
+}
+```
+
+### 12.8 知识库更新机制
+
+#### 本地与云端知识库关系
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              本地 vs 云端 知识库设计                             │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│   云端 (完整版)                    本地 (精简版)                 │
+│   ═══════════════                  ═══════════════               │
+│                                                                  │
+│   • 全部论文原文                   • 论文摘要+关键结论           │
+│   • 完整书籍内容                   • 书籍核心片段                │
+│   • 历史所有版本                   • 仅最新版本                  │
+│   • 多语言支持                     • 中文为主                    │
+│   • ~5GB                           • ~50-100MB                   │
+│                                                                  │
+│   用途:                            用途:                         │
+│   • 云端LLM复杂问题检索            • 本地LLM日常问答检索          │
+│   • 知识审核和管理                 • 离线使用                    │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### 更新流程
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    知识库更新流程                                │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│   云端知识管理后台                                               │
+│   ─────────────────                                              │
+│   1. 添加新论文/书籍                                             │
+│   2. 分块 (chunk) + 向量化 (embed)                               │
+│   3. 人工审核确认                                                │
+│   4. 打包生成增量更新包                                          │
+│   5. 发布新版本号                                                │
+│                                                                  │
+│                              │                                   │
+│                              ▼ API推送                           │
+│                                                                  │
+│   iOS客户端                                                      │
+│   ─────────                                                      │
+│   1. App启动时检查版本: GET /api/knowledge/version               │
+│   2. 版本不一致则下载增量包: GET /api/knowledge/updates?from=v1  │
+│   3. 后台解压并合并到本地SQLite                                  │
+│   4. 更新本地版本号                                              │
+│   5. 下次问答使用新知识                                          │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### 更新服务实现
+
+```swift
+// MARK: - 知识库更新服务
+
+class KnowledgeUpdateService {
+    
+    private let ragEngine: RAGEngine
+    private let apiClient: APIClient
+    private let currentVersionKey = "knowledge_version"
+    
+    /// 检查并更新知识库 (App启动/后台刷新时调用)
+    func checkAndUpdate() async {
+        do {
+            // 1. 获取当前本地版本
+            let currentVersion = UserDefaults.standard.string(forKey: currentVersionKey) ?? "0"
+            
+            // 2. 查询云端最新版本
+            let latestInfo = try await apiClient.request(
+                endpoint: "/api/knowledge/version",
+                method: .GET
+            ) as KnowledgeVersionResponse
+            
+            guard latestInfo.version != currentVersion else {
+                print("✅ 知识库已是最新版本: v\(currentVersion)")
+                return
+            }
+            
+            print("📦 发现新版本: v\(currentVersion) → v\(latestInfo.version)")
+            
+            // 3. 下载增量更新包
+            let updates = try await apiClient.request(
+                endpoint: "/api/knowledge/updates",
+                method: .GET,
+                params: ["from_version": currentVersion]
+            ) as KnowledgeUpdatesResponse
+            
+            // 4. 应用更新
+            var addedCount = 0
+            var updatedCount = 0
+            var deletedCount = 0
+            
+            for update in updates.updates {
+                switch update.action {
+                case "add":
+                    try ragEngine.addChunk(update.chunk)
+                    addedCount += 1
+                case "update":
+                    try ragEngine.updateChunk(update.chunk)
+                    updatedCount += 1
+                case "delete":
+                    try ragEngine.deleteChunk(id: update.chunkId)
+                    deletedCount += 1
+                default:
+                    break
+                }
+            }
+            
+            // 5. 保存新版本号
+            UserDefaults.standard.set(latestInfo.version, forKey: currentVersionKey)
+            
+            print("✅ 知识库更新完成: 新增\(addedCount)条, 更新\(updatedCount)条, 删除\(deletedCount)条")
+            
+        } catch {
+            print("⚠️ 知识库更新失败: \(error)")
+        }
+    }
+}
+
+// MARK: - API响应模型
+
+struct KnowledgeVersionResponse: Codable {
+    let version: String        // "2025.12.1"
+    let chunksCount: Int       // 1500
+    let lastUpdated: String    // "2025-12-10T10:00:00Z"
+}
+
+struct KnowledgeUpdatesResponse: Codable {
+    let fromVersion: String
+    let toVersion: String
+    let updates: [KnowledgeUpdate]
+}
+
+struct KnowledgeUpdate: Codable {
+    let action: String         // "add", "update", "delete"
+    let chunkId: String
+    let chunk: KnowledgeChunk?
+}
+```
+
+### 12.9 本地/云端路由策略
+
+```swift
+// MARK: - AI Coach 主服务
+
+class AICoachService {
+    
+    private let localLLM: LocalLLMEngine
+    private let ragEngine: RAGEngine
+    private let contextBuilder: UserContextBuilder
+    private let cloudService: CloudLLMService?
+    
+    private var isLocalReady = false
+    
+    // 云端调用次数限制
+    private let maxCloudCallsPerDay = 10
+    private var todayCloudCalls = 0
+    
+    // MARK: - 主问答接口
+    
+    func ask(_ question: String) async throws -> AICoachResponse {
+        
+        // 1. 构建用户上下文 (从本地数据库)
+        let userContext = contextBuilder.buildUserContext()
+        
+        // 2. RAG检索相关知识 (从本地知识库)
+        let relevantChunks = ragEngine.retrieve(query: question, topK: 3)
+        let ragContext = ragEngine.formatAsContext(relevantChunks)
+        
+        // 3. 组装完整Prompt
+        let prompt = AICoachPromptTemplate.buildPrompt(
+            userQuestion: question,
+            userContext: userContext,
+            ragContext: ragContext
+        )
+        
+        // 4. 决定使用本地还是云端
+        let routeDecision = decideRoute(question: question)
+        
+        let answer: String
+        let source: String
+        
+        switch routeDecision {
+        case .local:
+            answer = try await localLLM.generate(prompt: prompt)
+            source = "local"
+            
+        case .cloud:
+            guard let cloud = cloudService else {
+                throw AICoachError.cloudNotAvailable
+            }
+            guard todayCloudCalls < maxCloudCallsPerDay else {
+                throw AICoachError.cloudQuotaExceeded
+            }
+            
+            answer = try await cloud.generate(prompt: prompt)
+            source = "cloud"
+            todayCloudCalls += 1
+            
+        case .localWithCloudFallback:
+            do {
+                answer = try await localLLM.generate(prompt: prompt)
+                source = "local"
+            } catch {
+                // 本地失败，尝试云端
+                if let cloud = cloudService, todayCloudCalls < maxCloudCallsPerDay {
+                    answer = try await cloud.generate(prompt: prompt)
+                    source = "cloud"
+                    todayCloudCalls += 1
+                } else {
+                    throw error
+                }
+            }
+        }
+        
+        return AICoachResponse(
+            answer: postProcess(answer),
+            sources: relevantChunks.map { $0.source },
+            generatedBy: source,
+            remainingCloudCalls: maxCloudCallsPerDay - todayCloudCalls
+        )
+    }
+    
+    // MARK: - 路由决策
+    
+    enum RouteDecision {
+        case local                    // 本地处理
+        case cloud                    // 云端处理
+        case localWithCloudFallback   // 本地优先，失败走云端
+    }
+    
+    private func decideRoute(question: String) -> RouteDecision {
+        
+        // 1. 本地模型未就绪 → 云端
+        if !isLocalReady {
+            return .cloud
+        }
+        
+        // 2. 复杂问题标识 → 云端
+        let complexKeywords = ["为什么会这样", "详细解释", "深入分析", "对比", "长期", "原理是什么"]
+        let isComplex = complexKeywords.contains { question.contains($0) }
+        
+        // 3. 问题过长 → 云端 (可能需要更强推理)
+        let isTooLong = question.count > 150
+        
+        // 4. 用户主动要求 → 云端
+        let userWantsCloud = question.contains("用AI") || question.contains("详细")
+        
+        if isComplex || isTooLong || userWantsCloud {
+            // 检查配额
+            if todayCloudCalls < maxCloudCallsPerDay {
+                return .cloud
+            } else {
+                return .localWithCloudFallback
+            }
+        }
+        
+        // 5. 简单问题 → 本地
+        return .local
+    }
+    
+    private func postProcess(_ answer: String) -> String {
+        var result = answer
+        
+        // 移除特殊标记
+        result = result.replacingOccurrences(of: "<|endoftext|>", with: "")
+        result = result.replacingOccurrences(of: "</s>", with: "")
+        
+        // 截断过长回答
+        if result.count > 800 {
+            result = String(result.prefix(800)) + "..."
+        }
+        
+        return result.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
+// MARK: - 响应模型
+
+struct AICoachResponse {
+    let answer: String              // 回答内容
+    let sources: [String]           // 引用的知识来源
+    let generatedBy: String         // "local" 或 "cloud"
+    let remainingCloudCalls: Int    // 剩余云端调用次数
+}
+```
+
+### 12.10 云端API定义
+
+```swift
+// MARK: - 云端LLM服务
+
+class CloudLLMService {
+    
+    private let apiClient: APIClient
+    private let model: String
+    
+    init(model: String = "gpt-4o-mini") {
+        self.apiClient = APIClient()
+        self.model = model
+    }
+    
+    func generate(prompt: String) async throws -> String {
+        
+        let response = try await apiClient.request(
+            endpoint: "/api/ai/chat",
+            method: .POST,
+            body: CloudChatRequest(
+                model: model,
+                prompt: prompt,
+                maxTokens: 512,
+                temperature: 0.7
+            )
+        ) as CloudChatResponse
+        
+        return response.answer
+    }
+}
+
+// MARK: - 云端API模型
+
+struct CloudChatRequest: Codable {
+    let model: String
+    let prompt: String
+    let maxTokens: Int
+    let temperature: Double
+}
+
+struct CloudChatResponse: Codable {
+    let answer: String
+    let tokensUsed: Int
+    let model: String
+}
+```
+
+**云端API端点**:
+```
+POST /api/ai/chat
+Authorization: Bearer {user_token}
+
+Request:
+{
+    "model": "gpt-4o-mini",
+    "prompt": "...",
+    "max_tokens": 512,
+    "temperature": 0.7
+}
+
+Response:
+{
+    "answer": "根据你的数据...",
+    "tokens_used": 245,
+    "model": "gpt-4o-mini"
+}
+```
+
+### 12.11 UI集成
+
+```swift
+// MARK: - AI Coach 聊天界面
+
+struct AICoachChatView: View {
+    
+    @StateObject private var viewModel = AICoachViewModel()
+    @State private var inputText = ""
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // 消息列表
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 16) {
+                        // 欢迎消息
+                        WelcomeMessage()
+                        
+                        // 对话历史
+                        ForEach(viewModel.messages) { message in
+                            MessageBubble(message: message)
+                                .id(message.id)
+                        }
+                        
+                        // 正在生成
+                        if viewModel.isGenerating {
+                            TypingIndicator()
+                                .id("typing")
+                        }
+                    }
+                    .padding()
+                }
+                .onChange(of: viewModel.messages.count) { _ in
+                    withAnimation {
+                        proxy.scrollTo(viewModel.messages.last?.id ?? "typing", anchor: .bottom)
+                    }
+                }
+            }
+            
+            Divider()
+            
+            // 快捷问题
+            QuickQuestionsBar(
+                questions: [
+                    "今天适合怎么练？",
+                    "我的HRV怎么样？",
+                    "如何改善睡眠？",
+                    "为什么我这么累？"
+                ],
+                onSelect: { viewModel.send($0) }
+            )
+            
+            // 剩余云端次数提示
+            if viewModel.remainingCloudCalls <= 3 {
+                HStack {
+                    Image(systemName: "cloud")
+                    Text("今日剩余\(viewModel.remainingCloudCalls)次深度分析")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.vertical, 4)
+            }
+            
+            // 输入区域
+            HStack(spacing: 12) {
+                TextField("问问AI教练...", text: $inputText)
+                    .textFieldStyle(.roundedBorder)
+                    .onSubmit { sendMessage() }
+                
+                Button(action: sendMessage) {
+                    Image(systemName: "paperplane.fill")
+                        .foregroundColor(inputText.isEmpty ? .gray : .accentColor)
+                }
+                .disabled(inputText.isEmpty || viewModel.isGenerating)
+            }
+            .padding()
+        }
+        .navigationTitle("AI教练")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+    
+    private func sendMessage() {
+        guard !inputText.isEmpty else { return }
+        viewModel.send(inputText)
+        inputText = ""
+    }
+}
+
+// MARK: - 消息气泡
+
+struct MessageBubble: View {
+    let message: ChatMessage
+    
+    var body: some View {
+        HStack {
+            if message.isUser { Spacer() }
+            
+            VStack(alignment: message.isUser ? .trailing : .leading, spacing: 4) {
+                Text(message.content)
+                    .padding(12)
+                    .background(message.isUser ? Color.accentColor : Color(.systemGray6))
+                    .foregroundColor(message.isUser ? .white : .primary)
+                    .cornerRadius(16)
+                
+                // 来源标识
+                if !message.isUser {
+                    HStack(spacing: 4) {
+                        Image(systemName: message.source == "cloud" ? "cloud" : "iphone")
+                            .font(.caption2)
+                        if !message.references.isEmpty {
+                            Text("参考: \(message.references.joined(separator: ", "))")
+                                .font(.caption2)
+                        }
+                    }
+                    .foregroundColor(.secondary)
+                }
+            }
+            
+            if !message.isUser { Spacer() }
+        }
+    }
+}
+
+// MARK: - ViewModel
+
+class AICoachViewModel: ObservableObject {
+    
+    @Published var messages: [ChatMessage] = []
+    @Published var isGenerating = false
+    @Published var remainingCloudCalls = 10
+    
+    private let aiCoach = AICoachService()
+    
+    func send(_ question: String) {
+        // 添加用户消息
+        messages.append(ChatMessage(
+            content: question,
+            isUser: true,
+            source: "user",
+            references: []
+        ))
+        
+        isGenerating = true
+        
+        Task {
+            do {
+                let response = try await aiCoach.ask(question)
+                
+                await MainActor.run {
+                    messages.append(ChatMessage(
+                        content: response.answer,
+                        isUser: false,
+                        source: response.generatedBy,
+                        references: response.sources
+                    ))
+                    remainingCloudCalls = response.remainingCloudCalls
+                    isGenerating = false
+                }
+            } catch {
+                await MainActor.run {
+                    messages.append(ChatMessage(
+                        content: "抱歉，遇到了一些问题: \(error.localizedDescription)",
+                        isUser: false,
+                        source: "error",
+                        references: []
+                    ))
+                    isGenerating = false
+                }
+            }
+        }
+    }
+}
+
+struct ChatMessage: Identifiable {
+    let id = UUID()
+    let content: String
+    let isUser: Bool
+    let source: String        // "local", "cloud", "user", "error"
+    let references: [String]  // 引用的知识来源
+}
+```
+
+### 12.12 实现路线图
+
+| 阶段 | 任务 | 优先级 | 预估时间 |
+|------|------|--------|---------|
+| **P0** | 规则引擎洞察系统 | ✅ 已完成 | - |
+| **P1** | 本地LLM集成 (llama.cpp) | 高 | 2周 |
+| **P1** | RAG知识库搭建 (SQLite+向量) | 高 | 1周 |
+| **P1** | 用户数据上下文构建 | 高 | 3天 |
+| **P2** | 云端LLM备选接入 | 中 | 1周 |
+| **P2** | 知识库更新机制 | 中 | 1周 |
+| **P2** | 调用次数限制管理 | 中 | 2天 |
+| **P3** | UI优化 & 流式输出 | 低 | 1周 |
+| **P3** | 知识库内容填充 | 持续 | 持续 |
+
+---
+
+## 十三、附录
+
+### 13.1 参考文档
 - 原 Python 代码: `Motivue-Backend/libs/`
 - SDK 头文件: `iOS-SDK1.0.45/phone/UTEBluetoothRYApi.framework/Headers/`
 - SDK数据优化计划: `docs/SDK数据优化计划.md`
 - Apple HealthKit 文档
 
-### 12.2 版本历史
+### 13.2 版本历史
 
 | 版本 | 日期 | 变更 |
 |-----|------|------|
@@ -3717,9 +4886,10 @@ struct StatusHeaderCard: View {
 | 1.1 | 2025-12-10 | 移除Apple Sleep Score，Journal不参与计算 |
 | 1.2 | 2025-12-10 | 整合SDK优化计划: 新增VO2max/恢复时间/PAI生理年龄指标; 新增device_recovery/training_effect CPT |
 | 1.3 | 2025-12-10 | 完整实现版: 新增Swift完整数据模型定义; SDK睡眠解析逻辑; Core Data Schema; 生理年龄完整实现; 女性月经周期算法; iOS后台采集配置; 验证用例和单元测试; 个性化CPT云端同步API |
-| **1.4** | **2025-12-10** | **新增洞察系统**: WHOOP风格因果关联洞察; 自然语言生成器; 日报洞察生成器; SwiftUI展示组件; 完整触发规则表 |
+| 1.4 | 2025-12-10 | 新增洞察系统: WHOOP风格因果关联洞察; 自然语言生成器; 日报洞察生成器; SwiftUI展示组件; 完整触发规则表 |
+| **1.5** | **2025-12-10** | **新增AI Coach系统**: 本地LLM(Phi-3/Llama)+RAG架构; 用户数据+知识库联合推理; 云端备选+调用限制; 知识库更新机制; 完整SwiftUI聊天界面 |
 
-### 12.3 联系方式
+### 13.3 联系方式
 - 技术负责人: [填写]
 - 文档维护: [填写]
 
